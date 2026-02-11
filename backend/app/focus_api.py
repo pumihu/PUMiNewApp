@@ -3058,6 +3058,110 @@ async def generate_item_content(req: GenerateItemContentReq, request: Request):
 
 
 
+# --- Simple content generation (no plan required) ---
+
+class GenerateSimpleReq(BaseModel):
+    topic: str
+    task_type: str = "lesson"  # lesson, practice, quiz, flashcard, writing
+    lang: str = "hu"
+    domain: str = "general"
+    round_index: int = 0
+
+
+@router.post("/generate-simple")
+async def generate_simple_content(req: GenerateSimpleReq, request: Request):
+    """
+    Generate AI content for a simple focus session (no plan required).
+    Used by the frontend's quick focus timer feature.
+    Returns structured content based on topic and task type.
+    """
+    from .focus_content_generators import (
+        generate_lesson_content,
+        generate_practice_content,
+        generate_quiz_content,
+        generate_flashcard_content,
+        generate_writing_content,
+    )
+
+    topic = (req.topic or "").strip()
+    if not topic:
+        raise HTTPException(status_code=400, detail="Topic is required")
+
+    task_type = (req.task_type or "lesson").lower().strip()
+    lang = req.lang or "hu"
+    domain = req.domain or "general"
+
+    context = {
+        "day_title": topic,
+        "day_intro": f"Focus session: {topic}",
+        "round_index": req.round_index,
+    }
+
+    print(f"[generate-simple] topic={topic}, type={task_type}, lang={lang}")
+
+    try:
+        if task_type in ("lesson", "tananyag", "content", "theory"):
+            result = await generate_lesson_content(
+                topic=topic,
+                context=context,
+                domain=domain,
+                level="intermediate",
+                lang=lang,
+                mode="learning",
+            )
+        elif task_type in ("practice", "gyakorlas", "exercise"):
+            result = await generate_practice_content(
+                topic=topic,
+                context=context,
+                domain=domain,
+                practice_type="exercise",
+                lang=lang,
+                mode="learning",
+            )
+        elif task_type in ("quiz", "kviz"):
+            result = await generate_quiz_content(
+                topics=[topic],
+                context=context,
+                num_questions=5,
+                lang=lang,
+                domain=domain,
+                mode="learning",
+            )
+        elif task_type in ("flashcard", "cards", "szokartya"):
+            result = await generate_flashcard_content(
+                topic=topic,
+                context=context,
+                domain=domain,
+                num_cards=8,
+                lang=lang,
+                mode="learning",
+            )
+        elif task_type in ("writing", "iras"):
+            result = await generate_writing_content(
+                topic=topic,
+                context=context,
+                domain=domain,
+                lang=lang,
+                mode="learning",
+            )
+        else:
+            result = await generate_lesson_content(
+                topic=topic,
+                context=context,
+                domain=domain,
+                level="intermediate",
+                lang=lang,
+                mode="learning",
+            )
+
+        print(f"[generate-simple] Generated {result.get('type', 'unknown')} content")
+        return {"ok": True, "data": result}
+
+    except Exception as e:
+        print(f"[generate-simple] Error: {e}")
+        raise HTTPException(status_code=500, detail=f"Content generation failed: {str(e)}")
+
+
 # --- Backfill/Admin utilities ---
 
 class BackfillLessonsReq(BaseModel):

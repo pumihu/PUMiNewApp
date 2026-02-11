@@ -3,6 +3,7 @@
 
 import { pumiInvoke } from "./pumiInvoke";
 
+export type FocusMode = "learning" | "project";
 export type CreatePlanResp = { ok: boolean; plan_id: string; days_count: number };
 export type StartDayResp = { ok: boolean; plan_id: string; day: any; done?: boolean };
 export type CompleteItemResp = { ok: boolean; progress: any };
@@ -11,6 +12,27 @@ export type ResetResp = { ok: boolean; status: string };
 export type FocusStatsResp = { ok: boolean; streak: number; last_streak_date?: string | null };
 export type FocusActiveResp = { ok: boolean; plan?: any | null; day?: any | null; plan_id?: string | null };
 export type FocusGetDayResp = { ok: boolean; day: any; items: any[] };
+export type GenerateItemContentResp = { ok: boolean; item?: any; content?: any; error?: string };
+export type ChatResp = { ok: boolean; reply?: string; message?: string; error?: string };
+export type ValidateAnswerResp = { ok: boolean; correct?: boolean; feedback?: string; correct_answer?: string; suggestions?: string[] };
+export type GenerateSimpleResp = {
+  ok: boolean;
+  data?: {
+    type: string;
+    content?: {
+      title?: string;
+      summary?: string;
+      key_points?: string[];
+      example?: string;
+      micro_task?: { instruction?: string; expected_output?: string };
+      common_mistakes?: string[];
+      estimated_minutes?: number;
+    };
+    text?: string;
+    cards?: Array<{ front: string; back: string }>;
+  };
+  error?: string;
+};
 
 export type CreatePlanPayload = {
   title: string;
@@ -20,30 +42,139 @@ export type CreatePlanPayload = {
   level?: string;
   minutes_per_day?: number;
   lang?: string;
+  mode: FocusMode;
+  // Wizard settings that affect content generation
+  tone?: "casual" | "neutral" | "strict";
+  difficulty?: "easy" | "normal" | "hard";
+  pacing?: "small_steps" | "big_blocks";
+  // Force new plan creation (skip idempotency, archive old plan)
+  force_new?: boolean;
 };
 
 export const focusApi = {
   createPlan: (payload: CreatePlanPayload) => 
     pumiInvoke<CreatePlanResp>("/focus/create-plan", payload),
   
-  startDay: (payload: { plan_id: string }) => 
+  startDay: (payload: { plan_id: string; mode: FocusMode }) => 
     pumiInvoke<StartDayResp>("/focus/start-day", payload),
   
-  completeItem: (payload: any) => 
+  completeItem: (payload: { mode: FocusMode } & Record<string, any>) => 
     pumiInvoke<CompleteItemResp>("/focus/complete-item", payload),
   
-  completeDay: (payload: { plan_id: string; day_index: number }) =>
+  completeDay: (payload: { plan_id: string; day_index: number; mode: FocusMode }) =>
     pumiInvoke<CompleteDayResp>("/focus/complete-day", payload),
   
-  reset: (payload: { plan_id: string; mode: "archive" | "delete" }) => 
+  reset: (payload: { plan_id: string; reset_mode: "archive" | "delete"; mode: FocusMode }) => 
     pumiInvoke<ResetResp>("/focus/reset", payload),
   
-  stats: () => 
-    pumiInvoke<FocusStatsResp>("/focus/stats", {}, "GET"),
+  stats: (mode: FocusMode) => 
+    pumiInvoke<FocusStatsResp>("/focus/stats", { mode }, "GET"),
   
-  active: () => 
-    pumiInvoke<FocusActiveResp>("/focus/active", {}, "GET"),
+  active: (mode: FocusMode) => 
+    pumiInvoke<FocusActiveResp>("/focus/active", { mode }, "GET"),
   
-  getDay: (payload: { plan_id: string; day_index: number }) => 
+  getDay: (payload: { plan_id: string; day_index: number; mode: FocusMode }) => 
     pumiInvoke<FocusGetDayResp>("/focus/get-day", payload),
+
+  generateItemContent: async (payload: { item_id: string; topic?: string; label?: string; day_title?: string; user_goal?: string; mode: FocusMode }) => {
+    try {
+      return await pumiInvoke<GenerateItemContentResp>("/focus/generate-item-content", payload);
+    } catch (err) {
+      const status = (err as any)?.status;
+      const message = err instanceof Error ? err.message : String(err);
+      const isConflict = status === 409 || message.includes("409") || message.includes("Conflict");
+      if (isConflict) {
+        console.log("generate-item-content 409 → retry");
+        await new Promise(resolve => setTimeout(resolve, 400));
+        return await pumiInvoke<GenerateItemContentResp>("/focus/generate-item-content", {
+          ...payload,
+          force: true,
+        });
+      }
+      throw err;
+    }
+  },
+
+  // Roleplay chat - calls /chat/enhanced with mode=roleplay
+  chat: async (payload: {
+    message: string;
+    history?: Array<{ role: string; content: string }>;
+    lang?: string;
+    chatMode?: "chat" | "roleplay";
+  }): Promise<ChatResp> => {
+    try {
+      const resp = await pumiInvoke<{ reply?: string; message?: string; error?: string }>("/chat/enhanced", {
+        message: payload.message,
+        history: payload.history,
+        lang: payload.lang || "hu",
+        mode: payload.chatMode || "roleplay",
+      });
+      return { ok: true, reply: resp.reply || resp.message };
+    } catch (err) {
+      console.error("Chat error:", err);
+      return { ok: false, error: err instanceof Error ? err.message : "Chat failed" };
+    }
+  },
+
+  // Validate translation answers
+  validateTranslation: async (payload: {
+    source: string;
+    userAnswer: string;
+    targetLang: string;
+    hint?: string;
+  }): Promise<ValidateAnswerResp> => {
+    try {
+      const resp = await pumiInvoke<ValidateAnswerResp>("/focus/validate-translation", payload);
+      return { ok: true, ...resp };
+    } catch (err) {
+      // Fallback: simple validation not available
+      return { ok: true, correct: false, feedback: "Az automatikus ellenőrzés jelenleg nem elérhető." };
+    }
+  },
+
+  // Validate writing submission
+  validateWriting: async (payload: {
+    prompt: string;
+    userText: string;
+    minChars?: number;
+  }): Promise<ValidateAnswerResp> => {
+    try {
+      const resp = await pumiInvoke<ValidateAnswerResp>("/focus/validate-writing", payload);
+      return { ok: true, ...resp };
+    } catch (err) {
+      // Fallback: mark as complete if min chars met
+      const meetsMinChars = (payload.userText?.length || 0) >= (payload.minChars || 50);
+      return {
+        ok: true,
+        correct: meetsMinChars,
+        feedback: meetsMinChars
+          ? "Szép munka! Az írásod el lett mentve."
+          : "Írj még egy kicsit többet a feladat teljesítéséhez."
+      };
+    }
+  },
+
+  // Generate simple AI content for quick focus sessions (no plan required)
+  generateSimple: async (payload: {
+    topic: string;
+    task_type: "lesson" | "practice" | "quiz" | "flashcard" | "writing";
+    lang?: string;
+    domain?: string;
+    round_index?: number;
+  }): Promise<GenerateSimpleResp> => {
+    try {
+      const resp = await pumiInvoke<GenerateSimpleResp>("/focus/generate-simple", {
+        topic: payload.topic,
+        task_type: payload.task_type,
+        lang: payload.lang || "hu",
+        domain: payload.domain || "general",
+        round_index: payload.round_index || 0,
+        mode: "learning", // Required by pumiInvoke
+      });
+      return resp;
+    } catch (err) {
+      console.error("generateSimple error:", err);
+      return { ok: false, error: err instanceof Error ? err.message : "Content generation failed" };
+    }
+  },
 };
