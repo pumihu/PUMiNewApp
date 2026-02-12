@@ -2,7 +2,7 @@
 // 5-step guided wizard for creating a new Focus plan
 
 import { useState } from "react";
-import { ArrowLeft, ArrowRight, Check, Loader2, BookOpen, Briefcase, GraduationCap, Dumbbell, Sparkles, Target, Clock, Zap, MessageSquare } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Loader2, BookOpen, Briefcase, Target, Clock, Zap, MessageSquare } from "lucide-react";
 import { WizardData, DEFAULT_WIZARD_DATA, FocusType, Tone, Difficulty, Pacing } from "@/types/focusWizard";
 
 interface FocusWizardProps {
@@ -14,9 +14,6 @@ interface FocusWizardProps {
 const FOCUS_TYPES = [
   { type: "language" as FocusType, icon: BookOpen, label: "Nyelvtanulás", desc: "Új nyelv elsajátítása" },
   { type: "project" as FocusType, icon: Briefcase, label: "Projekt / munka", desc: "Feladat vagy projekt" },
-  { type: "study" as FocusType, icon: GraduationCap, label: "Vizsga / tananyag", desc: "Tanulás és felkészülés" },
-  { type: "habit" as FocusType, icon: Dumbbell, label: "Szokás / rutin", desc: "Pl. edzés, meditáció" },
-  { type: "custom" as FocusType, icon: Sparkles, label: "Egyedi", desc: "Bármi más" },
 ];
 
 const DURATIONS = [
@@ -418,10 +415,7 @@ export function FocusWizard({ onComplete, onCancel, isGenerating }: FocusWizardP
           <div>
             <p className="text-xs text-muted-foreground">Fókusz típus</p>
             <p className="font-medium capitalize">
-              {data.step1.focusType === "language" ? "Nyelvtanulás" :
-               data.step1.focusType === "project" ? "Projekt" :
-               data.step1.focusType === "study" ? "Tanulás" :
-               data.step1.focusType === "habit" ? "Szokás" : "Egyedi"}
+              {data.step1.focusType === "language" ? "Nyelvtanulás" : "Projekt"}
             </p>
           </div>
         </div>

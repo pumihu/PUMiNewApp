@@ -79,7 +79,7 @@ GENERIC_KEYPOINT_PATTERNS = [
     r"^ne felejtsd\\b",
 ]
 
-PLACEHOLDER_OPTIONS = {"a", "b", "c", "d", "1", "2", "3"}
+PLACEHOLDER_OPTIONS = {"a", "b", "c", "d", "1", "2", "3", "4"}
 
 
 def _require_mode(mode: Optional[str]) -> str:
@@ -135,7 +135,7 @@ def _has_generic_keypoints(points: List[str]) -> bool:
 
 
 def _options_invalid(options: List[str]) -> bool:
-    if not options or len(options) != 3:
+    if not options or len(options) != 4:
         return True
     normalized = [_normalize_for_match(o) for o in options if o]
     if any(opt in PLACEHOLDER_OPTIONS for opt in normalized):
@@ -226,7 +226,7 @@ def _validate_quiz_payload(payload: Dict[str, Any], topic: str, day_title: str) 
                 errors.append("options_invalid")
             try:
                 ai = int(answer_index)
-                if ai < 0 or ai > 2:
+                if ai < 0 or ai > 3:
                     errors.append("answer_index_invalid")
             except Exception:
                 errors.append("answer_index_invalid")
@@ -349,9 +349,10 @@ def _safe_minimal_quiz_content(topic: str, lang: str, num_questions: int) -> Dic
         if is_hu:
             qtext = f"Melyik Ã¡llÃ­tÃ¡s Ã­rja le legjobban a(z) {topic} lÃ©nyegÃ©t? ({i + 1})"
             options = [
-                f"A(z) {topic} cÃ©lja egy vilÃ¡gos, mÃ©rhetÅ‘ eredmÃ©ny elÃ©rÃ©se.",
+                f"A(z) {topic} cÃ©lja egy vilÃ¡gos, mÃ©rhetÅ' eredmÃ©ny elÃ©rÃ©se.",
                 f"A(z) {topic} csak Ã¡ltalÃ¡nos inspirÃ¡ciÃ³, lÃ©pÃ©sek nÃ©lkÃ¼l.",
                 f"A(z) {topic} kizÃ¡rÃ³lag hosszÃº tÃ¡vÃº elmÃ©let, gyakorlati nÃ©lkÃ¼l.",
+                f"A(z) {topic} nem igÃ©nyel tervezÃ©st vagy elÅ'kÃ©szÃ¼letet.",
             ]
             questions.append({
                 "q": qtext,
@@ -365,6 +366,7 @@ def _safe_minimal_quiz_content(topic: str, lang: str, num_questions: int) -> Dic
                 f"{topic} aims for a clear, measurable outcome.",
                 f"{topic} is only general inspiration without steps.",
                 f"{topic} is purely long-term theory with no practice.",
+                f"{topic} requires no planning or preparation.",
             ]
             questions.append({
                 "q": qtext,
@@ -642,7 +644,7 @@ async def generate_quiz_content(
         "You generate structured quiz content.\n"
         "Output JSON only. No markdown, no extra text.\n"
         "Required keys: title, questions, estimated_minutes.\n"
-        "questions: 4-6 items. Each item has q, options[3], answer_index (0-2), explanation.\n"
+        "questions: 4-6 items. Each item has q, options[4], answer_index (0-3), explanation.\n"
         "Options must be plausible, not placeholders, and not repeated.\n"
         "Title must not equal the day title.\n"
         f"CRITICAL: {lang_instruction}\n"

@@ -1,7 +1,7 @@
 // src/types/focusWizard.ts
 // Types for the Focus creation wizard
 
-export type FocusType = "language" | "project" | "study" | "habit" | "custom";
+export type FocusType = "language" | "project";
 export type LanguageLevel = "beginner" | "basic" | "intermediate";
 export type LanguageGoal = "speaking" | "reading" | "travel" | "work";
 export type ProjectType = "product" | "learning" | "admin" | "creative";
