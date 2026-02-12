@@ -27,6 +27,7 @@ ALLOWED_ORIGINS = [o.strip() for o in _env_origins.split(",") if o.strip()] or [
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
+    allow_origin_regex=r"https://pu-mi-new-.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
