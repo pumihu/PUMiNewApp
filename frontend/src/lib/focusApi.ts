@@ -76,7 +76,7 @@ export const focusApi = {
   getDay: (payload: { plan_id: string; day_index: number; mode: FocusMode }) => 
     pumiInvoke<FocusGetDayResp>("/focus/get-day", payload),
 
-  generateItemContent: async (payload: { item_id: string; topic?: string; label?: string; day_title?: string; user_goal?: string; mode: FocusMode }) => {
+  generateItemContent: async (payload: { item_id: string; topic?: string; label?: string; day_title?: string; user_goal?: string; mode: FocusMode; domain?: string; level?: string; lang?: string }) => {
     try {
       return await pumiInvoke<GenerateItemContentResp>("/focus/generate-item-content", payload);
     } catch (err) {

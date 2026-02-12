@@ -136,6 +136,9 @@ export function LazyItemRenderer({ item, dayTitle, dayIntro, domain, level, lang
           label: item.label,
           day_title: dayTitle,
           mode: "learning",
+          ...(domain ? { domain } : {}),
+          ...(level ? { level } : {}),
+          ...(lang ? { lang } : {}),
         });
         if (resp.ok && resp.content) {
           const validated = validateAndCache(resp.content);

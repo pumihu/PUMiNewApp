@@ -184,9 +184,9 @@ function extractQuizQuestions(raw: any): Array<{ question: string; options: stri
   // New format
   if (content?.questions && Array.isArray(content.questions)) {
     return content.questions.map((q: any) => ({
-      question: q.question,
+      question: q.question || q.q || "",
       options: q.options || [],
-      correct_index: q.correct_index ?? q.correctIndex ?? 0,
+      correct_index: q.correct_index ?? q.correctIndex ?? q.answer_index ?? 0,
       explanation: q.explanation,
     }));
   }
@@ -194,9 +194,9 @@ function extractQuizQuestions(raw: any): Array<{ question: string; options: stri
   // Legacy format
   if (raw?.quiz && Array.isArray(raw.quiz)) {
     return raw.quiz.map((q: any) => ({
-      question: q.question,
+      question: q.question || q.q || "",
       options: q.options || [],
-      correct_index: q.correctIndex ?? q.correct_index ?? 0,
+      correct_index: q.correct_index ?? q.correctIndex ?? q.answer_index ?? 0,
       explanation: q.explanation,
     }));
   }
@@ -204,7 +204,7 @@ function extractQuizQuestions(raw: any): Array<{ question: string; options: stri
   // Fallback
   return [{
     question: "Mi a helyes válasz?",
-    options: ["A", "B", "C", "D"],
+    options: ["Helyes válasz", "Nem ez a válasz", "Ez sem jó", "Egyik sem"],
     correct_index: 0,
     explanation: "Ez a helyes válasz.",
   }];
@@ -402,7 +402,7 @@ export function getFallbackTemplate(kind: FocusItemKind, topic: string): StrictF
         data: {
           questions: [{
             question: `Mi a témánk ma? (${topic})`,
-            options: ["A", "B", "C", "D"],
+            options: ["Helyes válasz", "Nem ez a válasz", "Ez sem jó", "Egyik sem"],
             correct_index: 0,
             explanation: "Ez a helyes válasz.",
           }],
