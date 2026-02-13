@@ -2947,6 +2947,13 @@ async def generate_item_content(req: GenerateItemContentReq, request: Request):
                 else:
                     print(f"[generate-item-content] DB CACHE HIT for item {item.get('id')}")
                     return {"ok": True, "item_id": req.item_id, "content": existing_content, "cached": True}
+            elif is_language_domain and stored_kind in ("quiz", "translation", "roleplay", "writing", "cards"):
+                # For practice items, require chained content marker
+                if existing_content.get("chain_version") != "lesson_v1":
+                    print(f"[generate-item-content] Cache bypass (needs chained practice) for item {item.get('id')}")
+                else:
+                    print(f"[generate-item-content] DB CACHE HIT for item {item.get('id')}")
+                    return {"ok": True, "item_id": req.item_id, "content": existing_content, "cached": True}
             else:
                 print(f"[generate-item-content] DB CACHE HIT for item {item.get('id')}")
                 return {"ok": True, "item_id": req.item_id, "content": existing_content, "cached": True}
@@ -3023,10 +3030,10 @@ async def generate_item_content(req: GenerateItemContentReq, request: Request):
 
     from .llm_client import generate_focus_item
 
-    # CONTENT CHAINING: For quizzes, find preceding lesson's content
+    # CONTENT CHAINING: For practice/quiz, find preceding lesson's content
     preceding_lesson_content = None
     stored_kind = item.get("kind", "")
-    if stored_kind == "quiz" or item_type == "quiz":
+    if is_language_domain and (stored_kind in ("quiz", "translation", "roleplay", "writing", "cards") or item_type in ("quiz", "translation", "roleplay", "writing", "cards")):
         try:
             day_items_res = _safe_execute(
                 sb.table("focus_items")

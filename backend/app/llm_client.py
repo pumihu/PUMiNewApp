@@ -1214,21 +1214,43 @@ KIND: {kind} (DO NOT CHANGE)
 """
 
     # Content chaining: inject preceding lesson content for quizzes
-    if preceding_lesson_content and kind == "quiz":
+    if preceding_lesson_content and kind != "content":
+        # Apply content chaining for all practice/quiz items in language domain
         user += f"""
 IMPORTANT - CONTENT CHAINING:
-The user just completed a lesson. Your quiz MUST test the specific vocabulary,
-grammar rules, and examples from THIS lesson. Do NOT introduce new material.
+The user just completed a lesson. You MUST build this item using ONLY the vocabulary,
+grammar rules, and examples from THAT lesson. Do NOT introduce new material.
 
 --- PRECEDING LESSON CONTENT ---
 {preceding_lesson_content[:3000]}
 --- END LESSON CONTENT ---
-
+"""
+        if kind == "quiz":
+            user += """
 Generate quiz questions that directly test:
 1. Vocabulary from the vocabulary_table (word meanings, translations)
 2. Grammar rules from grammar_explanation (correct forms, patterns)
 3. Dialogue comprehension (what was said, appropriate responses)
 4. Common mistakes awareness (identify the error)
+"""
+        elif kind == "translation":
+            user += """
+Generate translation items that ONLY use lesson vocabulary and grammar patterns.
+Keep sentences short and directly aligned to the lesson examples.
+"""
+        elif kind == "roleplay":
+            user += """
+Create a dialogue scenario that reuses lesson vocabulary and grammar structures.
+Include must_use_phrases from the vocabulary_table where possible.
+"""
+        elif kind == "writing":
+            user += """
+Create a short writing prompt that requires using the lesson's key vocabulary
+and the specific grammar rule taught in the lesson.
+"""
+        elif kind == "cards":
+            user += """
+Create flashcards ONLY from the lesson vocabulary_table (front = target language, back = Hungarian).
 """
 
     user += "\nOutput ONLY the JSON object, nothing else.\n"
@@ -1394,6 +1416,9 @@ async def generate_focus_item(
         data["input"] = {"type": "none", "placeholder": None}
     else:
         data["validation"]["require_interaction"] = True
+        if preceding_lesson_content:
+            # Mark chained practice items so cache can distinguish legacy content
+            data["chain_version"] = "lesson_v1"
 
     # Validate
     is_valid, error = _validate_focus_item(data)
