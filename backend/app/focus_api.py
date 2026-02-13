@@ -2920,6 +2920,8 @@ async def generate_item_content(req: GenerateItemContentReq, request: Request):
     if content_depth:
         plan_settings["content_depth"] = content_depth
 
+    is_language_domain = (domain or "").lower() in ("language_learning", "language")
+
     # DB CACHE: If content already generated and saved, return it immediately
     existing_content = item.get("content")
     if existing_content and isinstance(existing_content, dict):
@@ -2933,8 +2935,21 @@ async def generate_item_content(req: GenerateItemContentReq, request: Request):
             ))
         )
         if has_real_content:
-            print(f"[generate-item-content] DB CACHE HIT for item {item.get('id')}")
-            return {"ok": True, "item_id": req.item_id, "content": existing_content, "cached": True}
+            if is_language_domain and stored_kind == "content":
+                # Only use cache if it's already the rich language_lesson format
+                content_type = None
+                if isinstance(existing_content.get("content"), dict):
+                    content_type = existing_content["content"].get("content_type")
+                if not content_type:
+                    content_type = existing_content.get("content_type")
+                if content_type != "language_lesson":
+                    print(f"[generate-item-content] Cache bypass (needs language_lesson) for item {item.get('id')}")
+                else:
+                    print(f"[generate-item-content] DB CACHE HIT for item {item.get('id')}")
+                    return {"ok": True, "item_id": req.item_id, "content": existing_content, "cached": True}
+            else:
+                print(f"[generate-item-content] DB CACHE HIT for item {item.get('id')}")
+                return {"ok": True, "item_id": req.item_id, "content": existing_content, "cached": True}
 
 
     plan_mode = (plan.get("focus_type") or "learning").lower().strip()

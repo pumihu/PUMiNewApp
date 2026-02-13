@@ -1309,6 +1309,20 @@ async def generate_focus_item(
         user = user.rstrip() + "\n\nRETRY: Be specific, avoid generic filler, and follow the schema exactly.\n"
 
     # Model + token selection based on kind and domain
+    def _is_llm_error(text: str) -> bool:
+        if not text:
+            return True
+        lower = text.strip().lower()
+        if text.startswith("Error:"):
+            return True
+        if "overloaded" in lower:
+            return True
+        if "not available" in lower:
+            return True
+        if "invalid model" in lower:
+            return True
+        return False
+
     if kind == "content" and is_language_domain:
         # Language lessons: use Sonnet with high token budget for rich content
         text = await _claude_json_sonnet(
@@ -1317,6 +1331,15 @@ async def generate_focus_item(
             max_tokens=4000,
             temperature=0.4,
         )
+        # If Sonnet fails (model access / credits), fall back to Haiku
+        if _is_llm_error(text):
+            print("[FOCUS_ITEM] Sonnet failed, falling back to Haiku")
+            text = await _claude_json_haiku(
+                system=system,
+                user=user,
+                max_tokens=2500,
+                temperature=0.3,
+            )
     elif kind == "content":
         # Non-language lessons: Haiku with more tokens
         text = await _claude_json_haiku(
@@ -1335,7 +1358,7 @@ async def generate_focus_item(
         )
 
     # Check for API errors
-    if text.startswith("Error:") or "overloaded" in text.lower():
+    if _is_llm_error(text):
         raise RuntimeError("Claude API temporarily unavailable")
 
     # Parse JSON
