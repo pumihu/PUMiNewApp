@@ -99,10 +99,11 @@ export interface ChecklistContent {
 }
 
 // Lesson: rich educational content (tananyag)
+// Supports both legacy format (summary+key_points) and language_lesson format
 export interface LessonContent {
   title: string;
-  summary: string;
-  key_points: string[];
+  summary?: string;
+  key_points?: string[];
   example?: string;
   micro_task?: {
     instruction: string;
@@ -110,6 +111,46 @@ export interface LessonContent {
   };
   common_mistakes?: string[];
   estimated_minutes?: number;
+
+  // Language lesson fields (new, optional)
+  content_type?: "language_lesson";
+  introduction?: string;
+  vocabulary_table?: Array<{
+    word: string;
+    translation: string;
+    pronunciation?: string;
+    example_sentence: string;
+    example_translation: string;
+  }>;
+  grammar_explanation?: {
+    rule_title: string;
+    explanation: string;
+    formation_pattern?: string;
+    examples: Array<{
+      target: string;
+      hungarian: string;
+      note?: string;
+    }>;
+    exceptions?: string[];
+  };
+  dialogues?: Array<{
+    title: string;
+    context?: string;
+    lines: Array<{
+      speaker: string;
+      text: string;
+      translation: string;
+    }>;
+  }>;
+  cultural_note?: string;
+  practice_exercises?: Array<{
+    type: "fill_in_blank" | "translate" | "reorder";
+    instruction: string;
+    items: Array<{
+      prompt: string;
+      answer: string;
+    }>;
+  }>;
 }
 
 export type FocusItemContent =

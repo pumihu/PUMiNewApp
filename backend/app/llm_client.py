@@ -267,6 +267,24 @@ async def _claude_json_haiku(
     )
 
 
+async def _claude_json_sonnet(
+    *,
+    system: str,
+    user: str,
+    max_tokens: int = 4000,
+    temperature: float = 0.4,
+) -> str:
+    """Use Sonnet for high-quality, long-form JSON generation (language lessons)."""
+    return await _claude_messages_create(
+        system=system,
+        user=user,
+        max_tokens=max_tokens,
+        temperature=temperature,
+        history=None,
+        model=CLAUDE_MODEL_SONNET,
+    )
+
+
 async def _claude_messages_with_tools(
     *,
     system: str,
@@ -778,33 +796,63 @@ def _validate_focus_item(item: Dict[str, Any]) -> tuple[bool, str]:
                 return False, "Quiz has invalid correct_index"
 
     elif kind == "content":
-        # Validate structured content format
-        summary = content.get("summary", "")
-        key_points = content.get("key_points", [])
-        example = content.get("example", "")
-        micro_task = content.get("micro_task", {})
-        common_mistakes = content.get("common_mistakes", [])
-        # Allow both old body_md format and new structured format
-        if not summary and not content.get("body_md"):
-            return False, "Content must have summary or body_md"
-        if summary and _is_generic_summary(summary, "hu"):
-            return False, "Content summary too generic"
-        if key_points:
-            if len(key_points) < 3 or len(key_points) > 7:
+        content_type = content.get("content_type", "")
+
+        if content_type == "language_lesson":
+            # Enhanced validation for language lessons
+            introduction = content.get("introduction", "")
+            if not introduction or len(introduction.split()) < 30:
+                return False, "Language lesson introduction too short (min 30 words)"
+            vocab_table = content.get("vocabulary_table", [])
+            if len(vocab_table) < 5:
+                return False, f"Language lesson needs 5+ vocabulary items, got {len(vocab_table)}"
+            grammar = content.get("grammar_explanation", {})
+            if not grammar or not grammar.get("explanation"):
+                return False, "Language lesson missing grammar_explanation"
+            grammar_examples = grammar.get("examples", [])
+            if len(grammar_examples) < 2:
+                return False, "Language lesson grammar needs 2+ examples"
+            dialogues = content.get("dialogues", [])
+            if len(dialogues) < 1:
+                return False, "Language lesson needs at least 1 dialogue"
+            for d in dialogues:
+                if len(d.get("lines", [])) < 4:
+                    return False, "Dialogue must have 4+ lines"
+            # Validate shared fields
+            key_points = content.get("key_points", [])
+            if key_points and (len(key_points) < 3 or len(key_points) > 7):
                 return False, f"Content must have 3-7 key_points, got {len(key_points)}"
-            for kp in key_points:
-                if len(str(kp)) < 10:
-                    return False, "Content key_points too short"
-        if example and len(str(example)) < 10:
-            return False, "Content example too short"
-        if micro_task:
-            if not isinstance(micro_task, dict):
-                return False, "Content micro_task must be an object"
-            if not micro_task.get("instruction") or not micro_task.get("expected_output"):
-                return False, "Content micro_task missing fields"
-        if common_mistakes:
-            if len(common_mistakes) < 3 or len(common_mistakes) > 5:
+            common_mistakes = content.get("common_mistakes", [])
+            if common_mistakes and (len(common_mistakes) < 3 or len(common_mistakes) > 5):
                 return False, "Content common_mistakes must have 3-5 items"
+        else:
+            # Standard content validation (non-language domains)
+            summary = content.get("summary", "")
+            key_points = content.get("key_points", [])
+            example = content.get("example", "")
+            micro_task = content.get("micro_task", {})
+            common_mistakes = content.get("common_mistakes", [])
+            # Allow both old body_md format and new structured format
+            if not summary and not content.get("body_md"):
+                return False, "Content must have summary or body_md"
+            if summary and _is_generic_summary(summary, "hu"):
+                return False, "Content summary too generic"
+            if key_points:
+                if len(key_points) < 3 or len(key_points) > 7:
+                    return False, f"Content must have 3-7 key_points, got {len(key_points)}"
+                for kp in key_points:
+                    if len(str(kp)) < 10:
+                        return False, "Content key_points too short"
+            if example and len(str(example)) < 10:
+                return False, "Content example too short"
+            if micro_task:
+                if not isinstance(micro_task, dict):
+                    return False, "Content micro_task must be an object"
+                if not micro_task.get("instruction") or not micro_task.get("expected_output"):
+                    return False, "Content micro_task missing fields"
+            if common_mistakes:
+                if len(common_mistakes) < 3 or len(common_mistakes) > 5:
+                    return False, "Content common_mistakes must have 3-5 items"
 
     elif kind == "checklist":
         items = content.get("items", [])
@@ -862,6 +910,7 @@ def _build_item_generation_prompt(
     minutes: int,
     user_goal: str = "",
     settings: Optional[Dict[str, Any]] = None,
+    preceding_lesson_content: Optional[str] = None,
 ) -> tuple[str, str]:
     """
     Build the strict prompt-lock system + user message for item generation.
@@ -924,8 +973,73 @@ def _build_item_generation_prompt(
 '''
 
     # Kind-specific content requirements
-    content_specs = {
-        "content": '''
+    is_language_domain = (domain or "other").lower() in ("language_learning", "language")
+
+    # Language domain lessons get a rich, structured content spec
+    if kind == "content" and is_language_domain:
+        content_spec_content = '''
+"content": {
+  "title": "Specific lesson title (not equal to day title)",
+  "content_type": "language_lesson",
+  "introduction": "2-3 engaging paragraphs explaining what this lesson covers and what the learner will be able to do after completing it. Minimum 80 words. Write in the user's native language (Hungarian).",
+  "vocabulary_table": [
+    {
+      "word": "target language word/phrase",
+      "translation": "Hungarian translation",
+      "pronunciation": "phonetic guide in Hungarian reading",
+      "example_sentence": "A full sentence using the word in the target language",
+      "example_translation": "Hungarian translation of the example sentence"
+    }
+  ],
+  "grammar_explanation": {
+    "rule_title": "Name of the grammar concept",
+    "explanation": "Clear explanation of the grammar rule in 2-4 paragraphs. Include formation rules, when to use, and exceptions. Minimum 100 words. In Hungarian.",
+    "formation_pattern": "The structural pattern, e.g. Subject + verb + object",
+    "examples": [
+      { "target": "Example in target language", "hungarian": "Hungarian translation", "note": "Brief note on why this form is used" }
+    ],
+    "exceptions": ["Exception 1 with explanation"]
+  },
+  "dialogues": [
+    {
+      "title": "Dialogue scenario title in Hungarian",
+      "context": "Brief setting description in Hungarian",
+      "lines": [
+        { "speaker": "A", "text": "Line in target language", "translation": "Hungarian translation" },
+        { "speaker": "B", "text": "Response in target language", "translation": "Hungarian translation" }
+      ]
+    }
+  ],
+  "cultural_note": "1-2 sentences about cultural context relevant to this topic (in Hungarian, optional)",
+  "practice_exercises": [
+    {
+      "type": "fill_in_blank",
+      "instruction": "Exercise instruction in Hungarian",
+      "items": [
+        { "prompt": "Sentence with ___ blank", "answer": "correct word" }
+      ]
+    }
+  ],
+  "summary": "2-3 sentences summarizing what was learned (Hungarian)",
+  "key_points": ["Key takeaway 1", "Key takeaway 2", "Key takeaway 3"],
+  "common_mistakes": ["Mistake 1: description and correct approach", "Mistake 2", "Mistake 3"],
+  "estimated_minutes": ''' + str(minutes) + '''
+}
+QUALITY RULES:
+- introduction MUST be at least 80 words, engaging and specific to the topic
+- vocabulary_table MUST have 8-12 entries, each with a full example_sentence
+- grammar_explanation.explanation MUST be at least 100 words with clear rules
+- grammar_explanation.examples MUST have 3+ examples with notes
+- dialogues MUST have at least 1 dialogue with 6+ lines
+- practice_exercises MUST have at least 2 exercises with 3+ items each
+- key_points MUST have 3-5 items
+- common_mistakes MUST have 3-5 items with corrections
+- ALL explanatory text MUST be in Hungarian
+- ALL target language content MUST include Hungarian translation
+- vocabulary_table words MUST come from the item_topic/user_goal vocabulary list if provided
+'''
+    else:
+        content_spec_content = '''
 "content": {
   "title": "Specific title, not equal to the day title",
   "summary": "2-4 concrete sentences explaining the topic and why it matters",
@@ -951,7 +1065,10 @@ QUALITY RULES:
 - example MUST be concrete, not placeholder
 - micro_task MUST be actionable
 - common_mistakes MUST be 3-5 specific warnings
-''',
+'''
+
+    content_specs = {
+        "content": content_spec_content,
         "translation": '''
 "content": {
   "source_lang": "hu",
@@ -1094,9 +1211,27 @@ CONTEXT:
 - user_goal: {user_goal or "learning"}
 
 KIND: {kind} (DO NOT CHANGE)
-
-Output ONLY the JSON object, nothing else.
 """
+
+    # Content chaining: inject preceding lesson content for quizzes
+    if preceding_lesson_content and kind == "quiz":
+        user += f"""
+IMPORTANT - CONTENT CHAINING:
+The user just completed a lesson. Your quiz MUST test the specific vocabulary,
+grammar rules, and examples from THIS lesson. Do NOT introduce new material.
+
+--- PRECEDING LESSON CONTENT ---
+{preceding_lesson_content[:3000]}
+--- END LESSON CONTENT ---
+
+Generate quiz questions that directly test:
+1. Vocabulary from the vocabulary_table (word meanings, translations)
+2. Grammar rules from grammar_explanation (correct forms, patterns)
+3. Dialogue comprehension (what was said, appropriate responses)
+4. Common mistakes awareness (identify the error)
+"""
+
+    user += "\nOutput ONLY the JSON object, nothing else.\n"
 
     return system, user
 
@@ -1115,6 +1250,7 @@ async def generate_focus_item(
     user_goal: str = "",
     retry_count: int = 0,
     settings: Optional[Dict[str, Any]] = None,
+    preceding_lesson_content: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Generate a single focus item with the canonical schema.
@@ -1167,17 +1303,36 @@ async def generate_focus_item(
         minutes=minutes,
         user_goal=user_goal,
         settings=settings,
+        preceding_lesson_content=preceding_lesson_content,
     )
     if retry_count > 0:
         user = user.rstrip() + "\n\nRETRY: Be specific, avoid generic filler, and follow the schema exactly.\n"
 
-    # Generate with Haiku
-    text = await _claude_json_haiku(
-        system=system,
-        user=user,
-        max_tokens=1500,
-        temperature=0.3,
-    )
+    # Model + token selection based on kind and domain
+    if kind == "content" and is_language_domain:
+        # Language lessons: use Sonnet with high token budget for rich content
+        text = await _claude_json_sonnet(
+            system=system,
+            user=user,
+            max_tokens=4000,
+            temperature=0.4,
+        )
+    elif kind == "content":
+        # Non-language lessons: Haiku with more tokens
+        text = await _claude_json_haiku(
+            system=system,
+            user=user,
+            max_tokens=2500,
+            temperature=0.3,
+        )
+    else:
+        # All other kinds: Haiku with current budget
+        text = await _claude_json_haiku(
+            system=system,
+            user=user,
+            max_tokens=1500,
+            temperature=0.3,
+        )
 
     # Check for API errors
     if text.startswith("Error:") or "overloaded" in text.lower():
@@ -1203,6 +1358,7 @@ async def generate_focus_item(
                 user_goal=user_goal,
                 retry_count=retry_count + 1,
                 settings=settings,
+                preceding_lesson_content=preceding_lesson_content,
             )
         # Return fallback item
         return _create_fallback_item(kind, topic, label, lang, minutes)
@@ -1235,6 +1391,7 @@ async def generate_focus_item(
                 user_goal=user_goal,
                 retry_count=retry_count + 1,
                 settings=settings,
+                preceding_lesson_content=preceding_lesson_content,
             )
         # Return fallback
         return _create_fallback_item(kind, topic, label, lang, minutes)

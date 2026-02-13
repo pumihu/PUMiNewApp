@@ -214,6 +214,7 @@ export interface DayForBackend {
     topic: string;
     label: string;
     estimatedMinutes: number;
+    contentDepth?: "short" | "medium" | "substantial";
   }>;
 }
 
@@ -261,6 +262,7 @@ export function mapSyllabusToDays(weekPlan: WeekPlan, goalTitle: string, totalDa
         topic,
         label: block.title_hu,
         estimatedMinutes: block.estimated_minutes,
+        contentDepth: block.block_type === "lesson" ? "substantial" : undefined,
       };
     });
 

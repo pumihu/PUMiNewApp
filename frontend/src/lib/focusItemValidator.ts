@@ -165,11 +165,10 @@ function extractContent(raw: any, kind: FocusItemKind): FocusItemContent {
 
 function extractLessonContent(raw: any): LessonContent {
   const content = raw?.content;
-  // Backend sends: { title, summary, key_points[], example, micro_task: { instruction, expected_output }, common_mistakes[], estimated_minutes }
-  // Also handle the case where data is nested under content.data or directly under content
   const src = content?.data || content || {};
 
-  return {
+  // Base fields (backward compatible)
+  const result: LessonContent = {
     title: src.title || raw?.title || raw?.label || "Tananyag",
     summary: src.summary || src.text || raw?.text || "",
     key_points: Array.isArray(src.key_points) ? src.key_points : [],
@@ -178,6 +177,71 @@ function extractLessonContent(raw: any): LessonContent {
     common_mistakes: Array.isArray(src.common_mistakes) ? src.common_mistakes : undefined,
     estimated_minutes: src.estimated_minutes,
   };
+
+  // Language lesson fields
+  if (src.content_type === "language_lesson") {
+    result.content_type = "language_lesson";
+    result.introduction = src.introduction;
+
+    if (Array.isArray(src.vocabulary_table)) {
+      result.vocabulary_table = src.vocabulary_table.map((v: any) => ({
+        word: v.word || "",
+        translation: v.translation || "",
+        pronunciation: v.pronunciation,
+        example_sentence: v.example_sentence || "",
+        example_translation: v.example_translation || "",
+      }));
+    }
+
+    if (src.grammar_explanation && typeof src.grammar_explanation === "object") {
+      result.grammar_explanation = {
+        rule_title: src.grammar_explanation.rule_title || "",
+        explanation: src.grammar_explanation.explanation || "",
+        formation_pattern: src.grammar_explanation.formation_pattern,
+        examples: Array.isArray(src.grammar_explanation.examples)
+          ? src.grammar_explanation.examples.map((e: any) => ({
+              target: e.target || "",
+              hungarian: e.hungarian || "",
+              note: e.note,
+            }))
+          : [],
+        exceptions: Array.isArray(src.grammar_explanation.exceptions)
+          ? src.grammar_explanation.exceptions
+          : undefined,
+      };
+    }
+
+    if (Array.isArray(src.dialogues)) {
+      result.dialogues = src.dialogues.map((d: any) => ({
+        title: d.title || "",
+        context: d.context,
+        lines: Array.isArray(d.lines)
+          ? d.lines.map((l: any) => ({
+              speaker: l.speaker || "",
+              text: l.text || "",
+              translation: l.translation || "",
+            }))
+          : [],
+      }));
+    }
+
+    result.cultural_note = src.cultural_note;
+
+    if (Array.isArray(src.practice_exercises)) {
+      result.practice_exercises = src.practice_exercises.map((pe: any) => ({
+        type: pe.type || "fill_in_blank",
+        instruction: pe.instruction || "",
+        items: Array.isArray(pe.items)
+          ? pe.items.map((item: any) => ({
+              prompt: item.prompt || "",
+              answer: item.answer || "",
+            }))
+          : [],
+      }));
+    }
+  }
+
+  return result;
 }
 
 function extractTranslationSentences(raw: any): Array<{ source: string; target_lang: string; hint?: string }> {

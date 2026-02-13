@@ -583,6 +583,8 @@ class FocusItemInput(BaseModel):
 
     estimatedMinutes: int = 5
 
+    contentDepth: Optional[str] = None  # "short" | "medium" | "substantial"
+
 
 
 
@@ -1280,6 +1282,9 @@ async def create_plan(req: CreatePlanReq, request: Request):
                         "label": item_input.label,
                         "estimated_minutes": item_input.estimatedMinutes,
                     }
+
+                    if item_input.contentDepth:
+                        item_row["content_depth"] = item_input.contentDepth
 
                     if normalized_content:
                         item_row["content"] = normalized_content
@@ -2915,7 +2920,21 @@ async def generate_item_content(req: GenerateItemContentReq, request: Request):
     if content_depth:
         plan_settings["content_depth"] = content_depth
 
-
+    # DB CACHE: If content already generated and saved, return it immediately
+    existing_content = item.get("content")
+    if existing_content and isinstance(existing_content, dict):
+        has_real_content = (
+            existing_content.get("kind")
+            or existing_content.get("schema_version")
+            or (isinstance(existing_content.get("content"), dict) and (
+                existing_content["content"].get("summary")
+                or existing_content["content"].get("vocabulary_table")
+                or existing_content["content"].get("questions")
+            ))
+        )
+        if has_real_content:
+            print(f"[generate-item-content] DB CACHE HIT for item {item.get('id')}")
+            return {"ok": True, "item_id": req.item_id, "content": existing_content, "cached": True}
 
 
     plan_mode = (plan.get("focus_type") or "learning").lower().strip()
@@ -2989,7 +3008,29 @@ async def generate_item_content(req: GenerateItemContentReq, request: Request):
 
     from .llm_client import generate_focus_item
 
-
+    # CONTENT CHAINING: For quizzes, find preceding lesson's content
+    preceding_lesson_content = None
+    stored_kind = item.get("kind", "")
+    if stored_kind == "quiz" or item_type == "quiz":
+        try:
+            day_items_res = _safe_execute(
+                sb.table("focus_items")
+                .select("id, kind, type, order_index, content, item_key")
+                .eq("day_id", day_id)
+                .order("order_index")
+            )
+            if day_items_res and day_items_res.data:
+                current_order = item.get("order_index", 999)
+                for di in reversed(day_items_res.data):
+                    if (di.get("order_index", 999) < current_order
+                            and di.get("kind") == "content"
+                            and di.get("content")
+                            and isinstance(di["content"], dict)):
+                        preceding_lesson_content = json.dumps(di["content"], ensure_ascii=False)[:3000]
+                        print(f"[generate-item-content] Content chain: quiz will use lesson {di.get('item_key')}")
+                        break
+        except Exception as chain_err:
+            print(f"[generate-item-content] Content chaining failed (non-fatal): {chain_err}")
 
     try:
 
@@ -3017,6 +3058,8 @@ async def generate_item_content(req: GenerateItemContentReq, request: Request):
 
             settings=plan_settings,
 
+            preceding_lesson_content=preceding_lesson_content,
+
         )
 
         # Ensure lesson/content has body_md for UI rendering
@@ -3035,6 +3078,15 @@ async def generate_item_content(req: GenerateItemContentReq, request: Request):
                             inner["data"] = data
                         else:
                             content["content"] = data
+
+        # Save generated content to DB for caching (next load = instant)
+        try:
+            _safe_execute(
+                sb.table("focus_items").update({"content": content}).eq("id", item["id"])
+            )
+            print(f"[generate-item-content] Saved content to DB for item {item.get('id')}")
+        except Exception as save_err:
+            print(f"[generate-item-content] WARNING: Failed to save content to DB: {save_err}")
 
         return {
 
