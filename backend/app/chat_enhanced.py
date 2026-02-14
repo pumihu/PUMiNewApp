@@ -68,6 +68,10 @@ class ChatInput(BaseModel):
     outline: Optional[Union[Dict[str, Any], str]] = None
     day_index: Optional[int] = None
 
+    # Programmatic JSON calls (syllabus generation etc.)
+    # Bypasses routing analysis and uses higher token limit
+    json_mode: bool = False
+
 
 class ChatOutput(BaseModel):
     ok: bool
@@ -352,6 +356,18 @@ async def chat_enhanced(payload: ChatInput):
         # Keep compatibility: prompt builder exists, but llm_client uses memory_block anyway
         _system_prompt = build_system_prompt(payload.lang, memory_block)
         _ = _system_prompt  # silence linters, keep behavior unchanged
+
+        # json_mode: skip routing analysis, use Haiku with higher token limit
+        if payload.json_mode:
+            from .llm_client import _claude_json_haiku
+            assistant_text = await _claude_json_haiku(
+                system="You are a helpful assistant that outputs valid JSON. Follow the user's instructions exactly.",
+                user=user_text,
+                max_tokens=2500,
+                temperature=0.3,
+            )
+            out = ChatOutput(ok=True, text=assistant_text or "", type="json", memory_saved=0)
+            return _json_ok(out)
 
         # Decide detailed or normal
         analysis = analyze_query(user_text)

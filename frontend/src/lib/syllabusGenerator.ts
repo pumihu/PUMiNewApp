@@ -180,8 +180,9 @@ export async function generateSyllabus(wizardData: WizardData): Promise<WeekPlan
       message: prompt,
       lang: "hu",
       mode: "learning",
+      json_mode: true,
     }),
-    20000,
+    30000,
   );
 
   const rawText = resp.reply || resp.text || resp.message || "";

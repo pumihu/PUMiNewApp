@@ -1348,22 +1348,13 @@ async def generate_focus_item(
         return False
 
     if kind == "content" and is_language_domain:
-        # Language lessons: use Sonnet with high token budget for rich content
-        text = await _claude_json_sonnet(
+        # Language lessons: use Haiku directly for speed (avoids edge function timeouts)
+        text = await _claude_json_haiku(
             system=system,
             user=user,
-            max_tokens=4000,
-            temperature=0.4,
+            max_tokens=3000,
+            temperature=0.3,
         )
-        # If Sonnet fails (model access / credits), fall back to Haiku
-        if _is_llm_error(text):
-            print("[FOCUS_ITEM] Sonnet failed, falling back to Haiku")
-            text = await _claude_json_haiku(
-                system=system,
-                user=user,
-                max_tokens=2500,
-                temperature=0.3,
-            )
     elif kind == "content":
         # Non-language lessons: Haiku with more tokens
         text = await _claude_json_haiku(
