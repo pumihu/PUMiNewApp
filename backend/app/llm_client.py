@@ -639,7 +639,6 @@ PLACEHOLDER_OPTIONS = {"a", "b", "c", "d", "1", "2", "3"}
 FORBIDDEN_PATTERNS = [
     "hangosan",
     "mondd ki",
-    "kiejtés",
     "ismételd el",
     "mondd utánam",
     "hallgasd meg",
@@ -650,7 +649,6 @@ FORBIDDEN_PATTERNS = [
     "say out loud",
     "repeat after",
     "listen and repeat",
-    "pronunciation practice",
 ]
 
 
@@ -725,29 +723,29 @@ def _validate_focus_item(item: Dict[str, Any]) -> tuple[bool, str]:
     if not kind or kind not in VALID_KINDS:
         return False, f"Invalid or missing kind: {kind}"
 
-    # Check for forbidden patterns in instructions and content
-    instructions = item.get("instructions_md", "")
-    title = item.get("title", "")
-    subtitle = item.get("subtitle", "")
-    content = item.get("content", {})
+    # Check for forbidden patterns in actionable (non-content) tasks only.
+    # Language lessons may mention pronunciation terms as explanatory context.
+    if kind != "content":
+        instructions = item.get("instructions_md", "")
+        title = item.get("title", "")
+        subtitle = item.get("subtitle", "")
+        content = item.get("content", {})
 
-    # Check all text fields for forbidden patterns
-    fields_to_check = [
-        instructions,
-        title,
-        subtitle,
-        str(content.get("prompt", "")),
-        str(content.get("scene_title", "")),
-        str(content.get("proof_required", "")),
-    ]
-    # Check steps in checklist
-    if isinstance(content.get("steps"), list):
-        fields_to_check.extend(content["steps"])
+        fields_to_check = [
+            instructions,
+            title,
+            subtitle,
+            str(content.get("prompt", "")),
+            str(content.get("scene_title", "")),
+            str(content.get("proof_required", "")),
+        ]
+        if isinstance(content.get("steps"), list):
+            fields_to_check.extend(content["steps"])
 
-    for field in fields_to_check:
-        forbidden = _contains_forbidden_pattern(field)
-        if forbidden:
-            return False, f"Contains forbidden pattern: '{forbidden}' - tasks requiring speaking aloud cannot be verified"
+        for field in fields_to_check:
+            forbidden = _contains_forbidden_pattern(field)
+            if forbidden:
+                return False, f"Contains forbidden pattern: '{forbidden}' - tasks requiring speaking aloud cannot be verified"
 
     # Check required fields
     required_fields = ["schema_version", "kind", "idempotency_key", "title", "instructions_md", "content", "validation"]
@@ -1186,7 +1184,7 @@ STRICT OUTPUT RULES:
 🚨 HARD RULE - FORBIDDEN TASK TYPES:
 Do NOT generate tasks that require speaking aloud, listening, or pronunciation practice.
 These CANNOT be verified via text input. NEVER use these phrases:
-- "hangosan", "mondd ki", "kiejtés", "ismételd el", "mondd utánam", "hallgasd meg"
+- "hangosan", "mondd ki", "ismételd el", "mondd utánam", "hallgasd meg"
 - "speak aloud", "say out loud", "repeat after", "listen and repeat"
 Instead: require WRITTEN responses only (typing, not speaking).
 
@@ -1399,7 +1397,10 @@ async def generate_focus_item(
                 preceding_lesson_content=preceding_lesson_content,
             )
         # Return fallback item
-        return _create_fallback_item(kind, topic, label, lang, minutes)
+        fallback = _create_fallback_item(kind, topic, label, lang, minutes, domain=domain)
+        if preceding_lesson_content and kind != "content":
+            fallback["chain_version"] = "lesson_v2"
+        return fallback
 
     # Force correct kind (LLM might have changed it)
     data["kind"] = kind
@@ -1435,17 +1436,22 @@ async def generate_focus_item(
                 preceding_lesson_content=preceding_lesson_content,
             )
         # Return fallback
-        return _create_fallback_item(kind, topic, label, lang, minutes)
+        fallback = _create_fallback_item(kind, topic, label, lang, minutes, domain=domain)
+        if preceding_lesson_content and kind != "content":
+            fallback["chain_version"] = "lesson_v2"
+        return fallback
 
     return data
 
 
-def _create_fallback_item(kind: str, topic: str, label: str, lang: str, minutes: int) -> Dict[str, Any]:
+def _create_fallback_item(kind: str, topic: str, label: str, lang: str, minutes: int, domain: str = "other") -> Dict[str, Any]:
     """
     Create a hardcoded fallback item when LLM generation fails.
     """
     is_hu = (lang or "hu").lower().startswith("hu")
     rules = KIND_VALIDATION_RULES.get(kind, {})
+    domain_lower = (domain or "other").lower()
+    is_language_domain = domain_lower in ("language_learning", "language")
 
     base = {
         "schema_version": "1.0",
@@ -1477,38 +1483,94 @@ def _create_fallback_item(kind: str, topic: str, label: str, lang: str, minutes:
     }
 
     if kind == "content":
-        base["content"] = {
-            "title": f"{topic} alapjai" if is_hu else f"{topic} essentials",
-            "summary": (
-                f"A(z) {topic} lényege, hogy érthetően lásd a célt és a megvalósítás lépéseit. "
-                f"Ez a rövid áttekintés segít abban, hogy mikor és hogyan használd a fogalmat a gyakorlatban."
-                if is_hu
-                else f"{topic} focuses on understanding the goal and the practical steps to apply it. "
-                     f"This short overview helps you decide when to use it and what to watch for in practice."
-            ),
-            "key_points": [
-                (f"Definíció: mi a(z) {topic} és mire szolgál." if is_hu else f"Definition: what {topic} is and what it is for."),
-                ("Működés: a folyamat fő lépései röviden." if is_hu else "How it works: the main steps in order."),
-                ("Alkalmazás: egy tipikus helyzet, ahol hasznos." if is_hu else "Use case: a typical scenario where it helps."),
-                ("Korlátok: mikor nem ideális a használata." if is_hu else "Limitations: when it is not ideal."),
-                ("Kapcsolódás: hogyan illeszkedik a kapcsolódó fogalmakhoz." if is_hu else "Connections: how it relates to nearby concepts."),
-            ],
-            "example": (
-                f"Példa: Egy konkrét helyzetben a(z) {topic} segít a cél elérésében, mert lépésről lépésre követhető megoldást ad."
-                if is_hu
-                else f"Example: In a real situation, {topic} guides the process by making steps clear and measurable."
-            ),
-            "micro_task": {
-                "instruction": (f"Írj 2–3 mondatban egy saját példát, ahol a(z) {topic} segítene." if is_hu else f"Write a 2–3 sentence example where {topic} would help."),
-                "expected_output": ("2–3 mondat, konkrét helyzettel és céllal." if is_hu else "2–3 sentences with a concrete situation and goal."),
-            },
-            "common_mistakes": [
-                ("Túl általános megfogalmazás konkrétumok nélkül." if is_hu else "Using vague statements without concrete details."),
-                ("A lépések összekeverése vagy kihagyása." if is_hu else "Skipping or mixing up steps."),
-                ("A cél és a mérhető eredmény nem tiszta." if is_hu else "Unclear goal or success criteria."),
-            ],
-            "estimated_minutes": max(3, min(10, minutes))
-        }
+        if is_language_domain:
+            base["content"] = {
+                "content_type": "language_lesson",
+                "title": f"{topic} - alaplecke" if is_hu else f"{topic} - starter lesson",
+                "introduction": (
+                    f"Ebben a rövid leckében a(z) {topic} témához kapcsolódó alap szókincset és mondatszerkezeteket tanulod. "
+                    "A cél, hogy egyszerű helyzetekben magabiztosan tudj köszönni, bemutatkozni, és röviden válaszolni."
+                    if is_hu
+                    else f"In this short lesson you learn the core vocabulary and sentence patterns for {topic}. "
+                    "The goal is to greet people, introduce yourself, and answer simple questions with confidence."
+                ),
+                "key_points": [
+                    ("Köszönések és udvarias alapmondatok." if is_hu else "Basic greetings and polite starter phrases."),
+                    ("Egyszerű bemutatkozás: név, származás, foglalkozás." if is_hu else "Simple self-introduction: name, origin, role."),
+                    ("Rövid kérdés-válasz minták hétköznapi helyzetekre." if is_hu else "Short question-answer patterns for daily situations."),
+                ],
+                "vocabulary_table": [
+                    {"word": "Hello", "translation": "Helló"},
+                    {"word": "Good morning", "translation": "Jó reggelt"},
+                    {"word": "Good afternoon", "translation": "Jó napot"},
+                    {"word": "My name is", "translation": "A nevem"},
+                    {"word": "Nice to meet you", "translation": "Örülök, hogy megismertelek"},
+                    {"word": "How are you?", "translation": "Hogy vagy?"},
+                ],
+                "grammar_explanation": {
+                    "rule_title": "Egyszerű bemutatkozó mondat",
+                    "formation_pattern": "My name is + név",
+                    "explanation": (
+                        "A minta segít udvariasan bemutatkozni első találkozáskor."
+                        if is_hu
+                        else "This pattern is used to introduce yourself politely in first meetings."
+                    ),
+                    "examples": [
+                        {"target": "My name is Anna.", "hungarian": "A nevem Anna."},
+                        {"target": "My name is Peter.", "hungarian": "A nevem Péter."},
+                    ],
+                },
+                "dialogues": [
+                    {
+                        "scene": "Első találkozás" if is_hu else "First meeting",
+                        "lines": [
+                            {"speaker": "A", "text": "Hello!", "translation": "Helló!"},
+                            {"speaker": "B", "text": "Good afternoon!", "translation": "Jó napot!"},
+                            {"speaker": "A", "text": "My name is Anna.", "translation": "A nevem Anna."},
+                            {"speaker": "B", "text": "Nice to meet you.", "translation": "Örülök, hogy megismertelek."},
+                        ],
+                    }
+                ],
+                "common_mistakes": [
+                    ("A 'My name is' után lemarad a név." if is_hu else "Leaving out the name after 'My name is'."),
+                    ("A köszönést napszakhoz rosszul választják." if is_hu else "Using a greeting that does not match the time of day."),
+                    ("Túl hosszú, bonyolult mondatok kezdő szinten." if is_hu else "Using overly long, complex sentences at beginner level."),
+                ],
+                "estimated_minutes": max(3, min(10, minutes)),
+            }
+        else:
+            base["content"] = {
+                "title": f"{topic} alapjai" if is_hu else f"{topic} essentials",
+                "summary": (
+                    f"A(z) {topic} lényege, hogy érthetően lásd a célt és a megvalósítás lépéseit. "
+                    f"Ez a rövid áttekintés segít abban, hogy mikor és hogyan használd a fogalmat a gyakorlatban."
+                    if is_hu
+                    else f"{topic} focuses on understanding the goal and the practical steps to apply it. "
+                         f"This short overview helps you decide when to use it and what to watch for in practice."
+                ),
+                "key_points": [
+                    (f"Definíció: mi a(z) {topic} és mire szolgál." if is_hu else f"Definition: what {topic} is and what it is for."),
+                    ("Működés: a folyamat fő lépései röviden." if is_hu else "How it works: the main steps in order."),
+                    ("Alkalmazás: egy tipikus helyzet, ahol hasznos." if is_hu else "Use case: a typical scenario where it helps."),
+                    ("Korlátok: mikor nem ideális a használata." if is_hu else "Limitations: when it is not ideal."),
+                    ("Kapcsolódás: hogyan illeszkedik a kapcsolódó fogalmakhoz." if is_hu else "Connections: how it relates to nearby concepts."),
+                ],
+                "example": (
+                    f"Példa: Egy konkrét helyzetben a(z) {topic} segít a cél elérésében, mert lépésről lépésre követhető megoldást ad."
+                    if is_hu
+                    else f"Example: In a real situation, {topic} guides the process by making steps clear and measurable."
+                ),
+                "micro_task": {
+                    "instruction": (f"Írj 2–3 mondatban egy saját példát, ahol a(z) {topic} segítene." if is_hu else f"Write a 2–3 sentence example where {topic} would help."),
+                    "expected_output": ("2–3 mondat, konkrét helyzettel és céllal." if is_hu else "2–3 sentences with a concrete situation and goal."),
+                },
+                "common_mistakes": [
+                    ("Túl általános megfogalmazás konkrétumok nélkül." if is_hu else "Using vague statements without concrete details."),
+                    ("A lépések összekeverése vagy kihagyása." if is_hu else "Skipping or mixing up steps."),
+                    ("A cél és a mérhető eredmény nem tiszta." if is_hu else "Unclear goal or success criteria."),
+                ],
+                "estimated_minutes": max(3, min(10, minutes))
+            }
         base["validation"]["require_interaction"] = False
         base["input"]["type"] = "none"
 

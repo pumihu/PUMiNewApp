@@ -497,7 +497,7 @@ export async function generateSyllabus(wizardData: WizardData): Promise<WeekPlan
 
   console.log("[SYLLABUS] Generating syllabus...");
 
-  // Try /chat/enhanced with json_mode first (fast path if backend supports it)
+  // Use /chat/enhanced json_mode only; do not chain into /chat/detailed here.
   let rawText = "";
   try {
     const resp = await withTimeout(
@@ -511,18 +511,9 @@ export async function generateSyllabus(wizardData: WizardData): Promise<WeekPlan
     );
     rawText = resp.reply || resp.text || resp.message || "";
 
-    // If backend returned needs_detailed (json_mode not supported yet), fall back to /chat/detailed
+    // For syllabus generation we never call /chat/detailed from frontend.
     if (!rawText && (resp as any).type === "needs_detailed") {
-      console.log("[SYLLABUS] Enhanced returned needs_detailed, trying /chat/detailed...");
-      const detailedResp = await withTimeout(
-        pumiInvoke<{ ok?: boolean; content?: string; text?: string; title?: string }>("/chat/detailed", {
-          message: prompt,
-          lang: "hu",
-          mode: "learning",
-        }),
-        45000,
-      );
-      rawText = detailedResp.content || detailedResp.text || "";
+      throw new Error("Enhanced returned needs_detailed in json_mode");
     }
   } catch (err) {
     console.warn("[SYLLABUS] Chat endpoints failed, using template fallback:", err);
