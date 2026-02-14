@@ -175,17 +175,38 @@ export async function generateSyllabus(wizardData: WizardData): Promise<WeekPlan
 
   console.log("[SYLLABUS] Generating syllabus...");
 
-  const resp = await withTimeout(
-    pumiInvoke<{ reply?: string; text?: string; message?: string }>("/chat/enhanced", {
-      message: prompt,
-      lang: "hu",
-      mode: "learning",
-      json_mode: true,
-    }),
-    30000,
-  );
+  // Try /chat/enhanced with json_mode first (fast path if backend supports it)
+  let rawText = "";
+  try {
+    const resp = await withTimeout(
+      pumiInvoke<{ reply?: string; text?: string; message?: string; type?: string; content?: string }>("/chat/enhanced", {
+        message: prompt,
+        lang: "hu",
+        mode: "learning",
+        json_mode: true,
+      }),
+      30000,
+    );
+    rawText = resp.reply || resp.text || resp.message || "";
 
-  const rawText = resp.reply || resp.text || resp.message || "";
+    // If backend returned needs_detailed (json_mode not supported yet), fall back to /chat/detailed
+    if (!rawText && (resp as any).type === "needs_detailed") {
+      console.log("[SYLLABUS] Enhanced returned needs_detailed, trying /chat/detailed...");
+      const detailedResp = await withTimeout(
+        pumiInvoke<{ ok?: boolean; content?: string; text?: string; title?: string }>("/chat/detailed", {
+          message: prompt,
+          lang: "hu",
+          mode: "learning",
+        }),
+        45000,
+      );
+      rawText = detailedResp.content || detailedResp.text || "";
+    }
+  } catch (err) {
+    console.warn("[SYLLABUS] Chat endpoints failed:", err);
+    throw new Error("Syllabus generation failed");
+  }
+
   if (!rawText) {
     throw new Error("Syllabus generation returned empty response");
   }

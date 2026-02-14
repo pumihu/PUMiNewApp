@@ -77,22 +77,31 @@ export const focusApi = {
     pumiInvoke<FocusGetDayResp>("/focus/get-day", payload),
 
   generateItemContent: async (payload: { item_id: string; topic?: string; label?: string; day_title?: string; user_goal?: string; mode: FocusMode; domain?: string; level?: string; lang?: string }) => {
-    try {
-      return await pumiInvoke<GenerateItemContentResp>("/focus/generate-item-content", payload);
-    } catch (err) {
-      const status = (err as any)?.status;
-      const message = err instanceof Error ? err.message : String(err);
-      const isConflict = status === 409 || message.includes("409") || message.includes("Conflict");
-      if (isConflict) {
-        console.log("generate-item-content 409 → retry");
-        await new Promise(resolve => setTimeout(resolve, 400));
+    const attempt = async (retryNum: number): Promise<GenerateItemContentResp> => {
+      try {
         return await pumiInvoke<GenerateItemContentResp>("/focus/generate-item-content", {
           ...payload,
-          force: true,
+          ...(retryNum > 0 ? { force: true } : {}),
         });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        const isConflict = message.includes("409") || message.includes("Conflict");
+        const isTimeout = message.includes("timeout") || message.includes("504") || message.includes("timed out");
+
+        if (isConflict && retryNum < 1) {
+          console.log("generate-item-content 409 → retry");
+          await new Promise(resolve => setTimeout(resolve, 400));
+          return attempt(retryNum + 1);
+        }
+        if (isTimeout && retryNum < 1) {
+          console.log("generate-item-content timeout → retry");
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          return attempt(retryNum + 1);
+        }
+        throw err;
       }
-      throw err;
-    }
+    };
+    return attempt(0);
   },
 
   // Roleplay chat - calls /chat/enhanced with mode=roleplay

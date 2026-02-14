@@ -93,8 +93,13 @@ Deno.serve(async (req) => {
     ...(method === "POST" && payload ? { body: JSON.stringify(payload) } : {}),
   };
 
+  // Use AbortSignal for 55s timeout (Supabase edge fn limit is ~60s)
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 55000);
+
   try {
-    const upstream = await fetch(url, options);
+    const upstream = await fetch(url, { ...options, signal: controller.signal });
+    clearTimeout(timeoutId);
     const text = await upstream.text();
 
     console.log(`[pumi-proxy] Response: ${upstream.status}`);
@@ -104,7 +109,13 @@ Deno.serve(async (req) => {
       headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
     });
   } catch (e) {
-    console.error("[pumi-proxy] Upstream error:", e);
-    return json(500, { ok: false, error: String(e) });
+    clearTimeout(timeoutId);
+    const isTimeout = e instanceof DOMException && e.name === "AbortError";
+    console.error(`[pumi-proxy] ${isTimeout ? "Timeout" : "Upstream error"}:`, e);
+    return json(isTimeout ? 504 : 500, {
+      ok: false,
+      error: isTimeout ? "timeout" : String(e),
+      detail: isTimeout ? "Upstream request timed out" : undefined,
+    });
   }
 });
