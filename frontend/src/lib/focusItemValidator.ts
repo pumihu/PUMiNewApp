@@ -57,8 +57,8 @@ export function detectKindFromRaw(raw: any): FocusItemKind {
   
   // Content-based detection
   if (raw?.content) {
-    // Lesson detection: has summary or key_points (rich educational content)
-    if (raw.content.summary || raw.content.key_points) {
+    // Lesson detection: has summary, key_points, or language_lesson content
+    if (raw.content.summary || raw.content.key_points || raw.content.content_type === "language_lesson" || raw.content.vocabulary_table) {
       return "lesson";
     }
     if (raw.content.sentences && Array.isArray(raw.content.sentences)) {
