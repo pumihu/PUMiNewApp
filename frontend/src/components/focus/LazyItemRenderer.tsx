@@ -97,7 +97,24 @@ export function LazyItemRenderer({ item, dayTitle, dayIntro, domain, level, lang
         localStorage.removeItem(cacheKey);
       }
     }
-  }, [item.id]);
+
+    // If no cache, bootstrap from server-provided item.content from /focus/get-day
+    if (!cached && item.content && typeof item.content === "object") {
+      try {
+        const validation = validateFocusItem(item.content);
+        const hydrated = validation.valid
+          ? (item.content as StrictFocusItem)
+          : validation.repaired;
+        if (hydrated) {
+          setStrictItem(hydrated);
+          localStorage.setItem(cacheKey, JSON.stringify({ content: hydrated, timestamp: Date.now() }));
+          console.log(`[HYDRATE] Loaded initial content from get-day for ${item.id}`);
+        }
+      } catch (err) {
+        console.warn(`[HYDRATE] Failed to hydrate initial content for ${item.id}:`, err);
+      }
+    }
+  }, [item.id, item.content]);
 
   // Update validation state when user state or strict item changes
   useEffect(() => {
@@ -177,12 +194,22 @@ export function LazyItemRenderer({ item, dayTitle, dayIntro, domain, level, lang
       } catch (err) {
         console.error(`[API] Failed for ${item.id}:`, err);
 
-        // Use fallback template so the UI doesn't break
+        // Prefer already available backend content from /focus/get-day over hard template
+        if (item.content && typeof item.content === "object") {
+          try {
+            const fromDay = validateAndCache(item.content);
+            if (fromDay) {
+              console.log(`[FALLBACK] Using get-day content for ${item.id}`);
+              return fromDay;
+            }
+          } catch (hydrateErr) {
+            console.warn(`[FALLBACK] get-day content hydrate failed for ${item.id}:`, hydrateErr);
+          }
+        }
+
+        // Last resort: static template so UI stays usable
         console.log(`[FALLBACK] Using template for ${item.id}`);
-        const fallback = getFallbackTemplate(
-          detectKindFromItem(item),
-          item.topic || item.label
-        );
+        const fallback = getFallbackTemplate(detectKindFromItem(item), item.topic || item.label);
 
         const cacheEntry: CacheEntry = {
           content: fallback,
