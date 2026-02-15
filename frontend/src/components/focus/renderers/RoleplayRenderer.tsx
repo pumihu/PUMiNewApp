@@ -7,6 +7,7 @@ import type { RoleplayContent } from "@/types/focusItem";
 interface RoleplayRendererProps {
   content: RoleplayContent;
   topic: string;
+  userGoal?: string;
   minChars: number;
   onValidationChange: (state: { messagesCount: number; charCount: number }) => void;
 }
@@ -16,7 +17,7 @@ interface Message {
   content: string;
 }
 
-export function RoleplayRenderer({ content, topic, minChars, onValidationChange }: RoleplayRendererProps) {
+export function RoleplayRenderer({ content, topic, userGoal, minChars, onValidationChange }: RoleplayRendererProps) {
   const navigate = useNavigate();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -44,11 +45,14 @@ export function RoleplayRenderer({ content, topic, minChars, onValidationChange 
     setLoading(true);
     
     try {
-      const prompt = `Te egy nyelvgyakorlási partner vagy. A következő szituációban gyakorolunk: "${content.scenario}".
-Te vagy: ${content.roles.ai}
-A felhasználó: ${content.roles.user}
+      const langContext = userGoal ? `The user's learning goal: "${userGoal}". ` : "";
+      const prompt = `You are a language practice partner. ${langContext}Scenario: "${content.scenario}".
+You play: ${content.roles.ai}
+The user plays: ${content.roles.user}
 
-Kezdd a beszélgetést egy természetes mondattal. Maradj karakterben, legyél tömör (max 2 mondat).`;
+IMPORTANT: You MUST speak in the TARGET language the user is learning (detect from the goal/scenario).
+Keep it simple (A1-A2 level). Use short sentences (max 2). Start the conversation naturally.
+After each message, add a Hungarian translation in parentheses.`;
 
       const response = await pumiInvoke<{ reply?: string; text?: string }>("/chat/enhanced", { message: prompt, mode: "learning" });
       const aiReply = response.reply || response.text || "Szia! Készen állsz a gyakorlásra?";
@@ -76,13 +80,16 @@ Kezdd a beszélgetést egy természetes mondattal. Maradj karakterben, legyél t
         .map(m => `${m.role === "user" ? content.roles.user : content.roles.ai}: ${m.content}`)
         .join("\n");
 
-      const prompt = `Te egy nyelvgyakorlási partner vagy. Szituáció: "${content.scenario}".
-Te vagy: ${content.roles.ai}
+      const langContext = userGoal ? `The user's learning goal: "${userGoal}". ` : "";
+      const prompt = `You are a language practice partner. ${langContext}Scenario: "${content.scenario}".
+You play: ${content.roles.ai}
 
-Eddigi beszélgetés:
+Conversation so far:
 ${historyText}
 
-Válaszolj természetesen, max 2 mondatban. Maradj karakterben.`;
+IMPORTANT: Respond in the TARGET language the user is learning (detect from goal/scenario).
+Keep it simple (A1-A2 level), max 2 sentences. Stay in character.
+Add Hungarian translation in parentheses after your response.`;
 
       const response = await pumiInvoke<{ reply?: string; text?: string }>("/chat/enhanced", { message: prompt, mode: "learning" });
       const aiReply = response.reply || response.text || "Értem!";

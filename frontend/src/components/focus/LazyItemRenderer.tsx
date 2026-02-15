@@ -370,9 +370,10 @@ export function LazyItemRenderer({ item, dayTitle, dayIntro, domain, level, lang
               )}
               
               {/* Kind-based renderer */}
-              <StrictContentRenderer 
+              <StrictContentRenderer
                 item={strictItem}
                 topic={item.topic || item.label}
+                userGoal={dayTitle}
                 onValidationChange={handleValidationChange}
               />
             </>
@@ -484,13 +485,15 @@ function detectKindFromItem(item: PlanItem): FocusItemKind {
 }
 
 // Strict content renderer based on kind
-function StrictContentRenderer({ 
-  item, 
+function StrictContentRenderer({
+  item,
   topic,
+  userGoal,
   onValidationChange,
-}: { 
+}: {
   item: StrictFocusItem;
   topic: string;
+  userGoal?: string;
   onValidationChange: (updates: any) => void;
 }) {
   const content = item.content;
@@ -547,6 +550,7 @@ function StrictContentRenderer({
           <RoleplayRenderer
             content={content.data}
             topic={topic}
+            userGoal={userGoal}
             minChars={item.validation.min_chars || 80}
             onValidationChange={onValidationChange}
           />

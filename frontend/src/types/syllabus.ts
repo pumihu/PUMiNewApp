@@ -37,15 +37,18 @@ export interface WeekPlan {
   days: SyllabusDay[];
 }
 
-/** Main task rotation per day (Day 1-7) */
+/** Main task rotation per day (Day 1-7)
+ * Days 1-3: simpler practice (flashcards, translation, quiz) — vocabulary building
+ * Days 4+: more complex practice (roleplay, writing) — active production
+ */
 export const MAIN_TASK_ROTATION: SyllabusBlockType[] = [
-  "roleplay",
-  "flashcards",
-  "translation",
-  "quiz",
-  "writing",
-  "quiz",
-  "recap_mix",
+  "flashcards",    // Day 1: learn vocabulary with cards
+  "translation",   // Day 2: practice translating sentences
+  "quiz",          // Day 3: test knowledge
+  "roleplay",      // Day 4: first conversation practice
+  "writing",       // Day 5: writing practice
+  "roleplay",      // Day 6: more conversation
+  "recap_mix",     // Day 7: mixed review
 ];
 
 /** Maps syllabus block types to backend item type + practiceType */
