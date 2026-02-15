@@ -50,7 +50,7 @@ A felhasználó: ${content.roles.user}
 
 Kezdd a beszélgetést egy természetes mondattal. Maradj karakterben, legyél tömör (max 2 mondat).`;
 
-      const response = await pumiInvoke<{ reply?: string; text?: string }>("/chat/enhanced", { message: prompt, mode: "roleplay" });
+      const response = await pumiInvoke<{ reply?: string; text?: string }>("/chat/enhanced", { message: prompt, mode: "learning" });
       const aiReply = response.reply || response.text || "Szia! Készen állsz a gyakorlásra?";
       
       setMessages([{ role: "ai", content: aiReply }]);
@@ -84,7 +84,7 @@ ${historyText}
 
 Válaszolj természetesen, max 2 mondatban. Maradj karakterben.`;
 
-      const response = await pumiInvoke<{ reply?: string; text?: string }>("/chat/enhanced", { message: prompt, mode: "roleplay" });
+      const response = await pumiInvoke<{ reply?: string; text?: string }>("/chat/enhanced", { message: prompt, mode: "learning" });
       const aiReply = response.reply || response.text || "Értem!";
       
       setMessages(prev => [...prev, { role: "ai", content: aiReply }]);

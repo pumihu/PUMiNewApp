@@ -116,7 +116,7 @@ export const focusApi = {
         message: payload.message,
         history: payload.history,
         lang: payload.lang || "hu",
-        mode: payload.chatMode || "roleplay",
+        mode: "learning",
       });
       return { ok: true, reply: resp.reply || resp.message };
     } catch (err) {

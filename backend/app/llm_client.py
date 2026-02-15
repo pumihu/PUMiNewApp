@@ -1301,8 +1301,16 @@ async def generate_focus_item(
     DOMAIN SAFETY: Blocks language-specific types (translation, roleplay, flashcard)
     in non-language domains and converts them to safe alternatives.
     """
+    # Defensive type coercion — DB rows sometimes return unexpected types
+    domain = str(domain) if not isinstance(domain, str) else (domain or "other")
+    lang = str(lang) if not isinstance(lang, str) else (lang or "hu")
+    level = str(level) if not isinstance(level, str) else (level or "beginner")
+    item_type = str(item_type) if not isinstance(item_type, str) else (item_type or "lesson")
+    if practice_type is not None and not isinstance(practice_type, str):
+        practice_type = str(practice_type)
+
     # DOMAIN GUARD: Block language-only types in non-language domains
-    domain_lower = (domain or "other").lower()
+    domain_lower = domain.lower()
     is_language_domain = domain_lower in ("language_learning", "language")
 
     LANGUAGE_ONLY_TYPES = {"translation", "flashcard", "cards"}
