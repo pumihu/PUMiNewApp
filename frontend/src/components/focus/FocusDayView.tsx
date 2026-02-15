@@ -138,6 +138,7 @@ export function FocusDayView({
                 dayIntro={currentDay.intro}
                 domain={outline.domain || "other"}
                 level={outline.level || "beginner"}
+                lang={outline.lang || "hu"}
                 onComplete={(completedItem) => {
                   onCompleteItem(completedItem.id);
                 }}

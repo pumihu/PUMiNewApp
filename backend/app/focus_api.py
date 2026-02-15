@@ -629,6 +629,8 @@ class CompleteItemReq(BaseModel):
 
     result_json: Optional[Dict[str, Any]] = None
 
+    mode: Optional[str] = None  # "learning" or "project" — passed by frontend
+
 
 
 
@@ -638,6 +640,8 @@ class CompleteDayReq(BaseModel):
     plan_id: str
 
     day_index: int
+
+    mode: Optional[str] = None  # "learning" or "project" — passed by frontend
 
 
 
@@ -2981,15 +2985,18 @@ async def generate_item_content(req: GenerateItemContentReq, request: Request):
 
     day_title = req.day_title or day.get("title", "")
 
-    domain = plan.get("domain", "learning")
-
-    level = plan.get("level", "beginner")
-
-    lang = plan.get("lang", "hu")
+    # Defensive: ensure plan metadata are strings (plan fields can sometimes be dicts)
+    _raw_domain = plan.get("domain", "learning")
+    domain = str(_raw_domain) if not isinstance(_raw_domain, str) else (_raw_domain or "learning")
+    _raw_level = plan.get("level", "beginner")
+    level = str(_raw_level) if not isinstance(_raw_level, str) else (_raw_level or "beginner")
+    _raw_lang = plan.get("lang", "hu")
+    lang = str(_raw_lang) if not isinstance(_raw_lang, str) else (_raw_lang or "hu")
 
     minutes = item.get("estimated_minutes", 5)
 
-    user_goal = req.user_goal or plan.get("title", "")
+    _raw_goal = req.user_goal or plan.get("title", "")
+    user_goal = str(_raw_goal) if not isinstance(_raw_goal, str) else (_raw_goal or "")
 
     # Extract settings from plan for content generation
     plan_settings = plan.get("settings") or {}

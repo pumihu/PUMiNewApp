@@ -913,6 +913,14 @@ def _build_item_generation_prompt(
     - pacing: "small_steps" (granular), "big_blocks" (comprehensive)
     - content_depth: "short" / "medium" / "substantial" (from item template)
     """
+    # Defensive coercion — caller may pass dicts from plan metadata
+    lang = str(lang) if not isinstance(lang, str) else (lang or "hu")
+    domain = str(domain) if not isinstance(domain, str) else (domain or "other")
+    level = str(level) if not isinstance(level, str) else (level or "beginner")
+    day_title = str(day_title) if not isinstance(day_title, str) else (day_title or "")
+    item_topic = str(item_topic) if not isinstance(item_topic, str) else (item_topic or "")
+    user_goal = str(user_goal) if not isinstance(user_goal, str) else (user_goal or "")
+
     is_hu = (lang or "hu").lower().startswith("hu")
     settings = settings or {}
 
@@ -995,7 +1003,10 @@ def _build_item_generation_prompt(
     }
   ],
   "practice_exercises": [
-    { "type": "fill_in_blank", "instruction": "Hungarian instruction", "items": [{ "prompt": "sentence with ___", "answer": "word" }] }
+    { "type": "fill_in_blank", "instruction": "Hungarian instruction", "items": [
+      { "prompt": "sentence with ___", "answer": "correct word" },
+      { "prompt": "another sentence with ___", "answer": "correct word" }
+    ]}
   ],
   "summary": "1-2 sentences summarizing what was learned (Hungarian)",
   "key_points": ["Takeaway 1", "Takeaway 2", "Takeaway 3"],
@@ -1007,7 +1018,7 @@ RULES:
 - example_sentence: in TARGET language. example_translation: Hungarian
 - grammar_explanation: explain in Hungarian, examples in TARGET language with Hungarian translation
 - dialogues: "text" = TARGET language, "translation" = Hungarian
-- practice_exercises: prompts use TARGET language, instructions in Hungarian
+- practice_exercises: REQUIRED. At least 1 exercise with 2-4 items each. Prompts in TARGET language, instructions in Hungarian
 - key_points: 3-5, common_mistakes: 3-5
 - introduction, instructions, explanations: Hungarian
 - The TARGET language is detected from the user_goal context
@@ -1367,13 +1378,15 @@ async def generate_focus_item(
             return True
         return False
 
+    is_language_lesson = kind == "content" and (domain or "other").lower() in ("language_learning", "language")
+
     if kind == "content":
         # All lessons use Haiku — Sonnet is too slow for synchronous proxy architecture
-        # Language lessons get structured prompt (vocab, grammar, dialogues) within Haiku's capacity
+        # Language lessons need 3500 tokens to fit vocab + grammar + dialogues + practice_exercises
         text = await _claude_json_haiku(
             system=system,
             user=user,
-            max_tokens=2500,
+            max_tokens=3500 if is_language_lesson else 2500,
             temperature=0.3,
         )
     else:

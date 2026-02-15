@@ -418,14 +418,22 @@ export default function FocusPage() {
   // COMPLETE ITEM - with optional result data for validation
   // ============================================================================
   
-  const handleCompleteItem = (itemId: string, resultJson?: any) => {
-    if (!completedItemIds.includes(itemId)) {
-      setCompletedItemIds([...completedItemIds, itemId]);
-      
-      // Log result for debugging (backend validation happens via separate endpoint)
-      if (resultJson) {
-        console.log("[FOCUS] Item completed with result:", itemId, resultJson);
-      }
+  const handleCompleteItem = async (itemId: string, resultJson?: any) => {
+    if (completedItemIds.includes(itemId)) return;
+    setCompletedItemIds(prev => [...prev, itemId]);
+
+    // Persist item completion to backend
+    try {
+      const mode = outline?.domain === "project" || outline?.focus_type === "project" ? "project" : "learning";
+      await focusApi.completeItem({
+        item_id: itemId,
+        status: "done",
+        mode,
+        ...(resultJson ? { result_json: resultJson } : {}),
+      });
+      console.log("[FOCUS] Item completion persisted:", itemId);
+    } catch (err) {
+      console.warn("[FOCUS] Item completion backend call failed (non-fatal):", err);
     }
   };
 
@@ -440,8 +448,9 @@ export default function FocusPage() {
     
     try {
       const planId = localStorage.getItem("pumi_focus_plan_id");
+      const mode = outline?.domain === "project" || outline?.focus_type === "project" ? "project" : "learning";
       if (planId) {
-        const result = await focusApi.completeDay({ plan_id: planId, day_index: selectedDayIndex });
+        const result = await focusApi.completeDay({ plan_id: planId, day_index: selectedDayIndex, mode });
         
         // Handle not_allowed or error responses
         if (!result.ok) {

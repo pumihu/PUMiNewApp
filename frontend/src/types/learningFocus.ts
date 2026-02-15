@@ -119,6 +119,7 @@ export interface FocusOutline {
   days: OutlineDay[];
   domain?: LearningDomain;
   level?: LearningLevel;
+  lang?: string;
   minutes_per_day?: number;
   focus_type?: "learning" | "project";
 }
