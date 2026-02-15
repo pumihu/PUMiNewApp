@@ -96,9 +96,9 @@ Deno.serve(async (req) => {
     ...(method === "POST" && payload ? { body: JSON.stringify(payload) } : {}),
   };
 
-  // Use AbortSignal for 55s timeout (Supabase edge fn limit is ~60s)
+  // Use AbortSignal for 58s timeout (Supabase edge fn limit is ~60s)
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 55000);
+  const timeoutId = setTimeout(() => controller.abort(), 58000);
 
   try {
     const upstream = await fetch(url, { ...options, signal: controller.signal });

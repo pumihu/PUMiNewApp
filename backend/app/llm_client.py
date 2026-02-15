@@ -797,32 +797,25 @@ def _validate_focus_item(item: Dict[str, Any]) -> tuple[bool, str]:
         content_type = content.get("content_type", "")
 
         if content_type == "language_lesson":
-            # Enhanced validation for language lessons
+            # Language lesson validation (relaxed to avoid timeout-causing retries)
             introduction = content.get("introduction", "")
-            if not introduction or len(introduction.split()) < 30:
-                return False, "Language lesson introduction too short (min 30 words)"
+            if not introduction or len(introduction.split()) < 15:
+                return False, "Language lesson introduction too short (min 15 words)"
             vocab_table = content.get("vocabulary_table", [])
-            if len(vocab_table) < 5:
-                return False, f"Language lesson needs 5+ vocabulary items, got {len(vocab_table)}"
+            if len(vocab_table) < 3:
+                return False, f"Language lesson needs 3+ vocabulary items, got {len(vocab_table)}"
             grammar = content.get("grammar_explanation", {})
             if not grammar or not grammar.get("explanation"):
                 return False, "Language lesson missing grammar_explanation"
             grammar_examples = grammar.get("examples", [])
-            if len(grammar_examples) < 2:
-                return False, "Language lesson grammar needs 2+ examples"
+            if len(grammar_examples) < 1:
+                return False, "Language lesson grammar needs 1+ example"
             dialogues = content.get("dialogues", [])
             if len(dialogues) < 1:
                 return False, "Language lesson needs at least 1 dialogue"
             for d in dialogues:
-                if len(d.get("lines", [])) < 4:
-                    return False, "Dialogue must have 4+ lines"
-            # Validate shared fields
-            key_points = content.get("key_points", [])
-            if key_points and (len(key_points) < 3 or len(key_points) > 7):
-                return False, f"Content must have 3-7 key_points, got {len(key_points)}"
-            common_mistakes = content.get("common_mistakes", [])
-            if common_mistakes and (len(common_mistakes) < 3 or len(common_mistakes) > 5):
-                return False, "Content common_mistakes must have 3-5 items"
+                if len(d.get("lines", [])) < 2:
+                    return False, "Dialogue must have 2+ lines"
         else:
             # Standard content validation (non-language domains)
             summary = content.get("summary", "")
@@ -974,67 +967,48 @@ def _build_item_generation_prompt(
     is_language_domain = (domain or "other").lower() in ("language_learning", "language")
 
     # Language domain lessons get a rich, structured content spec
+    # NOTE: Keep spec compact — Sonnet must finish within ~45s for proxy timeout
     if kind == "content" and is_language_domain:
         content_spec_content = '''
 "content": {
-  "title": "Specific lesson title (not equal to day title)",
+  "title": "Specific lesson title",
   "content_type": "language_lesson",
-  "introduction": "2-3 engaging paragraphs explaining what this lesson covers and what the learner will be able to do after completing it. Minimum 80 words. Write in the user's native language (Hungarian).",
+  "introduction": "1-2 paragraphs: what this lesson covers, what the learner will achieve. Min 40 words. In Hungarian.",
   "vocabulary_table": [
-    {
-      "word": "target language word/phrase",
-      "translation": "Hungarian translation",
-      "pronunciation": "phonetic guide in Hungarian reading",
-      "example_sentence": "A full sentence using the word in the target language",
-      "example_translation": "Hungarian translation of the example sentence"
-    }
+    { "word": "target word", "translation": "Hungarian", "pronunciation": "phonetic", "example_sentence": "full sentence", "example_translation": "Hungarian translation" }
   ],
   "grammar_explanation": {
-    "rule_title": "Name of the grammar concept",
-    "explanation": "Clear explanation of the grammar rule in 2-4 paragraphs. Include formation rules, when to use, and exceptions. Minimum 100 words. In Hungarian.",
-    "formation_pattern": "The structural pattern, e.g. Subject + verb + object",
+    "rule_title": "Grammar concept name",
+    "explanation": "Clear explanation of the rule, when to use it. Min 50 words. In Hungarian.",
+    "formation_pattern": "e.g. Subject + verb + object",
     "examples": [
-      { "target": "Example in target language", "hungarian": "Hungarian translation", "note": "Brief note on why this form is used" }
-    ],
-    "exceptions": ["Exception 1 with explanation"]
+      { "target": "target language example", "hungarian": "translation", "note": "brief note" }
+    ]
   },
   "dialogues": [
     {
-      "title": "Dialogue scenario title in Hungarian",
-      "context": "Brief setting description in Hungarian",
+      "title": "Scenario title in Hungarian",
       "lines": [
-        { "speaker": "A", "text": "Line in target language", "translation": "Hungarian translation" },
-        { "speaker": "B", "text": "Response in target language", "translation": "Hungarian translation" }
+        { "speaker": "A", "text": "target language", "translation": "Hungarian" },
+        { "speaker": "B", "text": "target language", "translation": "Hungarian" }
       ]
     }
   ],
-  "cultural_note": "1-2 sentences about cultural context relevant to this topic (in Hungarian, optional)",
   "practice_exercises": [
-    {
-      "type": "fill_in_blank",
-      "instruction": "Exercise instruction in Hungarian",
-      "items": [
-        { "prompt": "Sentence with ___ blank", "answer": "correct word" }
-      ]
-    }
+    { "type": "fill_in_blank", "instruction": "Hungarian instruction", "items": [{ "prompt": "sentence with ___", "answer": "word" }] }
   ],
-  "summary": "2-3 sentences summarizing what was learned (Hungarian)",
-  "key_points": ["Key takeaway 1", "Key takeaway 2", "Key takeaway 3"],
-  "common_mistakes": ["Mistake 1: description and correct approach", "Mistake 2", "Mistake 3"],
+  "summary": "1-2 sentences summarizing what was learned (Hungarian)",
+  "key_points": ["Takeaway 1", "Takeaway 2", "Takeaway 3"],
+  "common_mistakes": ["Mistake 1 and correction", "Mistake 2 and correction", "Mistake 3 and correction"],
   "estimated_minutes": ''' + str(minutes) + '''
 }
-QUALITY RULES:
-- introduction MUST be at least 80 words, engaging and specific to the topic
-- vocabulary_table MUST have 8-12 entries, each with a full example_sentence
-- grammar_explanation.explanation MUST be at least 100 words with clear rules
-- grammar_explanation.examples MUST have 3+ examples with notes
-- dialogues MUST have at least 1 dialogue with 6+ lines
-- practice_exercises MUST have at least 2 exercises with 3+ items each
-- key_points MUST have 3-5 items
-- common_mistakes MUST have 3-5 items with corrections
-- ALL explanatory text MUST be in Hungarian
-- ALL target language content MUST include Hungarian translation
-- vocabulary_table words MUST come from the item_topic/user_goal vocabulary list if provided
+RULES:
+- vocabulary_table: 5-8 entries with example_sentence
+- grammar_explanation.examples: 2-3 examples
+- dialogues: 1 dialogue, 4+ lines
+- practice_exercises: 1-2 exercises, 2+ items each
+- key_points: 3-5, common_mistakes: 3-5
+- ALL text in Hungarian, target language with Hungarian translation
 '''
     else:
         content_spec_content = '''
@@ -1347,10 +1321,11 @@ async def generate_focus_item(
 
     if kind == "content" and is_language_domain:
         # Language lessons: use Sonnet for reliable complex JSON (vocab, grammar, dialogues)
+        # Keep max_tokens moderate to finish within proxy timeout (~55s)
         text = await _claude_json_sonnet(
             system=system,
             user=user,
-            max_tokens=4096,
+            max_tokens=2500,
             temperature=0.3,
         )
     elif kind == "content":
