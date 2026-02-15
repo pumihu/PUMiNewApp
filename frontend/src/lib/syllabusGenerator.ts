@@ -19,13 +19,15 @@ function getExpectedBlockIds(track?: LanguageTrack): readonly string[] {
 // ============================================================================
 
 function buildSyllabusPrompt(wizardData: WizardData): string {
-  const step3 = wizardData.step3 as WizardStep3Language | null;
-  const language = step3?.targetLanguage || "english";
-  const level = step3?.level || "beginner";
-  const minutesPerDay = step3?.minutesPerDay || 20;
-  const track = step3?.track;
-  const goal = wizardData.step2.goalSentence;
-  const durationDays = Math.min(wizardData.step2.durationDays, 7);
+  // New 3-step wizard: language settings are in step2
+  const step2 = wizardData.step2 && "targetLanguage" in wizardData.step2 ? wizardData.step2 : null;
+  const language = step2?.targetLanguage || "english";
+  const level = step2?.level || "beginner";
+  const minutesPerDay = step2?.minutesPerDay || 20;
+  const track = step2?.track;
+  const durationDays = Math.min(step2?.durationDays || 7, 7);
+  // Auto-generated goal (no more free-text goalSentence)
+  const goal = step2 ? `${language} nyelv tanulása - ${track === "career_language" ? "karrier" : "alapozó"}` : "";
 
   const rotation = MAIN_TASK_ROTATION.slice(0, durationDays)
     .map((t, i) => `Day ${i + 1}: ${t}`)
@@ -452,12 +454,11 @@ function getTemplateForLanguage(language: string, _level: string): LanguageTempl
 }
 
 function buildTemplateSyllabus(wizardData: WizardData): WeekPlan {
-  const step3 = wizardData.step3 as WizardStep3Language | null;
-  const language = step3?.targetLanguage || "english";
-  const level = step3?.level || "beginner";
-  const minutesPerDay = step3?.minutesPerDay || 20;
-  const goal = wizardData.step2.goalSentence;
-  const durationDays = Math.min(wizardData.step2.durationDays, 7);
+  const step2 = wizardData.step2 && "targetLanguage" in wizardData.step2 ? wizardData.step2 : null;
+  const language = step2?.targetLanguage || "english";
+  const level = step2?.level || "beginner";
+  const minutesPerDay = step2?.minutesPerDay || 20;
+  const durationDays = Math.min(step2?.durationDays || 7, 7);
 
   const template = getTemplateForLanguage(language, level);
 
@@ -573,9 +574,9 @@ export async function generateSyllabus(wizardData: WizardData): Promise<WeekPlan
     return templatePlan;
   }
 
-  const step3 = wizardData.step3 as WizardStep3Language | null;
-  const weekPlan = validateWeekPlan(parsed, step3?.track);
-  console.log("[SYLLABUS] Generated:", weekPlan.days.length, "days, track:", step3?.track || "foundations_language");
+  const step2Lang = wizardData.step2 && "targetLanguage" in wizardData.step2 ? wizardData.step2 : null;
+  const weekPlan = validateWeekPlan(parsed, step2Lang?.track);
+  console.log("[SYLLABUS] Generated:", weekPlan.days.length, "days, track:", step2Lang?.track || "foundations_language");
   return weekPlan;
 }
 

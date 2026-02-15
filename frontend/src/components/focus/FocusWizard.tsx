@@ -1,9 +1,9 @@
 // src/components/focus/FocusWizard.tsx
-// 5-step guided wizard for creating a new Focus plan
+// 3-step guided wizard for creating a new Focus plan
 
 import { useState } from "react";
-import { ArrowLeft, ArrowRight, Check, Loader2, BookOpen, Briefcase, Target, Clock, Zap, MessageSquare } from "lucide-react";
-import { WizardData, DEFAULT_WIZARD_DATA, FocusType, Tone, Difficulty, Pacing, LanguageTrack } from "@/types/focusWizard";
+import { ArrowLeft, ArrowRight, Check, Loader2, BookOpen, Briefcase, ChevronDown, ChevronUp } from "lucide-react";
+import { WizardData, DEFAULT_WIZARD_DATA, FocusType, Tone, Difficulty, Pacing, LanguageTrack, LanguageLevel, isLanguageStep2 } from "@/types/focusWizard";
 
 interface FocusWizardProps {
   onComplete: (data: WizardData) => Promise<void>;
@@ -14,26 +14,6 @@ interface FocusWizardProps {
 const FOCUS_TYPES = [
   { type: "language" as FocusType, icon: BookOpen, label: "Nyelvtanulás", desc: "Új nyelv elsajátítása" },
   { type: "project" as FocusType, icon: Briefcase, label: "Projekt / munka", desc: "Feladat vagy projekt" },
-];
-
-const DURATIONS = [
-  { days: 7, label: "7 nap" },
-  { days: 14, label: "14 nap" },
-  { days: 21, label: "21 nap" },
-  { days: 30, label: "30 nap" },
-];
-
-const LANGUAGE_LEVELS = [
-  { value: "beginner", label: "Teljesen kezdő" },
-  { value: "basic", label: "Alap szint" },
-  { value: "intermediate", label: "Közép szint" },
-];
-
-const LANGUAGE_GOALS = [
-  { value: "speaking", label: "Beszéd" },
-  { value: "reading", label: "Olvasás" },
-  { value: "travel", label: "Utazás" },
-  { value: "work", label: "Munka" },
 ];
 
 const LANGUAGES = [
@@ -48,6 +28,12 @@ const LANGUAGES = [
   { value: "japanese", label: "Japán" },
 ];
 
+const LANGUAGE_LEVELS: Array<{ value: LanguageLevel; label: string }> = [
+  { value: "beginner", label: "Teljesen kezdő" },
+  { value: "basic", label: "Alap szint" },
+  { value: "intermediate", label: "Közép szint" },
+];
+
 const TRACKS: Array<{ value: LanguageTrack; label: string; desc: string }> = [
   { value: "foundations_language", label: "Felfedező / Alapozó", desc: "Abc, alapszókincs, első mondatok" },
   { value: "career_language", label: "Karrier", desc: "B1+ email, meeting, interjú" },
@@ -57,6 +43,13 @@ const MINUTES_OPTIONS = [
   { value: 10, label: "10 perc" },
   { value: 20, label: "20 perc" },
   { value: 45, label: "45 perc" },
+];
+
+const DURATIONS = [
+  { days: 7, label: "7 nap" },
+  { days: 14, label: "14 nap" },
+  { days: 21, label: "21 nap" },
+  { days: 30, label: "30 nap" },
 ];
 
 const TONES = [
@@ -76,55 +69,70 @@ const PACINGS = [
   { value: "big_blocks" as Pacing, label: "Nagyobb blokkok", desc: "Hosszabb, mélyebb munka" },
 ];
 
+// Auto-generate goal title from language wizard selections
+export const LANG_LABELS: Record<string, string> = {
+  english: "Angol", german: "Német", spanish: "Spanyol", italian: "Olasz",
+  french: "Francia", greek: "Görög", portuguese: "Portugál", korean: "Koreai", japanese: "Japán",
+};
+
+const TRACK_LABELS: Record<string, string> = {
+  foundations_language: "Alapozó", career_language: "Karrier",
+};
+
 export function FocusWizard({ onComplete, onCancel, isGenerating }: FocusWizardProps) {
   const [step, setStep] = useState(1);
   const [data, setData] = useState<WizardData>(DEFAULT_WIZARD_DATA);
-  
-  // Step 3 specific states
-  const [languageLevel, setLanguageLevel] = useState<string>("beginner");
+
+  // Step 2 language states
   const [targetLanguage, setTargetLanguage] = useState<string>("english");
-  const [languageGoal, setLanguageGoal] = useState<string>("speaking");
+  const [languageLevel, setLanguageLevel] = useState<LanguageLevel>("beginner");
   const [languageTrack, setLanguageTrack] = useState<LanguageTrack>("foundations_language");
   const [minutesPerDay, setMinutesPerDay] = useState<number>(20);
+  const [durationDays, setDurationDays] = useState<number>(7);
+
+  // Step 2 generic states
   const [customContext, setCustomContext] = useState<string>("");
 
-  const totalSteps = 5;
+  // Step 3 advanced settings toggle
+  const [showAdvanced, setShowAdvanced] = useState(false);
+
+  const totalSteps = 3;
+
   const canProceed = () => {
     switch (step) {
       case 1: return data.step1.focusType !== null;
-      case 2: return data.step2.goalSentence.trim().length > 0;
-      case 3: return true; // Always can proceed from step 3
-      case 4: return true; // Always can proceed from step 4
-      case 5: return true; // Summary step
+      case 2: return true;
+      case 3: return true;
       default: return false;
     }
   };
 
   const handleNext = () => {
-    if (step === 3) {
-      // Save step 3 data based on focus type
+    if (step === 2) {
+      // Save step 2 data
       if (data.step1.focusType === "language") {
         setData({
           ...data,
-          step3: {
-            level: languageLevel as any,
+          step2: {
             targetLanguage,
-            goal: languageGoal as any,
-            minutesPerDay: minutesPerDay as any,
+            level: languageLevel,
             track: languageTrack,
+            minutesPerDay: minutesPerDay as any,
+            durationDays: durationDays as any,
           },
         });
       } else {
         setData({
           ...data,
-          step3: {
+          step2: {
             context: customContext,
             minutesPerDay: minutesPerDay as any,
+            durationDays: durationDays as any,
           },
         });
       }
     }
-    
+
     if (step < totalSteps) {
       setStep(step + 1);
     }
@@ -139,7 +147,24 @@ export function FocusWizard({ onComplete, onCancel, isGenerating }: FocusWizardP
   };
 
   const handleComplete = async () => {
-    await onComplete(data);
+    // Ensure step2 data is saved (in case user didn't click next on step 2)
+    let finalData = { ...data };
+    if (data.step1.focusType === "language") {
+      finalData.step2 = {
+        targetLanguage,
+        level: languageLevel,
+        track: languageTrack,
+        minutesPerDay: minutesPerDay as any,
+        durationDays: durationDays as any,
+      };
+    } else {
+      finalData.step2 = {
+        context: customContext,
+        minutesPerDay: minutesPerDay as any,
+        durationDays: durationDays as any,
+      };
+    }
+    await onComplete(finalData);
   };
 
   // ============================================================================
@@ -154,8 +179,8 @@ export function FocusWizard({ onComplete, onCancel, isGenerating }: FocusWizardP
             key={type}
             onClick={() => setData({ ...data, step1: { focusType: type } })}
             className={`p-4 rounded-xl border transition-all duration-200 text-left flex items-center gap-4
-              ${data.step1.focusType === type 
-                ? "neon-glow-card bg-secondary/50" 
+              ${data.step1.focusType === type
+                ? "neon-glow-card bg-secondary/50"
                 : "bg-card/30 border-border/50 hover:border-foreground/30"}`}
           >
             <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0
@@ -173,65 +198,32 @@ export function FocusWizard({ onComplete, onCancel, isGenerating }: FocusWizardP
   );
 
   // ============================================================================
-  // STEP 2: Goal & Duration
+  // STEP 2: Settings (language or generic)
   // ============================================================================
-  const renderStep2 = () => (
-    <div className="space-y-6">
-      <h2 className="text-xl font-bold text-center mb-2">Cél és időtáv</h2>
-      <p className="text-sm text-muted-foreground text-center mb-6">
-        Mit tekintünk sikernek?
-      </p>
-      
-      <div className="space-y-4">
-        <div>
-          <label className="text-sm text-muted-foreground mb-2 block flex items-center gap-2">
-            <Target className="w-4 h-4" />
-            {data.step2.durationDays} nap múlva azt szeretném, hogy…
-          </label>
-          <textarea
-            value={data.step2.goalSentence}
-            onChange={(e) => setData({ ...data, step2: { ...data.step2, goalSentence: e.target.value } })}
-            placeholder="Pl. tudjak alapszinten olaszul beszélni"
-            className="w-full p-4 rounded-xl bg-secondary/50 border border-border/50 
-                     focus:border-foreground/50 focus:outline-none resize-none
-                     text-foreground placeholder:text-muted-foreground"
-            rows={3}
-          />
-        </div>
-        
-        <div>
-          <label className="text-sm text-muted-foreground mb-3 block flex items-center gap-2">
-            <Clock className="w-4 h-4" />
-            Időtartam
-          </label>
-          <div className="grid grid-cols-4 gap-2">
-            {DURATIONS.map(({ days, label }) => (
-              <button
-                key={days}
-                onClick={() => setData({ ...data, step2: { ...data.step2, durationDays: days as any } })}
-                className={`py-3 px-2 rounded-xl text-sm font-medium transition-all
-                  ${data.step2.durationDays === days 
-                    ? "bg-foreground text-background" 
-                    : "bg-secondary/50 hover:bg-secondary"}`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
-  // ============================================================================
-  // STEP 3: Context (dynamic based on focus type)
-  // ============================================================================
-  const renderStep3 = () => {
+  const renderStep2 = () => {
     if (data.step1.focusType === "language") {
       return (
         <div className="space-y-5">
-          <h2 className="text-xl font-bold text-center mb-6">Nyelvtanulás részletei</h2>
-          
+          <h2 className="text-xl font-bold text-center mb-4">Nyelv beállítások</h2>
+
+          {/* Language selector */}
+          <div>
+            <label className="text-sm text-muted-foreground mb-2 block">Nyelv</label>
+            <div className="grid grid-cols-3 gap-2">
+              {LANGUAGES.map(({ value, label }) => (
+                <button
+                  key={value}
+                  onClick={() => setTargetLanguage(value)}
+                  className={`py-2.5 px-3 rounded-lg text-sm transition-all
+                    ${targetLanguage === value ? "bg-foreground text-background font-medium" : "bg-secondary/50 hover:bg-secondary"}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Level */}
           <div>
             <label className="text-sm text-muted-foreground mb-2 block">Szint</label>
             <div className="grid grid-cols-3 gap-2">
@@ -240,12 +232,11 @@ export function FocusWizard({ onComplete, onCancel, isGenerating }: FocusWizardP
                   key={value}
                   onClick={() => {
                     setLanguageLevel(value);
-                    // Auto-select track based on level
                     if (value === "intermediate") setLanguageTrack("career_language");
                     else if (value === "beginner") setLanguageTrack("foundations_language");
                   }}
-                  className={`py-2 px-3 rounded-lg text-sm transition-all
-                    ${languageLevel === value ? "bg-foreground text-background" : "bg-secondary/50 hover:bg-secondary"}`}
+                  className={`py-2.5 px-3 rounded-lg text-sm transition-all
+                    ${languageLevel === value ? "bg-foreground text-background font-medium" : "bg-secondary/50 hover:bg-secondary"}`}
                 >
                   {label}
                 </button>
@@ -253,6 +244,7 @@ export function FocusWizard({ onComplete, onCancel, isGenerating }: FocusWizardP
             </div>
           </div>
 
+          {/* Track */}
           <div>
             <label className="text-sm text-muted-foreground mb-2 block">Tanulási mód</label>
             <div className="grid gap-2">
@@ -274,90 +266,93 @@ export function FocusWizard({ onComplete, onCancel, isGenerating }: FocusWizardP
             </div>
           </div>
 
-          <div>
-            <label className="text-sm text-muted-foreground mb-2 block">Nyelv</label>
-            <div className="grid grid-cols-3 gap-2">
-              {LANGUAGES.map(({ value, label }) => (
-                <button
-                  key={value}
-                  onClick={() => setTargetLanguage(value)}
-                  className={`py-2 px-3 rounded-lg text-sm transition-all
-                    ${targetLanguage === value ? "bg-foreground text-background" : "bg-secondary/50 hover:bg-secondary"}`}
-                >
-                  {label}
-                </button>
-              ))}
+          {/* Minutes per day + Duration in a row */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-sm text-muted-foreground mb-2 block">Napi idő</label>
+              <div className="grid gap-1.5">
+                {MINUTES_OPTIONS.map(({ value, label }) => (
+                  <button
+                    key={value}
+                    onClick={() => setMinutesPerDay(value)}
+                    className={`py-2 px-3 rounded-lg text-sm transition-all
+                      ${minutesPerDay === value ? "bg-foreground text-background font-medium" : "bg-secondary/50 hover:bg-secondary"}`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
-
-          <div>
-            <label className="text-sm text-muted-foreground mb-2 block">Cél</label>
-            <div className="grid grid-cols-2 gap-2">
-              {LANGUAGE_GOALS.map(({ value, label }) => (
-                <button
-                  key={value}
-                  onClick={() => setLanguageGoal(value)}
-                  className={`py-2 px-3 rounded-lg text-sm transition-all
-                    ${languageGoal === value ? "bg-foreground text-background" : "bg-secondary/50 hover:bg-secondary"}`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <label className="text-sm text-muted-foreground mb-2 block">Napi idő</label>
-            <div className="grid grid-cols-3 gap-2">
-              {MINUTES_OPTIONS.map(({ value, label }) => (
-                <button
-                  key={value}
-                  onClick={() => setMinutesPerDay(value)}
-                  className={`py-2 px-3 rounded-lg text-sm transition-all
-                    ${minutesPerDay === value ? "bg-foreground text-background" : "bg-secondary/50 hover:bg-secondary"}`}
-                >
-                  {label}
-                </button>
-              ))}
+            <div>
+              <label className="text-sm text-muted-foreground mb-2 block">Időtartam</label>
+              <div className="grid gap-1.5">
+                {DURATIONS.map(({ days, label }) => (
+                  <button
+                    key={days}
+                    onClick={() => setDurationDays(days)}
+                    className={`py-2 px-3 rounded-lg text-sm transition-all
+                      ${durationDays === days ? "bg-foreground text-background font-medium" : "bg-secondary/50 hover:bg-secondary"}`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         </div>
       );
     }
 
-    // Generic step 3 for other focus types
+    // Generic step 2 for other focus types
     return (
       <div className="space-y-5">
-        <h2 className="text-xl font-bold text-center mb-6">Kontextus</h2>
-        
+        <h2 className="text-xl font-bold text-center mb-4">Beállítások</h2>
+
         <div>
           <label className="text-sm text-muted-foreground mb-2 block">
-            Adj meg egy kis kontextust (opcionális)
+            Kontextus (opcionális)
           </label>
           <textarea
             value={customContext}
             onChange={(e) => setCustomContext(e.target.value)}
             placeholder="Pl. már van némi tapasztalatom, de szeretném rendszerezni"
-            className="w-full p-4 rounded-xl bg-secondary/50 border border-border/50 
+            className="w-full p-4 rounded-xl bg-secondary/50 border border-border/50
                      focus:border-foreground/50 focus:outline-none resize-none
                      text-foreground placeholder:text-muted-foreground"
             rows={3}
           />
         </div>
 
-        <div>
-          <label className="text-sm text-muted-foreground mb-2 block">Napi idő</label>
-          <div className="grid grid-cols-3 gap-2">
-            {MINUTES_OPTIONS.map(({ value, label }) => (
-              <button
-                key={value}
-                onClick={() => setMinutesPerDay(value)}
-                className={`py-2 px-3 rounded-lg text-sm transition-all
-                  ${minutesPerDay === value ? "bg-foreground text-background" : "bg-secondary/50 hover:bg-secondary"}`}
-              >
-                {label}
-              </button>
-            ))}
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="text-sm text-muted-foreground mb-2 block">Napi idő</label>
+            <div className="grid gap-1.5">
+              {MINUTES_OPTIONS.map(({ value, label }) => (
+                <button
+                  key={value}
+                  onClick={() => setMinutesPerDay(value)}
+                  className={`py-2 px-3 rounded-lg text-sm transition-all
+                    ${minutesPerDay === value ? "bg-foreground text-background font-medium" : "bg-secondary/50 hover:bg-secondary"}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="text-sm text-muted-foreground mb-2 block">Időtartam</label>
+            <div className="grid gap-1.5">
+              {DURATIONS.map(({ days, label }) => (
+                <button
+                  key={days}
+                  onClick={() => setDurationDays(days)}
+                  className={`py-2 px-3 rounded-lg text-sm transition-all
+                    ${durationDays === days ? "bg-foreground text-background font-medium" : "bg-secondary/50 hover:bg-secondary"}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -365,135 +360,121 @@ export function FocusWizard({ onComplete, onCancel, isGenerating }: FocusWizardP
   };
 
   // ============================================================================
-  // STEP 4: Style & Difficulty
+  // STEP 3: Summary + Advanced settings + Launch
   // ============================================================================
-  const renderStep4 = () => (
-    <div className="space-y-5">
-      <h2 className="text-xl font-bold text-center mb-6">Stílus és nehézség</h2>
-      
-      <div>
-        <label className="text-sm text-muted-foreground mb-2 block flex items-center gap-2">
-          <MessageSquare className="w-4 h-4" />
-          Hangnem
-        </label>
-        <div className="space-y-2">
-          {TONES.map(({ value, label, desc }) => (
-            <button
-              key={value}
-              onClick={() => setData({ ...data, step4: { ...data.step4, tone: value } })}
-              className={`w-full p-3 rounded-xl text-left transition-all flex items-center justify-between
-                ${data.step4.tone === value 
-                  ? "bg-foreground text-background" 
-                  : "bg-secondary/50 hover:bg-secondary"}`}
-            >
-              <span className="font-medium">{label}</span>
-              <span className={`text-xs ${data.step4.tone === value ? "text-background/70" : "text-muted-foreground"}`}>
-                {desc}
-              </span>
-            </button>
-          ))}
-        </div>
-      </div>
+  const renderStep3 = () => {
+    const isLanguage = data.step1.focusType === "language";
+    const langLabel = LANG_LABELS[targetLanguage] || targetLanguage;
+    const levelLabel = LANGUAGE_LEVELS.find(l => l.value === languageLevel)?.label || languageLevel;
+    const trackLabel = TRACK_LABELS[languageTrack] || languageTrack;
 
-      <div>
-        <label className="text-sm text-muted-foreground mb-2 block flex items-center gap-2">
-          <Zap className="w-4 h-4" />
-          Nehézség
-        </label>
-        <div className="grid grid-cols-3 gap-2">
-          {DIFFICULTIES.map(({ value, label }) => (
-            <button
-              key={value}
-              onClick={() => setData({ ...data, step4: { ...data.step4, difficulty: value } })}
-              className={`py-3 px-3 rounded-xl text-sm font-medium transition-all
-                ${data.step4.difficulty === value ? "bg-foreground text-background" : "bg-secondary/50 hover:bg-secondary"}`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
+    return (
+      <div className="space-y-5">
+        <h2 className="text-xl font-bold text-center mb-4">Összefoglaló</h2>
 
-      <div>
-        <label className="text-sm text-muted-foreground mb-2 block">Tempó</label>
-        <div className="space-y-2">
-          {PACINGS.map(({ value, label, desc }) => (
-            <button
-              key={value}
-              onClick={() => setData({ ...data, step4: { ...data.step4, pacing: value } })}
-              className={`w-full p-3 rounded-xl text-left transition-all flex items-center justify-between
-                ${data.step4.pacing === value 
-                  ? "bg-foreground text-background" 
-                  : "bg-secondary/50 hover:bg-secondary"}`}
-            >
-              <span className="font-medium">{label}</span>
-              <span className={`text-xs ${data.step4.pacing === value ? "text-background/70" : "text-muted-foreground"}`}>
-                {desc}
-              </span>
-            </button>
-          ))}
+        {/* Summary card */}
+        <div className="neon-glow-card bg-card/30 rounded-2xl p-5 space-y-3">
+          {isLanguage ? (
+            <>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Nyelv</span>
+                <span className="font-medium">{langLabel}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Szint</span>
+                <span className="font-medium">{levelLabel}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Mód</span>
+                <span className="font-medium">{trackLabel}</span>
+              </div>
+            </>
+          ) : (
+            <div>
+              <span className="text-sm text-muted-foreground">Projekt / munka</span>
+              {customContext && (
+                <p className="text-sm mt-1">{customContext}</p>
+              )}
+            </div>
+          )}
+          <div className="border-t border-border/30 pt-3 flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">{durationDays} nap</span>
+            <span className="text-sm text-muted-foreground">{minutesPerDay} perc/nap</span>
+          </div>
         </div>
-      </div>
-    </div>
-  );
 
-  // ============================================================================
-  // STEP 5: Summary
-  // ============================================================================
-  const renderStep5 = () => (
-    <div className="space-y-5">
-      <h2 className="text-xl font-bold text-center mb-6">Összefoglaló</h2>
-      
-      <div className="neon-glow-card bg-card/30 rounded-2xl p-5 space-y-4">
-        <div className="flex items-center gap-3 pb-3 border-b border-border/30">
-          <div className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center">
-            <Target className="w-5 h-5" />
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Fókusz típus</p>
-            <p className="font-medium capitalize">
-              {data.step1.focusType === "language" ? "Nyelvtanulás" : "Projekt"}
-            </p>
-          </div>
-        </div>
-        
-        <div>
-          <p className="text-xs text-muted-foreground mb-1">Cél</p>
-          <p className="text-sm">{data.step2.goalSentence || "—"}</p>
-        </div>
-        
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <p className="text-xs text-muted-foreground mb-1">Időtartam</p>
-            <p className="text-sm font-medium">{data.step2.durationDays} nap</p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground mb-1">Napi idő</p>
-            <p className="text-sm font-medium">{minutesPerDay} perc</p>
-          </div>
-        </div>
-        
-        <div className="grid grid-cols-3 gap-2 pt-2">
-          <div className="text-center p-2 bg-secondary/50 rounded-lg">
-            <p className="text-xs text-muted-foreground">Hang</p>
-            <p className="text-xs font-medium capitalize">{data.step4.tone === "casual" ? "Laza" : data.step4.tone === "neutral" ? "Semleges" : "Szigorú"}</p>
-          </div>
-          <div className="text-center p-2 bg-secondary/50 rounded-lg">
-            <p className="text-xs text-muted-foreground">Nehézség</p>
-            <p className="text-xs font-medium capitalize">{data.step4.difficulty === "easy" ? "Könnyű" : data.step4.difficulty === "normal" ? "Normál" : "Kemény"}</p>
-          </div>
-          <div className="text-center p-2 bg-secondary/50 rounded-lg">
-            <p className="text-xs text-muted-foreground">Tempó</p>
-            <p className="text-xs font-medium">{data.step4.pacing === "small_steps" ? "Kicsi" : "Nagy"}</p>
-          </div>
+        {/* Collapsible advanced settings */}
+        <div className="border border-border/50 rounded-xl overflow-hidden">
+          <button
+            onClick={() => setShowAdvanced(!showAdvanced)}
+            className="w-full p-3 flex items-center justify-between hover:bg-secondary/30 transition-colors"
+          >
+            <span className="text-sm text-muted-foreground">Haladó beállítások</span>
+            {showAdvanced ? (
+              <ChevronUp className="w-4 h-4 text-muted-foreground" />
+            ) : (
+              <ChevronDown className="w-4 h-4 text-muted-foreground" />
+            )}
+          </button>
+
+          {showAdvanced && (
+            <div className="px-3 pb-4 space-y-4 border-t border-border/30 pt-3">
+              {/* Tone */}
+              <div>
+                <label className="text-xs text-muted-foreground mb-2 block">Hangnem</label>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {TONES.map(({ value, label }) => (
+                    <button
+                      key={value}
+                      onClick={() => setData({ ...data, step3: { ...data.step3, tone: value } })}
+                      className={`py-2 px-2 rounded-lg text-xs transition-all
+                        ${data.step3.tone === value ? "bg-foreground text-background font-medium" : "bg-secondary/50 hover:bg-secondary"}`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Difficulty */}
+              <div>
+                <label className="text-xs text-muted-foreground mb-2 block">Nehézség</label>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {DIFFICULTIES.map(({ value, label }) => (
+                    <button
+                      key={value}
+                      onClick={() => setData({ ...data, step3: { ...data.step3, difficulty: value } })}
+                      className={`py-2 px-2 rounded-lg text-xs transition-all
+                        ${data.step3.difficulty === value ? "bg-foreground text-background font-medium" : "bg-secondary/50 hover:bg-secondary"}`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Pacing */}
+              <div>
+                <label className="text-xs text-muted-foreground mb-2 block">Tempó</label>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {PACINGS.map(({ value, label }) => (
+                    <button
+                      key={value}
+                      onClick={() => setData({ ...data, step3: { ...data.step3, pacing: value } })}
+                      className={`py-2 px-2 rounded-lg text-xs transition-all
+                        ${data.step3.pacing === value ? "bg-foreground text-background font-medium" : "bg-secondary/50 hover:bg-secondary"}`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
-      
-      <p className="text-xs text-muted-foreground text-center">
-        A terv létrehozása után látni fogod a napok címsorait.
-      </p>
-    </div>
-  );
+    );
+  };
 
   // ============================================================================
   // RENDER
@@ -507,10 +488,10 @@ export function FocusWizard({ onComplete, onCancel, isGenerating }: FocusWizardP
             <ArrowLeft className="w-5 h-5" />
           </button>
           <span className="text-sm text-muted-foreground">{step} / {totalSteps}</span>
-          <div className="w-9" /> {/* Spacer */}
+          <div className="w-9" />
         </div>
         <div className="h-1 bg-secondary rounded-full overflow-hidden">
-          <div 
+          <div
             className="h-full bg-foreground rounded-full transition-all duration-300"
             style={{ width: `${(step / totalSteps) * 100}%` }}
           />
@@ -522,8 +503,6 @@ export function FocusWizard({ onComplete, onCancel, isGenerating }: FocusWizardP
         {step === 1 && renderStep1()}
         {step === 2 && renderStep2()}
         {step === 3 && renderStep3()}
-        {step === 4 && renderStep4()}
-        {step === 5 && renderStep5()}
       </div>
 
       {/* Bottom CTA */}

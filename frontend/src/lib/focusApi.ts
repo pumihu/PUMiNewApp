@@ -97,9 +97,9 @@ export const focusApi = {
           await new Promise(resolve => setTimeout(resolve, 400));
           return attempt(retryNum + 1);
         }
-        if (isTimeout && retryNum < 1) {
-          console.log("generate-item-content timeout → retry");
-          await new Promise(resolve => setTimeout(resolve, 2000));
+        if (isTimeout && retryNum < 2) {
+          console.log(`generate-item-content timeout → retry #${retryNum + 1}`);
+          await new Promise(resolve => setTimeout(resolve, 2000 + retryNum * 3000));
           return attempt(retryNum + 1);
         }
         throw err;

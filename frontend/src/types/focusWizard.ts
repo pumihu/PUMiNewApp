@@ -1,9 +1,8 @@
 // src/types/focusWizard.ts
-// Types for the Focus creation wizard
+// Types for the Focus creation wizard (3-step flow)
 
 export type FocusType = "language" | "project";
 export type LanguageLevel = "beginner" | "basic" | "intermediate";
-export type LanguageGoal = "speaking" | "reading" | "travel" | "work";
 export type LanguageTrack = "foundations_language" | "career_language";
 export type ProjectType = "product" | "learning" | "admin" | "creative";
 export type ProjectConstraint = "time" | "budget" | "focus";
@@ -15,33 +14,23 @@ export interface WizardStep1 {
   focusType: FocusType | null;
 }
 
-export interface WizardStep2 {
-  goalSentence: string;
+export interface WizardStep2Language {
+  targetLanguage: string;
+  level: LanguageLevel;
+  track: LanguageTrack;
+  minutesPerDay: 10 | 20 | 45;
   durationDays: 7 | 14 | 21 | 30;
 }
 
-export interface WizardStep3Language {
-  level: LanguageLevel;
-  targetLanguage: string;
-  goal: LanguageGoal;
-  minutesPerDay: 10 | 20 | 45;
-  track?: LanguageTrack;
-}
-
-export interface WizardStep3Project {
-  projectType: ProjectType;
-  deliverable: string;
-  constraint: ProjectConstraint;
-}
-
-export interface WizardStep3Generic {
+export interface WizardStep2Generic {
   context: string;
   minutesPerDay: 10 | 20 | 45;
+  durationDays: 7 | 14 | 21 | 30;
 }
 
-export type WizardStep3 = WizardStep3Language | WizardStep3Project | WizardStep3Generic;
+export type WizardStep2 = WizardStep2Language | WizardStep2Generic;
 
-export interface WizardStep4 {
+export interface WizardStep3 {
   tone: Tone;
   difficulty: Difficulty;
   pacing: Pacing;
@@ -49,17 +38,26 @@ export interface WizardStep4 {
 
 export interface WizardData {
   step1: WizardStep1;
-  step2: WizardStep2;
-  step3: WizardStep3 | null;
-  step4: WizardStep4;
+  step2: WizardStep2 | null;
+  step3: WizardStep3;
 }
 
 export const DEFAULT_WIZARD_DATA: WizardData = {
   step1: { focusType: null },
-  step2: { goalSentence: "", durationDays: 7 },
-  step3: null,
-  step4: { tone: "casual", difficulty: "normal", pacing: "small_steps" },
+  step2: null,
+  step3: { tone: "casual", difficulty: "normal", pacing: "small_steps" },
 };
+
+// Helper type guards
+export function isLanguageStep2(step2: WizardStep2 | null): step2 is WizardStep2Language {
+  return step2 !== null && "targetLanguage" in step2;
+}
+
+// Legacy type aliases for backward compatibility with imports
+export type LanguageGoal = "speaking" | "reading" | "travel" | "work";
+export type WizardStep3Language = WizardStep2Language;
+export type WizardStep3Generic = WizardStep2Generic;
+export type WizardStep4 = WizardStep3;
 
 export interface FocusPlanMeta {
   id: string;

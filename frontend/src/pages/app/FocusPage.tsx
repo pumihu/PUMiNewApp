@@ -233,22 +233,37 @@ export default function FocusPage() {
     setLoading(true);
     setError(null);
 
-    // Extract wizard data
-    const goalTitle = data.step2.goalSentence;
+    // Extract wizard data (new 3-step structure)
     const domain = data.step1.focusType === "language" ? "language"
       : data.step1.focusType === "project" ? "project"
       : "other";
+
+    // Auto-generate goal title from wizard selections
+    const LANG_LABELS: Record<string, string> = {
+      english: "Angol", german: "Német", spanish: "Spanyol", italian: "Olasz",
+      french: "Francia", greek: "Görög", portuguese: "Portugál", korean: "Koreai", japanese: "Japán",
+    };
+    const TRACK_LABELS: Record<string, string> = {
+      foundations_language: "Alapozó", career_language: "Karrier",
+    };
+
+    let goalTitle = "Fókusz terv";
     let level = "beginner";
-    let minutesPerDay = 100; // 4×25 min default
+    let minutesPerDay = 20;
+    let durationDays = 7;
 
-    if (data.step3 && "level" in data.step3) {
-      level = data.step3.level;
-      minutesPerDay = data.step3.minutesPerDay || 100;
-    } else if (data.step3 && "minutesPerDay" in data.step3) {
-      minutesPerDay = data.step3.minutesPerDay || 100;
+    if (data.step2 && "targetLanguage" in data.step2) {
+      // Language step2
+      goalTitle = `${LANG_LABELS[data.step2.targetLanguage] || data.step2.targetLanguage} - ${TRACK_LABELS[data.step2.track] || data.step2.track}`;
+      level = data.step2.level;
+      minutesPerDay = data.step2.minutesPerDay || 20;
+      durationDays = data.step2.durationDays || 7;
+    } else if (data.step2 && "minutesPerDay" in data.step2) {
+      // Generic step2
+      minutesPerDay = data.step2.minutesPerDay || 20;
+      durationDays = data.step2.durationDays || 7;
+      goalTitle = "Projekt terv";
     }
-
-    const durationDays = data.step2.durationDays || 7;
 
     try {
       // ── Syllabus generation for language domain ──
@@ -277,9 +292,9 @@ export default function FocusPage() {
         intro: "",
         items: [],
       }));
-      // Extract track system fields from wizard step3
-      const step3Lang = data.step3 && "targetLanguage" in data.step3
-        ? (data.step3 as import("@/types/focusWizard").WizardStep3Language)
+      // Extract track system fields from wizard step2 (language settings)
+      const step2Lang = data.step2 && "targetLanguage" in data.step2
+        ? data.step2
         : null;
 
       const createResult = await focusApi.createPlan({
@@ -288,15 +303,15 @@ export default function FocusPage() {
         domain,
         level,
         minutes_per_day: minutesPerDay,
-        tone: data.step4?.tone,
-        difficulty: data.step4?.difficulty,
-        pacing: data.step4?.pacing,
+        tone: data.step3?.tone,
+        difficulty: data.step3?.difficulty,
+        pacing: data.step3?.pacing,
         force_new: false,
         mode,
         days,
         // Track system: explicit target language + track + week outline for scope enforcement
-        target_language: step3Lang?.targetLanguage,
-        track: step3Lang?.track,
+        target_language: step2Lang?.targetLanguage,
+        track: step2Lang?.track,
         week_outline: syllabusData || undefined,
       });
 

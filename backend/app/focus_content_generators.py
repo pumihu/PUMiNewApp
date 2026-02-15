@@ -14,7 +14,7 @@ try:
     import os
     ANTHROPIC_AVAILABLE = True
     CLAUDE_API_KEY = (os.getenv("ANTHROPIC_API_KEY") or "").strip()
-    CLAUDE_MODEL = (os.getenv("CLAUDE_MODEL") or "claude-sonnet-4-20250514").strip()
+    CLAUDE_MODEL = (os.getenv("CLAUDE_MODEL_HAIKU") or "claude-3-haiku-20240307").strip()
     claude = Anthropic(api_key=CLAUDE_API_KEY) if CLAUDE_API_KEY else None
 except Exception:
     ANTHROPIC_AVAILABLE = False

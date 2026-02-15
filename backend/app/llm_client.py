@@ -1370,7 +1370,7 @@ async def generate_focus_item(
 
     # Deterministic kind selection (after domain normalization)
     kind = _determine_item_kind(item_type, practice_type)
-    allowed_kinds = {"content", "quiz", "checklist", "upload_review"}
+    allowed_kinds = {"content", "quiz", "checklist", "upload_review", "cards", "translation", "roleplay", "writing"}
     if kind not in allowed_kinds:
         kind = "content" if item_type_lower == "lesson" else "checklist"
 

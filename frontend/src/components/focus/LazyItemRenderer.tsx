@@ -59,7 +59,9 @@ export function LazyItemRenderer({ item, dayTitle, dayIntro, domain, level, lang
   const [error, setError] = useState<string | null>(null);
   const [completing, setCompleting] = useState(false);
   const [confirmStep, setConfirmStep] = useState(false);
+  const [usingFallback, setUsingFallback] = useState(false);
   const mountedRef = useRef(true);
+  const retryTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   
   // Validation state tracking
   const [validationState, setValidationState] = useState<ValidationState>({
@@ -77,7 +79,11 @@ export function LazyItemRenderer({ item, dayTitle, dayIntro, domain, level, lang
 
   useEffect(() => {
     mountedRef.current = true;
-    return () => { mountedRef.current = false; };
+    return () => {
+      mountedRef.current = false;
+      retryTimersRef.current.forEach(clearTimeout);
+      retryTimersRef.current = [];
+    };
   }, []);
 
   // Check cache on mount
@@ -214,6 +220,8 @@ export function LazyItemRenderer({ item, dayTitle, dayIntro, domain, level, lang
         // (backend may have generated + saved content to DB by then)
         console.log(`[FALLBACK] Using template for ${item.id} (not cached — will retry)`);
         const fallback = getFallbackTemplate(detectKindFromItem(item), item.topic || item.label);
+        // Mark as fallback so we schedule background retries
+        (fallback as any).__isFallback = true;
         return fallback;
       }
     })();
@@ -224,6 +232,12 @@ export function LazyItemRenderer({ item, dayTitle, dayIntro, domain, level, lang
       const result = await fetchPromise;
       if (mountedRef.current && result) {
         setStrictItem(result);
+        // If this was a fallback template, schedule background retries
+        if ((result as any).__isFallback) {
+          delete (result as any).__isFallback;
+          setUsingFallback(true);
+          scheduleRetries();
+        }
       }
     } catch (err) {
       if (mountedRef.current) {
@@ -233,6 +247,55 @@ export function LazyItemRenderer({ item, dayTitle, dayIntro, domain, level, lang
       delete pendingRequests[item.id];
       if (mountedRef.current) setLoading(false);
     }
+  };
+
+  const scheduleRetries = () => {
+    // Clear any existing retry timers
+    retryTimersRef.current.forEach(clearTimeout);
+    retryTimersRef.current = [];
+
+    const delays = [5000, 15000, 30000]; // 5s, 15s, 30s
+    const cacheKey = getCacheKey(item.id);
+
+    delays.forEach((delay, idx) => {
+      const timer = setTimeout(async () => {
+        if (!mountedRef.current) return;
+        try {
+          console.log(`[RETRY ${idx + 1}/${delays.length}] Retrying content for: ${item.id}`);
+          const syllabusContext = getSyllabusDayContext(item.id);
+          const resp = await focusApi.generateItemContent({
+            item_id: item.id,
+            topic: item.topic || item.label,
+            label: item.label,
+            day_title: dayTitle,
+            user_goal: syllabusContext,
+            mode: "learning",
+            ...(domain ? { domain } : {}),
+            ...(level ? { level } : {}),
+            ...(lang ? { lang } : {}),
+          });
+          if (!mountedRef.current) return;
+          if (resp.ok && resp.content) {
+            const validation = validateFocusItem(resp.content);
+            const validated = validation.valid
+              ? (resp.content as StrictFocusItem)
+              : validation.repaired;
+            if (validated) {
+              console.log(`[RETRY ${idx + 1}] Content loaded for: ${item.id}`);
+              localStorage.setItem(cacheKey, JSON.stringify({ content: validated, timestamp: Date.now() }));
+              setStrictItem(validated);
+              setUsingFallback(false);
+              // Cancel remaining retries
+              retryTimersRef.current.forEach(clearTimeout);
+              retryTimersRef.current = [];
+            }
+          }
+        } catch (err) {
+          console.log(`[RETRY ${idx + 1}] Still failing for ${item.id}:`, err);
+        }
+      }, delay);
+      retryTimersRef.current.push(timer);
+    });
   };
 
   const handleToggle = () => {
