@@ -39,8 +39,8 @@ CLAUDE_MODEL = (os.getenv("CLAUDE_MODEL") or "claude-sonnet-4-20250514").strip()
 claude = Anthropic(api_key=CLAUDE_API_KEY) if ANTHROPIC_AVAILABLE and CLAUDE_API_KEY else None
 
 ALLOWED_MODES = {"learning", "project"}
-LEARNING_TASK_TYPES = {"lesson", "quiz", "single_select"}
-PROJECT_TASK_TYPES = {"upload_review", "checklist", "quiz"}
+LEARNING_TASK_TYPES = {"lesson", "quiz", "single_select", "flashcard", "cards", "translation", "roleplay", "writing", "speaking", "listening", "reading", "task", "checklist"}
+PROJECT_TASK_TYPES = {"upload_review", "checklist", "quiz", "writing", "task"}
 UPLOAD_REVIEW_MAX_BYTES = 5 * 1024 * 1024  # 5MB
 
 
@@ -3114,7 +3114,9 @@ async def generate_item_content(req: GenerateItemContentReq, request: Request):
 
     from .llm_client import generate_focus_item
 
-    # CONTENT CHAINING: For practice/quiz, find preceding lesson's content
+    # CONTENT CHAINING: For practice/quiz, find preceding lesson's ALREADY CACHED content
+    # NOTE: Do NOT auto-generate preceding lessons here — that doubles LLM time and causes timeouts.
+    # If the user opens the lesson first, it'll be cached; quizzes after will chain from it.
     preceding_lesson_content = None
     stored_kind = item.get("kind", "")
     practice_kinds = ("quiz", "translation", "roleplay", "writing", "cards")
@@ -3122,7 +3124,7 @@ async def generate_item_content(req: GenerateItemContentReq, request: Request):
         try:
             day_items_res = _safe_execute(
                 sb.table("focus_items")
-                .select("id, kind, type, practice_type, order_index, content, item_key, topic, label, estimated_minutes")
+                .select("id, kind, type, order_index, content, item_key")
                 .eq("day_id", day_id)
                 .order("order_index")
             )
@@ -3135,46 +3137,15 @@ async def generate_item_content(req: GenerateItemContentReq, request: Request):
                         continue
 
                     lesson_content = di.get("content") if isinstance(di.get("content"), dict) else None
-                    content_type = None
-                    if isinstance(lesson_content, dict):
-                        if isinstance(lesson_content.get("content"), dict):
-                            content_type = lesson_content["content"].get("content_type")
-                        if not content_type:
-                            content_type = lesson_content.get("content_type")
+                    if not lesson_content:
+                        print(f"[generate-item-content] Preceding lesson {di.get('item_key')} has no content yet, skipping chain")
+                        continue
 
-                    # Auto-generate lesson if missing or not language_lesson
-                    if not lesson_content or content_type != "language_lesson":
-                        try:
-                            lesson_content = await generate_focus_item(
-                                item_type=di.get("type") or "lesson",
-                                practice_type=di.get("practice_type"),
-                                topic=di.get("topic") or day_title,
-                                label=di.get("label") or "Tananyag",
-                                day_title=day_title,
-                                domain=domain,
-                                level=level,
-                                lang=lang,
-                                minutes=di.get("estimated_minutes") or minutes,
-                                user_goal=user_goal,
-                                settings=plan_settings,
-                                preceding_lesson_content=None,
-                            )
-                            try:
-                                _safe_execute(
-                                    sb.table("focus_items").update({"content": lesson_content}).eq("id", di["id"])
-                                )
-                            except Exception as save_err:
-                                print(f"[generate-item-content] WARNING: Failed to save auto lesson: {save_err}")
-                            print(f"[generate-item-content] Auto-generated preceding lesson for chaining {di.get('item_key')}")
-                        except Exception as gen_err:
-                            print(f"[generate-item-content] Auto-lesson generation failed (non-fatal): {gen_err}")
-
-                    if isinstance(lesson_content, dict):
-                        extracted = _extract_lesson_context(lesson_content)
-                        if extracted:
-                            preceding_lesson_content = extracted
-                            print(f"[generate-item-content] Content chain: quiz will use lesson {di.get('item_key')}")
-                            break
+                    extracted = _extract_lesson_context(lesson_content)
+                    if extracted:
+                        preceding_lesson_content = extracted
+                        print(f"[generate-item-content] Content chain: quiz will use lesson {di.get('item_key')}")
+                        break
         except Exception as chain_err:
             print(f"[generate-item-content] Content chaining failed (non-fatal): {chain_err}")
 
