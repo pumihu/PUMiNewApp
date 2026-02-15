@@ -67,10 +67,13 @@ Deno.serve(async (req) => {
     targetPath = payload._path;
     delete payload._path;
 
+    // Extract and clean _method before forwarding payload
+    const requestedMethod = payload._method;
+    delete payload._method;
+
     // If caller wants GET → real GET, no body
-    if (payload._method === "GET") {
+    if (requestedMethod === "GET") {
       method = "GET";
-      delete payload._method;
       payload = null;
     } else {
       method = "POST";
