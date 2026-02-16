@@ -1647,8 +1647,10 @@ async def create_plan(req: CreatePlanReq, request: Request):
             sb.table("focus_days").insert(day_row).execute()
 
             # ITEMS-OPTIONAL: If items missing/empty, generate defaults
+            # Fixed-structure tracks ALWAYS use backend defaults (ignore frontend syllabus items)
+            fixed_track = settings.get("track", "") in ("foundations_language", "career_language")
             items_to_create = []
-            if day_input.items and len(day_input.items) > 0:
+            if day_input.items and len(day_input.items) > 0 and not fixed_track:
                 # Frontend provided items - use them (with domain normalization)
                 for idx, item_input in enumerate(day_input.items):
                     # Normalize item type/practice_type for domain
@@ -1685,8 +1687,10 @@ async def create_plan(req: CreatePlanReq, request: Request):
                     items_to_create.append(item_row)
                     print(f"[create-plan] Item from frontend: {item_input.type}/{item_input.practiceType} -> {normalized_type}/{normalized_practice_type} (kind={normalized_kind})")
             else:
-                # NO ITEMS from frontend - generate default items server-side
-                print(f"[create-plan] Day {day_input.dayIndex} has no items - generating defaults for domain '{req.domain}'")
+                # NO ITEMS from frontend (or fixed-structure track override) - generate default items server-side
+                reason = "fixed-structure track override" if fixed_track else "no items from frontend"
+                print(f"[create-plan] Day {day_input.dayIndex}: {reason} - generating defaults for domain '{req.domain}', track='{settings.get('track', '')}'")
+
                 default_items = _generate_default_items_for_domain(
                     domain=req.domain,
                     day_index=day_input.dayIndex,
