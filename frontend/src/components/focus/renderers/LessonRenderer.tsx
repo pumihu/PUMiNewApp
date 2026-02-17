@@ -2,6 +2,7 @@ import { useState } from "react";
 import { BookOpen, Lightbulb, AlertTriangle, CheckCircle2, Languages, MessageSquare, GraduationCap, Sparkles, Type, Eye, Zap } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import type { LessonContent } from "@/types/focusItem";
+import { CharacterCanvas } from "./CharacterCanvas";
 
 interface LessonRendererProps {
   content: LessonContent;
@@ -79,15 +80,32 @@ export function LessonRenderer({ content, onValidationChange }: LessonRendererPr
 
                 {/* Letters/Characters display */}
                 {flowItem.letters && flowItem.letters.length > 0 && (
-                  <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${Math.min(flowItem.letters.length, 3)}, 1fr)` }}>
-                    {flowItem.letters.map((letter, li) => (
-                      <div key={li} className="flex flex-col items-center p-4 rounded-lg bg-foreground/[0.03] border border-foreground/10">
-                        <span className="text-4xl font-bold mb-2">{letter.glyph}</span>
-                        <span className="text-sm font-medium text-primary">{letter.latin_hint}</span>
-                        <span className="text-xs text-muted-foreground text-center mt-1">{letter.sound_hint_hu}</span>
-                      </div>
-                    ))}
-                  </div>
+                  flowItem.type === "pattern" ? (
+                    /* Pattern block: drawing canvas for each letter */
+                    <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${Math.min(flowItem.letters.length, 2)}, 1fr)` }}>
+                      {flowItem.letters.map((letter, li) => (
+                        <div key={li} className="flex flex-col items-center p-3 rounded-lg bg-foreground/[0.03] border border-foreground/10">
+                          <CharacterCanvas
+                            targetGlyph={letter.glyph}
+                            latinHint={letter.latin_hint}
+                            size={140}
+                          />
+                          <span className="text-xs text-muted-foreground text-center mt-1">{letter.sound_hint_hu}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    /* Other blocks: static glyph display */
+                    <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${Math.min(flowItem.letters.length, 3)}, 1fr)` }}>
+                      {flowItem.letters.map((letter, li) => (
+                        <div key={li} className="flex flex-col items-center p-4 rounded-lg bg-foreground/[0.03] border border-foreground/10">
+                          <span className="text-4xl font-bold mb-2">{letter.glyph}</span>
+                          <span className="text-sm font-medium text-primary">{letter.latin_hint}</span>
+                          <span className="text-xs text-muted-foreground text-center mt-1">{letter.sound_hint_hu}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )
                 )}
 
                 {/* Practice items (prompt → answer) */}
