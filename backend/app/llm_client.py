@@ -1238,26 +1238,42 @@ RULES:
 ''',
     }
 
-    # For language domain: use explicit target_language from settings, fallback to detection from user_goal
+    # For language domain: resolve target_language robustly
     language_direction_note = ""
     scope_note = ""
     if is_language_domain:
-        target_lang = (settings or {}).get("target_language", "")
+        target_lang = _resolve_target_language(settings or {}, day_title, user_goal)
         if not target_lang:
-            # Legacy fallback for old plans without explicit target_language
-            target_lang = "the target language the user is learning (detect from user_goal below, e.g. 'angolul beszélni' = English)"
+            target_lang = "the target language (detect from day_title/user_goal context)"
+
+        # Get script description for non-ambiguous prompt (e.g., "Korean (한국어, Hangul script: 가나다)")
+        script_desc = _LANG_SCRIPT_DESC.get(target_lang.lower(), target_lang)
+        is_nonlatin_target = _is_nonlatin_language(target_lang)
+
+        # Build explicit script rule for non-Latin languages
+        script_rule = ""
+        if is_nonlatin_target:
+            script_rule = f"""
+🚨 CRITICAL SCRIPT RULE:
+- The target language is {script_desc}.
+- vocabulary_table.word MUST be written in the NATIVE SCRIPT of {target_lang} (NOT in English, NOT in Latin letters).
+- example_sentence MUST be in the NATIVE SCRIPT of {target_lang}.
+- lesson_flow letters.glyph MUST be actual {target_lang} script characters.
+- If you need romanization, put it in "pronunciation" or "latin_hint" fields, NEVER in "word".
+- FORBIDDEN: English words like "Hello", "Good morning" in vocabulary_table.word — use {target_lang} script instead.
+- If you generate English words in target-language fields, the response will be REJECTED."""
 
         language_direction_note = f"""
 🌍 LANGUAGE LEARNING DIRECTION:
 - The user's NATIVE language is {"Hungarian" if is_hu else "English"} (used for UI, instructions, explanations).
-- The TARGET language the user is LEARNING is: {target_lang}
-- vocabulary_table: "word" = {target_lang}, "translation" = Hungarian
-- example_sentence: in {target_lang}, example_translation: in Hungarian
-- dialogues: "text" = {target_lang}, "translation" = Hungarian
-- grammar_explanation: explain in Hungarian, examples in {target_lang}
-- Quiz questions: test {target_lang} knowledge (e.g., "What does X mean?" or "How do you say Y in {target_lang}?")
+- The TARGET language the user is LEARNING is: {script_desc}
+- vocabulary_table: "word" = {target_lang} script (NATIVE SCRIPT, e.g. 한국어 not "Korean word"), "translation" = Hungarian
+- example_sentence: in {target_lang} NATIVE SCRIPT, example_translation: in Hungarian
+- dialogues: "text" = {target_lang} NATIVE SCRIPT, "translation" = Hungarian
+- grammar_explanation: explain in Hungarian, examples in {target_lang} NATIVE SCRIPT
+- Quiz questions: test {target_lang} knowledge
 - Translation exercises: translate FROM Hungarian TO {target_lang}
-"""
+{script_rule}"""
 
         # SCOPE ENFORCEMENT: If week_outline is available, extract day-level vocabulary constraints
         week_outline = (settings or {}).get("week_outline")
@@ -1505,6 +1521,62 @@ def _is_nonlatin_language(lang: str) -> bool:
     return (lang or "").lower() in _NON_LATIN_LANGUAGES
 
 
+# ── Target language resolver ──
+# Maps Hungarian language names (from plan titles like "Koreai - Alapozó") to English names
+_HU_LANG_NAME_MAP = {
+    "koreai": "korean", "japán": "japanese", "görög": "greek", "kínai": "chinese",
+    "arab": "arabic", "héber": "hebrew", "hindi": "hindi", "thai": "thai",
+    "orosz": "russian", "ukrán": "ukrainian", "grúz": "georgian", "örmény": "armenian",
+    "bengáli": "bengali", "tamil": "tamil", "mandarin": "mandarin",
+    "angol": "english", "német": "german", "francia": "french", "olasz": "italian",
+    "spanyol": "spanish", "portugál": "portuguese", "holland": "dutch", "svéd": "swedish",
+    "finn": "finnish", "lengyel": "polish", "cseh": "czech", "román": "romanian",
+    "török": "turkish", "norvég": "norwegian", "dán": "danish",
+}
+
+# Script/writing system descriptions for prompt clarity
+_LANG_SCRIPT_DESC = {
+    "korean": "Korean (한국어, Hangul script: 가나다)",
+    "japanese": "Japanese (日本語, Hiragana/Katakana/Kanji: あいう)",
+    "chinese": "Chinese (中文, Hanzi: 你好)",
+    "mandarin": "Mandarin Chinese (中文, Hanzi: 你好)",
+    "greek": "Greek (Ελληνικά, Greek alphabet: αβγ)",
+    "arabic": "Arabic (العربية, Arabic script: أبت)",
+    "hebrew": "Hebrew (עברית, Hebrew script: אבג)",
+    "hindi": "Hindi (हिन्दी, Devanagari script: अआइ)",
+    "thai": "Thai (ภาษาไทย, Thai script: กขค)",
+    "russian": "Russian (Русский, Cyrillic: абв)",
+    "ukrainian": "Ukrainian (Українська, Cyrillic: абв)",
+    "georgian": "Georgian (ქართული, Georgian script: ა ბ გ)",
+    "armenian": "Armenian (Հայերեն, Armenian script: Ա Բ Գ)",
+    "bengali": "Bengali (বাংলা, Bengali script: অআই)",
+    "tamil": "Tamil (தமிழ், Tamil script: அஆஇ)",
+}
+
+
+def _resolve_target_language(settings: dict, day_title: str = "", user_goal: str = "") -> str:
+    """
+    Resolve the target language from settings, falling back to plan title inference.
+    Returns the English language name (e.g., "korean", "japanese").
+    """
+    # 1. Explicit setting (best)
+    target = (settings.get("target_language") or "").strip().lower()
+    if target:
+        return target
+
+    # 2. Infer from day_title prefix (e.g., "Koreai - Alapozó - Nap 1: ...")
+    for source in [day_title, user_goal]:
+        if not source:
+            continue
+        prefix = source.split(" - ")[0].strip().lower() if " - " in source else ""
+        if prefix and prefix in _HU_LANG_NAME_MAP:
+            resolved = _HU_LANG_NAME_MAP[prefix]
+            print(f"[target-lang] Inferred '{resolved}' from title prefix '{prefix}'")
+            return resolved
+
+    return ""
+
+
 def _apply_nonlatin_prompt_overrides(
     kind: str,
     system: str,
@@ -1516,7 +1588,11 @@ def _apply_nonlatin_prompt_overrides(
     Override prompts for non-Latin script foundations blocks.
     Hook→Pattern→Meaning blocks get a flow-based lesson_flow[] instead of vocabulary_table.
     """
-    target_lang = (settings or {}).get("target_language", "the target language")
+    target_lang = _resolve_target_language(settings or {}, item_topic)
+    if not target_lang:
+        target_lang = "the target language"
+    # Use script description for clearer prompts (e.g., "Korean (한국어, Hangul script: 가나다)")
+    script_desc = _LANG_SCRIPT_DESC.get(target_lang.lower(), target_lang)
     topic_lower = (item_topic or "").lower()
 
     # Detect block type from item_topic (set by _generate_default_items_for_domain)
@@ -1542,12 +1618,13 @@ def _apply_nonlatin_prompt_overrides(
 
         nonlatin_context = f"""
 🔤 NON-LATIN BEGINNER MODE (OVERRIDES ALL PREVIOUS CONTENT SPECS):
-This learner is starting {target_lang} with a NON-LATIN script.
+This learner is starting {script_desc} with a NON-LATIN script.
 DO NOT use vocabulary_table, grammar_explanation, dialogues, or content_type "language_lesson".
 MUST return content_type: "language_nonlatin_beginner" with a lesson_flow array.
 Keep it SHORT, VISUAL, and IMMEDIATE — max 3 new characters per block.
-Instructions in Hungarian, target content in {target_lang}.
-If you return vocabulary_table or content_type "language_lesson", the response will be REJECTED.
+Instructions in Hungarian, target content in {target_lang} NATIVE SCRIPT (not English, not Latin).
+All "glyph" fields MUST contain actual {target_lang} script characters.
+If you return vocabulary_table, content_type "language_lesson", or English words, the response will be REJECTED.
 """
         system += nonlatin_context
 
@@ -1858,6 +1935,42 @@ async def generate_focus_item(
         if preceding_lesson_content and kind != "content":
             fallback["chain_version"] = "lesson_v2"
         return fallback
+
+    # Non-Latin script validation: detect if vocabulary/content is in wrong script (ASCII instead of native)
+    _resolved_target = _resolve_target_language(settings or {}, day_title, user_goal)
+    if _resolved_target and _is_nonlatin_language(_resolved_target) and kind == "content" and retry_count < 1:
+        content_data = data.get("content", {})
+        # Check vocabulary_table words
+        vocab = content_data.get("vocabulary_table", [])
+        if vocab and isinstance(vocab, list) and len(vocab) > 0:
+            ascii_count = sum(1 for v in vocab if v.get("word", "").isascii())
+            if ascii_count > len(vocab) * 0.5:
+                print(f"[FOCUS_ITEM] SCRIPT MISMATCH: {ascii_count}/{len(vocab)} vocab words are ASCII for non-Latin target '{_resolved_target}' — retrying")
+                return await generate_focus_item(
+                    item_type=item_type, practice_type=practice_type,
+                    topic=topic, label=label, day_title=day_title,
+                    domain=domain, level=level, lang=lang,
+                    minutes=minutes, user_goal=user_goal,
+                    retry_count=retry_count + 1, settings=settings,
+                    preceding_lesson_content=preceding_lesson_content,
+                )
+        # Check lesson_flow glyphs
+        flow = content_data.get("lesson_flow", [])
+        if flow and isinstance(flow, list):
+            for fi in flow:
+                letters = fi.get("letters", [])
+                if letters and isinstance(letters, list) and len(letters) > 0:
+                    ascii_glyphs = sum(1 for l in letters if l.get("glyph", "").isascii())
+                    if ascii_glyphs > len(letters) * 0.5:
+                        print(f"[FOCUS_ITEM] SCRIPT MISMATCH: {ascii_glyphs}/{len(letters)} glyphs are ASCII for non-Latin '{_resolved_target}' — retrying")
+                        return await generate_focus_item(
+                            item_type=item_type, practice_type=practice_type,
+                            topic=topic, label=label, day_title=day_title,
+                            domain=domain, level=level, lang=lang,
+                            minutes=minutes, user_goal=user_goal,
+                            retry_count=retry_count + 1, settings=settings,
+                            preceding_lesson_content=preceding_lesson_content,
+                        )
 
     return data
 
