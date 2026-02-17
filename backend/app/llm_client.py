@@ -1535,6 +1535,10 @@ def _apply_nonlatin_prompt_overrides(
                 system,
                 flags=re.DOTALL,
             )
+            if '"content_type": "language_lesson"' in system:
+                print("[WARN] nonlatin override: language_lesson spec NOT removed from system prompt!")
+            else:
+                print("[nonlatin] Replaced language_lesson content spec successfully")
 
         nonlatin_context = f"""
 🔤 NON-LATIN BEGINNER MODE (OVERRIDES ALL PREVIOUS CONTENT SPECS):

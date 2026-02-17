@@ -3372,17 +3372,31 @@ async def generate_item_content(req: GenerateItemContentReq, request: Request):
         )
         if has_real_content:
             if is_language_domain and stored_kind == "content":
-                # Only use cache if it's already the rich language_lesson format
+                # Only use cache if it's already the correct language content format
                 content_type = None
                 if isinstance(existing_content.get("content"), dict):
                     content_type = existing_content["content"].get("content_type")
                 if not content_type:
                     content_type = existing_content.get("content_type")
-                if content_type != "language_lesson":
-                    print(f"[generate-item-content] Cache bypass (needs language_lesson) for item {item.get('id')}")
-                else:
+
+                # Non-Latin flow blocks (hook/pattern/meaning) need language_nonlatin_beginner
+                _target_lang_cache = (plan_settings.get("target_language") or "").lower()
+                _NL_CACHE = {"greek","korean","japanese","chinese","mandarin","arabic","hebrew","hindi","thai","russian","ukrainian","georgian","armenian","bengali","tamil"}
+                _is_nonlatin_item = _target_lang_cache in _NL_CACHE
+                _topic_lower = (topic or "").lower()
+                _is_flow_block = any(kw in _topic_lower for kw in ("hook:", "pattern:", "meaning:"))
+
+                if _is_nonlatin_item and _is_flow_block:
+                    if content_type == "language_nonlatin_beginner":
+                        print(f"[generate-item-content] DB CACHE HIT (nonlatin beginner) for item {item.get('id')}")
+                        return {"ok": True, "item_id": req.item_id, "content": existing_content, "cached": True}
+                    else:
+                        print(f"[generate-item-content] Cache bypass (needs nonlatin_beginner, got {content_type}) for item {item.get('id')}")
+                elif content_type in ("language_lesson", "language_nonlatin_beginner"):
                     print(f"[generate-item-content] DB CACHE HIT for item {item.get('id')}")
                     return {"ok": True, "item_id": req.item_id, "content": existing_content, "cached": True}
+                else:
+                    print(f"[generate-item-content] Cache bypass (needs language content) for item {item.get('id')}")
             elif is_language_domain and stored_kind in ("quiz", "translation", "roleplay", "writing", "cards"):
                 # For practice items, require chained content marker (v2)
                 if existing_content.get("chain_version") != "lesson_v2":
