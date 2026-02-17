@@ -1166,7 +1166,7 @@ def _generate_default_items_for_domain(
     minutes = settings.get("minutes_per_day", 20)
     track = settings.get("track", "")
 
-    # ── Non-Latin script detection for foundations early days ──
+    # ── Non-Latin script detection ──
     NON_LATIN_LANGUAGES = {
         "greek", "korean", "japanese", "chinese", "mandarin",
         "arabic", "hebrew", "hindi", "thai", "russian",
@@ -1175,54 +1175,76 @@ def _generate_default_items_for_domain(
     target_lang = (settings.get("target_language") or "").lower()
     is_non_latin = target_lang in NON_LATIN_LANGUAGES
 
+    # Main task rotation for the 5th block (same as frontend MAIN_TASK_ROTATION)
+    MAIN_ROTATION = [
+        {"type": "flashcard", "kind": "cards",       "practice_type": None,          "label": "Kártyák"},
+        {"type": "translation","kind": "translation", "practice_type": "translation", "label": "Fordítás"},
+        {"type": "quiz",      "kind": "quiz",         "practice_type": None,          "label": "Kvíz"},
+        {"type": "roleplay",  "kind": "roleplay",     "practice_type": "roleplay",    "label": "Párbeszéd"},
+        {"type": "writing",   "kind": "writing",      "practice_type": "writing",     "label": "Fogalmazás"},
+        {"type": "roleplay",  "kind": "roleplay",     "practice_type": "roleplay",    "label": "Párbeszéd"},
+        {"type": "quiz",      "kind": "quiz",         "practice_type": None,          "label": "Ismétlés"},
+    ]
+
     # ── Foundations language track: fixed 5-item structure ──
     if track == "foundations_language":
-        # Early days for non-Latin scripts: alphabet + reading focus
-        if is_non_latin and day_index <= 1:
+        # Non-Latin scripts: Hook → Pattern → Micro → Meaning → Main (all days)
+        if is_non_latin:
+            main = MAIN_ROTATION[day_index % len(MAIN_ROTATION)]
             return [
                 {
                     "order_index": 0,
-                    "item_key": f"d{day_index}-lesson-1",
+                    "item_key": f"d{day_index}-hook",
                     "type": "lesson",
                     "kind": "content",
                     "practice_type": None,
-                    "topic": f"{day_title} - Ábécé és hangok" if day_index == 0 else f"{day_title} - Olvasás és kiejtés",
-                    "label": "Tananyag",
-                    "estimated_minutes": 8,
+                    "topic": f"{day_title} - Hook: új betűk/karakterek",
+                    "label": "Ismerkedés",
+                    "estimated_minutes": 4,
                 },
                 {
                     "order_index": 1,
-                    "item_key": f"d{day_index}-cards-1",
-                    "type": "flashcard",
-                    "kind": "cards",
+                    "item_key": f"d{day_index}-pattern",
+                    "type": "lesson",
+                    "kind": "content",
                     "practice_type": None,
-                    "topic": f"{day_title} - Karakterek" if day_index == 0 else f"{day_title} - Szótagok",
-                    "label": "Kártyák",
-                    "estimated_minutes": 5,
+                    "topic": f"{day_title} - Pattern: hang és betű párosítás",
+                    "label": "Minta",
+                    "estimated_minutes": 4,
                 },
                 {
                     "order_index": 2,
-                    "item_key": f"d{day_index}-quiz-1",
+                    "item_key": f"d{day_index}-micro",
                     "type": "quiz",
                     "kind": "quiz",
                     "practice_type": None,
-                    "topic": day_title,
-                    "label": "Kvíz",
+                    "topic": f"{day_title} - Micro: betű/hang felismerés",
+                    "label": "Mini feladat",
                     "estimated_minutes": 4,
                 },
                 {
                     "order_index": 3,
-                    "item_key": f"d{day_index}-translation-1",
-                    "type": "translation",
-                    "kind": "translation",
-                    "practice_type": "translation",
+                    "item_key": f"d{day_index}-meaning",
+                    "type": "lesson",
+                    "kind": "content",
+                    "practice_type": None,
+                    "topic": f"{day_title} - Meaning: első szavak jelentéssel",
+                    "label": "Jelentés",
+                    "estimated_minutes": 4,
+                },
+                {
+                    "order_index": 4,
+                    "item_key": f"d{day_index}-main",
+                    "type": main["type"],
+                    "kind": main["kind"],
+                    "practice_type": main["practice_type"],
                     "topic": day_title,
-                    "label": "Fordítás",
-                    "estimated_minutes": 5,
+                    "label": main["label"],
+                    "estimated_minutes": 4,
                 },
             ]
 
-        # Standard foundations day: lesson → cards → quiz → translation → roleplay
+        # Standard foundations day (Latin script): lesson → cards → quiz → translation → roleplay
         return [
             {
                 "order_index": 0,

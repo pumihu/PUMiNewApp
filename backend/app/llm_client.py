@@ -802,7 +802,23 @@ def _validate_focus_item(item: Dict[str, Any]) -> tuple[bool, str]:
     elif kind == "content":
         content_type = content.get("content_type", "")
 
-        if content_type == "language_lesson":
+        if content_type == "language_nonlatin_beginner":
+            # Non-Latin beginner flow validation
+            lesson_flow = content.get("lesson_flow", [])
+            if not lesson_flow or len(lesson_flow) < 1:
+                return False, "Non-Latin beginner lesson needs lesson_flow array"
+            if len(lesson_flow) > 7:
+                return False, f"lesson_flow too long ({len(lesson_flow)}), max 7"
+            for fi, flow_item in enumerate(lesson_flow):
+                if not flow_item.get("title_hu"):
+                    return False, f"lesson_flow[{fi}] missing title_hu"
+                if not flow_item.get("body_md"):
+                    return False, f"lesson_flow[{fi}] missing body_md"
+            # Warn if vocabulary_table slipped through (don't reject, just log)
+            if content.get("vocabulary_table"):
+                print(f"[NONLATIN_WARN] vocabulary_table present in nonlatin beginner content — will be ignored by renderer")
+
+        elif content_type == "language_lesson":
             # Language lesson validation (relaxed to avoid timeout-causing retries)
             introduction = content.get("introduction", "")
             if not introduction or len(introduction.split()) < 15:
@@ -1366,10 +1382,13 @@ Create flashcards from the lesson vocabulary: front = {_chain_lang} word, back =
 
     user += "\nOutput ONLY the JSON object, nothing else.\n"
 
-    # Career track prompt overrides
+    # Track-specific prompt overrides
     track = (settings or {}).get("track", "")
+    target_lang_setting = (settings or {}).get("target_language", "")
     if track == "career_language" and is_language_domain:
         system, user = _apply_career_prompt_overrides(kind, system, user, settings)
+    elif is_language_domain and _is_nonlatin_language(target_lang_setting):
+        system, user = _apply_nonlatin_prompt_overrides(kind, system, user, settings, item_topic)
 
     return system, user
 
@@ -1470,6 +1489,152 @@ Generate:
 
 Be encouraging but specific. Focus on workplace-appropriate language.
 Corrections should prioritize: register/tone errors > grammar > vocabulary > style.
+"""
+
+    return system, user
+
+
+# ── Non-Latin script detection ──
+_NON_LATIN_LANGUAGES = {
+    "greek", "korean", "japanese", "chinese", "mandarin",
+    "arabic", "hebrew", "hindi", "thai", "russian",
+    "ukrainian", "georgian", "armenian", "bengali", "tamil",
+}
+
+def _is_nonlatin_language(lang: str) -> bool:
+    return (lang or "").lower() in _NON_LATIN_LANGUAGES
+
+
+def _apply_nonlatin_prompt_overrides(
+    kind: str,
+    system: str,
+    user: str,
+    settings: Optional[Dict[str, Any]] = None,
+    item_topic: str = "",
+) -> tuple[str, str]:
+    """
+    Override prompts for non-Latin script foundations blocks.
+    Hook→Pattern→Meaning blocks get a flow-based lesson_flow[] instead of vocabulary_table.
+    """
+    target_lang = (settings or {}).get("target_language", "the target language")
+    topic_lower = (item_topic or "").lower()
+
+    # Detect block type from item_topic (set by _generate_default_items_for_domain)
+    is_hook = "hook:" in topic_lower
+    is_pattern = "pattern:" in topic_lower
+    is_meaning = "meaning:" in topic_lower
+
+    if kind == "content" and (is_hook or is_pattern or is_meaning):
+        # Replace the standard language_lesson content spec with nonlatin flow spec
+        nonlatin_context = f"""
+🔤 NON-LATIN BEGINNER MODE:
+This learner is starting {target_lang} with a NON-LATIN script.
+DO NOT use vocabulary_table, grammar_explanation, or dialogues.
+Instead, return content_type: "language_nonlatin_beginner" with a lesson_flow array.
+Keep it SHORT, VISUAL, and IMMEDIATE — max 3 new characters per block.
+Instructions in Hungarian, target content in {target_lang}.
+"""
+        system += nonlatin_context
+
+        if is_hook:
+            user += f"""
+HOOK BLOCK — First contact with new letters/characters:
+Return this EXACT JSON structure (no vocabulary_table, no grammar_explanation):
+{{
+  "title": "descriptive title",
+  "content_type": "language_nonlatin_beginner",
+  "lesson_flow": [
+    {{
+      "type": "hook",
+      "title_hu": "Ismerd meg!",
+      "body_md": "Short Hungarian intro (1-2 sentences max) about these letters",
+      "letters": [
+        {{"glyph": "THE_LETTER", "latin_hint": "latin equivalent", "sound_hint_hu": "mint a magyar hang a ... szóban"}}
+      ]
+    }}
+  ],
+  "key_points": ["1-2 takeaways"],
+  "estimated_minutes": 4
+}}
+RULES:
+- lesson_flow: exactly 1 item of type "hook"
+- letters: exactly 3 new {target_lang} letters/characters
+- glyph: the actual {target_lang} character (uppercase and lowercase if applicable)
+- latin_hint: closest Latin letter equivalent
+- sound_hint_hu: Hungarian sound comparison (e.g. "mint az 'a' az 'alma' szóban")
+- body_md: max 2 sentences, Hungarian, welcoming tone
+- NO vocabulary_table, NO grammar_explanation, NO dialogues
+"""
+
+        elif is_pattern:
+            user += f"""
+PATTERN BLOCK — Sound-to-symbol mapping practice:
+Return this EXACT JSON structure:
+{{
+  "title": "descriptive title",
+  "content_type": "language_nonlatin_beginner",
+  "lesson_flow": [
+    {{
+      "type": "pattern",
+      "title_hu": "Hang és betű",
+      "body_md": "Short Hungarian instruction about matching sounds to letters",
+      "letters": [
+        {{"glyph": "THE_LETTER", "latin_hint": "equivalent", "sound_hint_hu": "Hungarian sound hint"}}
+      ],
+      "items": [
+        {{"prompt": "Which letter makes the sound [x]?", "answer": "THE_LETTER"}}
+      ]
+    }}
+  ],
+  "key_points": ["1-2 takeaways"],
+  "estimated_minutes": 4
+}}
+RULES:
+- lesson_flow: exactly 1 item of type "pattern"
+- letters: 3-5 {target_lang} letters (reuse today's hook letters + 1-2 from earlier)
+- items: 3-5 matching exercises (prompt in Hungarian, answer = the {target_lang} character)
+- NO vocabulary_table, NO grammar_explanation
+"""
+
+        elif is_meaning:
+            user += f"""
+MEANING BLOCK — First words with meaning:
+Return this EXACT JSON structure:
+{{
+  "title": "descriptive title",
+  "content_type": "language_nonlatin_beginner",
+  "lesson_flow": [
+    {{
+      "type": "meaning",
+      "title_hu": "Első szavak",
+      "body_md": "Short Hungarian intro connecting letters to real words",
+      "letters": [
+        {{"glyph": "WORD_IN_TARGET", "latin_hint": "transliteration", "sound_hint_hu": "meaning in Hungarian"}}
+      ]
+    }}
+  ],
+  "key_points": ["1-2 takeaways"],
+  "estimated_minutes": 4
+}}
+RULES:
+- lesson_flow: exactly 1 item of type "meaning"
+- letters: 2-4 simple {target_lang} words using characters learned today
+- glyph: the {target_lang} word, latin_hint: transliteration, sound_hint_hu: Hungarian meaning
+- body_md: connect letters to real words, encouraging tone, Hungarian
+- NO vocabulary_table, NO grammar_explanation
+"""
+
+    elif kind == "quiz" and "micro:" in topic_lower:
+        # Micro quiz: simple character/sound recognition
+        user += f"""
+NON-LATIN MICRO QUIZ:
+Generate 3-4 very simple character recognition questions.
+Types to mix:
+- "Melyik betű ez?" (show {target_lang} character, pick the sound)
+- "Melyik {target_lang} betű hangzik úgy, mint...?" (pick the character)
+- "Olvasd el:" (simple 2-3 letter combination, pick the correct reading)
+Keep questions EASY — this is the learner's first day with these characters.
+All options should show {target_lang} characters or sounds. Instructions in Hungarian.
 """
 
     return system, user

@@ -136,8 +136,25 @@ export interface LessonContent {
   estimated_minutes?: number;
 
   // Language lesson fields (new, optional)
-  content_type?: "language_lesson";
+  content_type?: "language_lesson" | "language_nonlatin_beginner";
   introduction?: string;
+
+  // Non-Latin beginner flow (hook→pattern→meaning cards)
+  lesson_flow?: Array<{
+    type: "hook" | "pattern" | "micro" | "meaning" | "practice";
+    title_hu: string;
+    body_md: string;
+    letters?: Array<{
+      glyph: string;
+      latin_hint: string;
+      sound_hint_hu: string;
+    }>;
+    items?: Array<{
+      prompt: string;
+      answer: string;
+    }>;
+  }>;
+
   vocabulary_table?: Array<{
     word: string;
     translation: string;

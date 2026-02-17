@@ -57,8 +57,8 @@ export function detectKindFromRaw(raw: any): FocusItemKind {
   
   // Content-based detection
   if (raw?.content) {
-    // Lesson detection: has summary, key_points, or language_lesson content
-    if (raw.content.summary || raw.content.key_points || raw.content.content_type === "language_lesson" || raw.content.vocabulary_table) {
+    // Lesson detection: has summary, key_points, or language content
+    if (raw.content.summary || raw.content.key_points || raw.content.content_type === "language_lesson" || raw.content.content_type === "language_nonlatin_beginner" || raw.content.lesson_flow || raw.content.vocabulary_table) {
       return "lesson";
     }
     if (raw.content.sentences && Array.isArray(raw.content.sentences)) {
@@ -219,6 +219,36 @@ function extractLessonContent(raw: any): LessonContent {
     common_mistakes: Array.isArray(src.common_mistakes) ? src.common_mistakes : undefined,
     estimated_minutes: src.estimated_minutes,
   };
+
+  // Non-Latin beginner flow fields
+  if (src.content_type === "language_nonlatin_beginner") {
+    result.content_type = "language_nonlatin_beginner";
+    result.introduction = src.introduction;
+
+    if (Array.isArray(src.lesson_flow)) {
+      result.lesson_flow = src.lesson_flow.map((f: any) => ({
+        type: f.type || "hook",
+        title_hu: f.title_hu || "",
+        body_md: f.body_md || "",
+        letters: Array.isArray(f.letters)
+          ? f.letters.map((l: any) => ({
+              glyph: l.glyph || "",
+              latin_hint: l.latin_hint || "",
+              sound_hint_hu: l.sound_hint_hu || "",
+            }))
+          : undefined,
+        items: Array.isArray(f.items)
+          ? f.items.map((i: any) => ({
+              prompt: i.prompt || "",
+              answer: i.answer || "",
+            }))
+          : undefined,
+      }));
+    }
+
+    result.key_points = Array.isArray(src.key_points) ? src.key_points : [];
+    return result;
+  }
 
   // Language lesson fields
   if (src.content_type === "language_lesson") {

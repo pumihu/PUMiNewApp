@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { BookOpen, Lightbulb, AlertTriangle, CheckCircle2, Languages, MessageSquare, GraduationCap, Sparkles } from "lucide-react";
+import { BookOpen, Lightbulb, AlertTriangle, CheckCircle2, Languages, MessageSquare, GraduationCap, Sparkles, Type, Eye, Zap } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import type { LessonContent } from "@/types/focusItem";
 
@@ -15,6 +15,7 @@ export function LessonRenderer({ content, onValidationChange }: LessonRendererPr
   const [showAnswers, setShowAnswers] = useState<Record<string, boolean>>({});
 
   const isLanguageLesson = content.content_type === "language_lesson";
+  const isNonLatinBeginner = content.content_type === "language_nonlatin_beginner";
 
   const handleMarkRead = () => {
     setRead(true);
@@ -35,6 +36,118 @@ export function LessonRenderer({ content, onValidationChange }: LessonRendererPr
       <span className="text-sm font-medium">Elolvasva</span>
     </div>
   );
+
+  // ── Non-Latin Beginner Flow Layout ──
+  if (isNonLatinBeginner && content.lesson_flow && content.lesson_flow.length > 0) {
+    const flowTypeIcon = (type: string) => {
+      switch (type) {
+        case "hook": return <Eye className="w-4 h-4 text-violet-500" />;
+        case "pattern": return <Type className="w-4 h-4 text-blue-500" />;
+        case "meaning": return <Languages className="w-4 h-4 text-green-500" />;
+        case "practice": case "micro": return <Zap className="w-4 h-4 text-amber-500" />;
+        default: return <Lightbulb className="w-4 h-4 text-primary" />;
+      }
+    };
+
+    const flowTypeColor = (type: string) => {
+      switch (type) {
+        case "hook": return "violet";
+        case "pattern": return "blue";
+        case "meaning": return "green";
+        case "practice": case "micro": return "amber";
+        default: return "primary";
+      }
+    };
+
+    return (
+      <div className="space-y-4">
+        {content.lesson_flow.map((flowItem, fi) => {
+          const color = flowTypeColor(flowItem.type);
+          return (
+            <div key={fi} className={`rounded-lg border border-${color}-500/20 overflow-hidden`}>
+              {/* Flow card header */}
+              <div className={`flex items-center gap-2 p-3 bg-${color}-500/10`}>
+                {flowTypeIcon(flowItem.type)}
+                <span className="text-sm font-medium">{flowItem.title_hu}</span>
+              </div>
+
+              <div className="p-4 space-y-3">
+                {/* Body text */}
+                <div className="prose prose-sm dark:prose-invert max-w-none">
+                  <ReactMarkdown>{flowItem.body_md}</ReactMarkdown>
+                </div>
+
+                {/* Letters/Characters display */}
+                {flowItem.letters && flowItem.letters.length > 0 && (
+                  <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${Math.min(flowItem.letters.length, 3)}, 1fr)` }}>
+                    {flowItem.letters.map((letter, li) => (
+                      <div key={li} className="flex flex-col items-center p-4 rounded-lg bg-foreground/[0.03] border border-foreground/10">
+                        <span className="text-4xl font-bold mb-2">{letter.glyph}</span>
+                        <span className="text-sm font-medium text-primary">{letter.latin_hint}</span>
+                        <span className="text-xs text-muted-foreground text-center mt-1">{letter.sound_hint_hu}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Practice items (prompt → answer) */}
+                {flowItem.items && flowItem.items.length > 0 && (
+                  <div className="space-y-2">
+                    {flowItem.items.map((item, ii) => {
+                      const key = `flow-${fi}-${ii}`;
+                      return (
+                        <div key={ii} className="flex flex-col gap-1">
+                          <span className="text-sm">{item.prompt}</span>
+                          <input
+                            type="text"
+                            value={exerciseAnswers[key] || ""}
+                            onChange={(e) => setExerciseAnswers(prev => ({ ...prev, [key]: e.target.value }))}
+                            placeholder="Válaszod..."
+                            className="w-full px-2 py-1 rounded border border-foreground/20 bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                          />
+                          {showAnswers[key] && (
+                            <span className="text-xs text-green-600 dark:text-green-400">Helyes: {item.answer}</span>
+                          )}
+                          {exerciseAnswers[key] && !showAnswers[key] && (
+                            <button
+                              onClick={() => setShowAnswers(prev => ({ ...prev, [key]: true }))}
+                              className="text-xs text-primary hover:underline self-start"
+                            >
+                              Megoldás mutatása
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+
+        {/* Key Points (if present) */}
+        {content.key_points && content.key_points.length > 0 && (
+          <div className="p-3 rounded-lg bg-primary/10 border border-primary/20">
+            <div className="flex items-center gap-2 mb-2">
+              <Lightbulb className="w-4 h-4 text-primary" />
+              <span className="text-sm font-medium">Összefoglalás</span>
+            </div>
+            <ul className="space-y-1">
+              {content.key_points.map((point, i) => (
+                <li key={i} className="text-sm text-foreground flex items-start gap-2">
+                  <span className="text-primary mt-0.5">•</span>
+                  <span>{point}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {markReadButton}
+      </div>
+    );
+  }
 
   // ── Language Lesson Layout ──
   if (isLanguageLesson) {
