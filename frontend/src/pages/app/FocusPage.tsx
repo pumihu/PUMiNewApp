@@ -663,7 +663,7 @@ export default function FocusPage() {
           onViewOutline={() => setView("outline")}
           onViewProgress={() => setView("progress")}
           onNewPlan={() => setShowArchiveModal(true)}
-          onStartAudioTutor={planMeta ? () => setView("audio_tutor") : undefined}
+          onStartAudioTutor={() => setView("audio_tutor")}
         />
       )}
       
@@ -719,9 +719,9 @@ export default function FocusPage() {
         />
       )}
 
-      {view === "audio_tutor" && planMeta && (
+      {view === "audio_tutor" && (
         <AudioTutorSession
-          track={planMeta.track || planMeta.focusType}
+          track={planMeta?.track || planMeta?.focusType || "language"}
           level="beginner"
           onBack={() => setView("home")}
         />

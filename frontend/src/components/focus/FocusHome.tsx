@@ -90,9 +90,24 @@ export function FocusHome({
             </div>
           </div>
 
+          {/* Audio Tutor standalone */}
+          {onStartAudioTutor && (
+            <button
+              onClick={onStartAudioTutor}
+              className="w-full max-w-sm py-3 px-6 rounded-xl text-sm
+                       bg-secondary/50 border border-border/50
+                       hover:bg-secondary hover:border-foreground/30
+                       transition-all duration-200
+                       flex items-center justify-center gap-2 mb-6"
+            >
+              <Volume2 className="w-4 h-4" />
+              Audio Tutor
+            </button>
+          )}
+
           {/* How it works */}
           <p className="text-xs text-muted-foreground max-w-xs">
-            A fókusz mód napi feladatokat generál a célod eléréséhez, 
+            A fókusz mód napi feladatokat generál a célod eléréséhez,
             és követi a haladásodat.
           </p>
         </div>
