@@ -6,7 +6,7 @@
 export const FOCUS_ITEM_SCHEMA_VERSION = "1.0";
 
 // Canonical item kinds - deterministic mapping from backend modes
-export type FocusItemKind = "lesson" | "translation" | "quiz" | "cards" | "roleplay" | "writing" | "checklist" | "briefing" | "feedback";
+export type FocusItemKind = "lesson" | "translation" | "quiz" | "cards" | "roleplay" | "writing" | "checklist" | "briefing" | "feedback" | "smart_lesson";
 
 // Input types for different kinds
 export type FocusInputType = "text" | "multi_text" | "choice" | "flip" | "chat" | "checkbox" | "none";
@@ -121,6 +121,25 @@ export interface FeedbackContent {
   message?: string;
 }
 
+// SmartLesson: micro-skill daily content (smart_learning domain)
+// 4-section structure: hook → micro_task_1 → micro_task_2 → insight
+export interface SmartLessonContent {
+  hook: string;            // 1 short question or scenario
+  micro_task_1: {
+    instruction: string;   // choice or mini calculation
+    options?: string[];    // optional multiple choice
+    correct_index?: number;
+    explanation?: string;
+  };
+  micro_task_2: {
+    instruction: string;   // decision or rewrite
+    options?: string[];
+    correct_index?: number;
+    explanation?: string;
+  };
+  insight: string;         // 1 sentence takeaway
+}
+
 // Lesson: rich educational content (tananyag)
 // Supports both legacy format (summary+key_points) and language_lesson format
 export interface LessonContent {
@@ -202,7 +221,8 @@ export type FocusItemContent =
   | { kind: "writing"; data: WritingContent }
   | { kind: "checklist"; data: ChecklistContent }
   | { kind: "briefing"; data: BriefingContent }
-  | { kind: "feedback"; data: FeedbackContent };
+  | { kind: "feedback"; data: FeedbackContent }
+  | { kind: "smart_lesson"; data: SmartLessonContent };
 
 // ============================================================================
 // STRICT FOCUS ITEM INTERFACE
@@ -280,6 +300,9 @@ export const BACKEND_MODE_TO_KIND: Record<string, FocusItemKind> = {
   // Career track kinds
   briefing: "briefing",
   feedback: "feedback",
+
+  // Smart learning kinds
+  smart_lesson: "smart_lesson",
 };
 
 // ============================================================================
@@ -322,6 +345,10 @@ export const DEFAULT_VALIDATION: Record<FocusItemKind, FocusValidation> = {
   feedback: {
     require_interaction: true,
   },
+  smart_lesson: {
+    require_interaction: true,
+    min_items: 1,
+  },
 };
 
 // ============================================================================
@@ -338,6 +365,7 @@ export const DEFAULT_SCORING: Record<FocusItemKind, FocusScoring> = {
   checklist: { max_points: 100, partial_credit: false, auto_grade: false },
   briefing: { max_points: 0, partial_credit: false, auto_grade: false },
   feedback: { max_points: 100, partial_credit: true, auto_grade: false },
+  smart_lesson: { max_points: 100, partial_credit: true, auto_grade: true },
 };
 
 // ============================================================================
@@ -354,4 +382,5 @@ export const KIND_TO_INPUT_TYPE: Record<FocusItemKind, FocusInputType> = {
   checklist: "checkbox",
   briefing: "none",
   feedback: "none",
+  smart_lesson: "choice",
 };

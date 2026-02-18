@@ -93,12 +93,10 @@ export const focusApi = {
         const isTimeout = message.includes("timeout") || message.includes("504") || message.includes("timed out");
 
         if (isConflict && retryNum < 1) {
-          console.log("generate-item-content 409 → retry");
           await new Promise(resolve => setTimeout(resolve, 400));
           return attempt(retryNum + 1);
         }
         if (isTimeout && retryNum < 2) {
-          console.log(`generate-item-content timeout → retry #${retryNum + 1}`);
           await new Promise(resolve => setTimeout(resolve, 2000 + retryNum * 3000));
           return attempt(retryNum + 1);
         }

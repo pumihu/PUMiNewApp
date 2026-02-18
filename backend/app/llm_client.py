@@ -583,7 +583,7 @@ async def llm_chat(
 # =========================
 # CANONICAL FOCUS ITEM SCHEMA v1.0
 # =========================
-VALID_KINDS = ["content", "quiz", "checklist", "upload_review", "translation", "cards", "roleplay", "writing", "briefing", "feedback"]
+VALID_KINDS = ["content", "quiz", "checklist", "upload_review", "translation", "cards", "roleplay", "writing", "briefing", "feedback", "smart_lesson"]
 
 # Kind selection mapping - backend decides, not LLM
 KIND_FROM_PRACTICE_TYPE = {
@@ -612,6 +612,7 @@ KIND_VALIDATION_RULES = {
     "upload_review": {"min_chars": 0, "min_items": 1, "input_type": "file"},
     "briefing": {"min_chars": 0, "min_items": 0, "input_type": "none"},  # Read-only briefing card
     "feedback": {"min_chars": 0, "min_items": 0, "input_type": "none"},  # Read-only AI feedback
+    "smart_lesson": {"min_chars": 0, "min_items": 1, "input_type": "choice"},  # Micro-skill lesson with interactive tasks
 }
 
 # Generic filler and placeholder guards
@@ -663,6 +664,8 @@ def _determine_item_kind(item_type: str, practice_type: Optional[str] = None) ->
         return "briefing"
     if item_type == "feedback":
         return "feedback"
+    if item_type == "smart_lesson":
+        return "smart_lesson"
     if item_type == "quiz":
         return "quiz"
     if item_type == "flashcard":
@@ -1236,6 +1239,37 @@ RULES:
 - score: 1-5 integer
 - praise: always include something positive
 ''',
+        "smart_lesson": '''
+"content": {
+  "hook": "1 short question or everyday scenario that grabs attention (max 2 sentences, casual Gen-Z tone)",
+  "micro_task_1": {
+    "instruction": "A choice or mini calculation task (1-2 sentences)",
+    "options": ["Option A", "Option B", "Option C"],
+    "correct_index": 0,
+    "explanation": "Why this is correct (1 sentence, casual)"
+  },
+  "micro_task_2": {
+    "instruction": "A decision or rewrite task (1-2 sentences)",
+    "options": ["Option A", "Option B", "Option C"],
+    "correct_index": 1,
+    "explanation": "Why this is the best choice (1 sentence, casual)"
+  },
+  "insight": "1 sentence takeaway — the key learning of the day"
+}
+QUALITY RULES:
+- hook: Must be relatable, everyday scenario. NO academic intro. Max 2 sentences.
+- micro_task_1 and micro_task_2: MUST have exactly 3 options each
+- options: plausible, not placeholder (no "A", "B", "C"), concrete
+- correct_index: 0-2 integer, vary between tasks
+- explanation: casual, short, Gen-Z friendly
+- insight: 1 punchy sentence, memorable takeaway
+- TOTAL content must be completable in under 5 minutes
+- NO essays, NO lectures, NO academic jargon
+- Use everyday examples, numbers, real-life situations
+- Tone: like texting a smart friend, not a textbook
+- Language: Hungarian (hu)
+- Example hook style: "Ha 100k jon be, mennyi a 20%? Nem kell matekzseni."
+''',
     }
 
     # For language domain: resolve target_language robustly
@@ -1793,7 +1827,7 @@ async def generate_focus_item(
 
     # Deterministic kind selection (after domain normalization)
     kind = _determine_item_kind(item_type, practice_type)
-    allowed_kinds = {"content", "quiz", "checklist", "upload_review", "cards", "translation", "roleplay", "writing", "briefing", "feedback"}
+    allowed_kinds = {"content", "quiz", "checklist", "upload_review", "cards", "translation", "roleplay", "writing", "briefing", "feedback", "smart_lesson"}
     if kind not in allowed_kinds:
         kind = "content" if item_type_lower == "lesson" else "checklist"
 
@@ -1837,6 +1871,13 @@ async def generate_focus_item(
             user=user,
             max_tokens=3500 if is_language_lesson else 2500,
             temperature=0.3,
+        )
+    elif kind == "smart_lesson":
+        text = await _claude_json_haiku(
+            system=system,
+            user=user,
+            max_tokens=1500,
+            temperature=0.5,
         )
     elif kind == "briefing":
         text = await _claude_json_haiku(

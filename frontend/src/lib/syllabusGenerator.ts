@@ -532,7 +532,6 @@ async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
 export async function generateSyllabus(wizardData: WizardData): Promise<WeekPlan> {
   const prompt = buildSyllabusPrompt(wizardData);
 
-  console.log("[SYLLABUS] Generating syllabus...");
 
   // Use /chat/enhanced json_mode only; do not chain into /chat/detailed here.
   let rawText = "";
@@ -555,14 +554,12 @@ export async function generateSyllabus(wizardData: WizardData): Promise<WeekPlan
   } catch (err) {
     console.warn("[SYLLABUS] Chat endpoints failed, using template fallback:", err);
     const templatePlan = buildTemplateSyllabus(wizardData);
-    console.log("[SYLLABUS] Template fallback:", templatePlan.days.length, "days");
     return templatePlan;
   }
 
   if (!rawText) {
     console.warn("[SYLLABUS] Empty API response, using template fallback");
     const templatePlan = buildTemplateSyllabus(wizardData);
-    console.log("[SYLLABUS] Template fallback:", templatePlan.days.length, "days");
     return templatePlan;
   }
 
@@ -570,13 +567,11 @@ export async function generateSyllabus(wizardData: WizardData): Promise<WeekPlan
   if (!parsed || !parsed.days || !Array.isArray(parsed.days)) {
     console.warn("[SYLLABUS] Invalid JSON from API, using template fallback");
     const templatePlan = buildTemplateSyllabus(wizardData);
-    console.log("[SYLLABUS] Template fallback:", templatePlan.days.length, "days");
     return templatePlan;
   }
 
   const step2Lang = wizardData.step2 && "targetLanguage" in wizardData.step2 ? wizardData.step2 : null;
   const weekPlan = validateWeekPlan(parsed, step2Lang?.track);
-  console.log("[SYLLABUS] Generated:", weekPlan.days.length, "days, track:", step2Lang?.track || "foundations_language");
   return weekPlan;
 }
 

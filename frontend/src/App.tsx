@@ -12,7 +12,6 @@ import ProfilePage from "./pages/app/ProfilePage";
 import SettingsPage from "./pages/app/SettingsPage";
 import SubscriptionPage from "./pages/app/SubscriptionPage";
 import CheckoutSuccessPage from "./pages/app/CheckoutSuccessPage";
-import TestLazyLoad from "./pages/app/TestLazyLoad";
 import NotFound from "./pages/NotFound";
 import { RequirePaid } from "./components/auth/RequirePaid";
 import { RequireAuth } from "./components/auth/RequireAuth";
@@ -56,7 +55,6 @@ const App = () => (
               <Route path="settings" element={<SettingsPage />} />
               <Route path="subscription" element={<SubscriptionPage />} />
               <Route path="checkout-success" element={<CheckoutSuccessPage />} />
-              <Route path="test-lazy" element={<TestLazyLoad />} />
             </Route>
           </Route>
           

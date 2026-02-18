@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { ChevronDown, ChevronUp, Loader2, BookOpen, HelpCircle, Dumbbell, Layers, CheckSquare, Check, MessageSquare, PenLine, Target, Briefcase } from "lucide-react";
+import { ChevronDown, ChevronUp, Loader2, BookOpen, HelpCircle, Dumbbell, Layers, CheckSquare, Check, MessageSquare, PenLine, Target, Briefcase, Lightbulb } from "lucide-react";
 import ReactMarkdown from "react-markdown";
-import type { PlanItem, ItemContent } from "@/types/learningFocus";
+import type { PlanItem } from "@/types/learningFocus";
 import type { StrictFocusItem, FocusItemKind } from "@/types/focusItem";
 import { validateFocusItem, getFallbackTemplate, checkValidationState, type ValidationState } from "@/lib/focusItemValidator";
-import { LessonRenderer, TranslationRenderer, QuizRenderer, CardsRenderer, RoleplayRenderer, WritingRenderer, ChecklistRenderer, BriefingRenderer, FeedbackRenderer } from "./renderers";
+import { LessonRenderer, TranslationRenderer, QuizRenderer, CardsRenderer, RoleplayRenderer, WritingRenderer, ChecklistRenderer, BriefingRenderer, FeedbackRenderer, SmartLessonRenderer } from "./renderers";
 import { focusApi } from "@/lib/focusApi";
-import type { WeekPlan, SyllabusDay } from "@/types/syllabus";
+import type { WeekPlan } from "@/types/syllabus";
 
 const CACHE_DURATION = 60 * 60 * 1000; // 1 hour
 
@@ -100,7 +100,6 @@ export function LazyItemRenderer({ item, dayTitle, dayIntro, domain, level, lang
         const parsed: CacheEntry = JSON.parse(cached);
         if (Date.now() - parsed.timestamp < CACHE_DURATION) {
           setStrictItem(parsed.content);
-          console.log(`[CACHE HIT] ${item.id}`);
         } else {
           localStorage.removeItem(cacheKey);
         }
@@ -120,7 +119,6 @@ export function LazyItemRenderer({ item, dayTitle, dayIntro, domain, level, lang
         if (hydrated) {
           setStrictItem(hydrated);
           localStorage.setItem(cacheKey, JSON.stringify({ content: hydrated, timestamp: Date.now() }));
-          console.log(`[HYDRATE] Loaded initial content from get-day for ${item.id}`);
         }
       } catch (err) {
         console.warn(`[HYDRATE] Failed to hydrate initial content for ${item.id}:`, err);
@@ -147,7 +145,6 @@ export function LazyItemRenderer({ item, dayTitle, dayIntro, domain, level, lang
 
     // Check for pending request
     if (pendingRequests[item.id]) {
-      console.log(`[DEDUP] Waiting for existing request: ${item.id}`);
       setLoading(true);
       try {
         const result = await pendingRequests[item.id];
@@ -177,7 +174,6 @@ export function LazyItemRenderer({ item, dayTitle, dayIntro, domain, level, lang
           return strict;
         }
         if (validation.repaired) {
-          console.log(`[REPAIR] Item ${item.id} repaired:`, validation.errors);
           if (!skipCache) {
             localStorage.setItem(cacheKey, JSON.stringify({ content: validation.repaired, timestamp: Date.now() }));
           }
@@ -188,7 +184,6 @@ export function LazyItemRenderer({ item, dayTitle, dayIntro, domain, level, lang
 
       // ── Generate item content via focusApi (pumiInvoke) ──
       try {
-        console.log(`[API] Fetching content for: ${item.id}`);
         const syllabusContext = getSyllabusDayContext(item.id);
         const resp = await focusApi.generateItemContent({
           item_id: item.id,
@@ -204,7 +199,6 @@ export function LazyItemRenderer({ item, dayTitle, dayIntro, domain, level, lang
         if (resp.ok && resp.content) {
           const validated = validateAndCache(resp.content);
           if (validated) {
-            console.log(`[API] Content loaded for: ${item.id}`);
             return validated;
           }
         }
@@ -218,7 +212,6 @@ export function LazyItemRenderer({ item, dayTitle, dayIntro, domain, level, lang
           try {
             const fromDay = validateAndCache(item.content);
             if (fromDay) {
-              console.log(`[FALLBACK] Using get-day content for ${item.id}`);
               return fromDay;
             }
           } catch (hydrateErr) {
@@ -229,7 +222,6 @@ export function LazyItemRenderer({ item, dayTitle, dayIntro, domain, level, lang
         // Last resort: static template so UI stays usable
         // Do NOT cache fallback templates — next load should retry the API
         // (backend may have generated + saved content to DB by then)
-        console.log(`[FALLBACK] Using template for ${item.id} (not cached — will retry)`);
         const fallback = getFallbackTemplate(detectKindFromItem(item), item.topic || item.label);
         // Mark as fallback so we schedule background retries
         (fallback as any).__isFallback = true;
@@ -272,7 +264,6 @@ export function LazyItemRenderer({ item, dayTitle, dayIntro, domain, level, lang
       const timer = setTimeout(async () => {
         if (!mountedRef.current) return;
         try {
-          console.log(`[RETRY ${idx + 1}/${delays.length}] Retrying content for: ${item.id}`);
           const syllabusContext = getSyllabusDayContext(item.id);
           const resp = await focusApi.generateItemContent({
             item_id: item.id,
@@ -292,7 +283,6 @@ export function LazyItemRenderer({ item, dayTitle, dayIntro, domain, level, lang
               ? (resp.content as StrictFocusItem)
               : validation.repaired;
             if (validated) {
-              console.log(`[RETRY ${idx + 1}] Content loaded for: ${item.id}`);
               localStorage.setItem(cacheKey, JSON.stringify({ content: validated, timestamp: Date.now() }));
               setStrictItem(validated);
               setUsingFallback(false);
@@ -302,7 +292,6 @@ export function LazyItemRenderer({ item, dayTitle, dayIntro, domain, level, lang
             }
           }
         } catch (err) {
-          console.log(`[RETRY ${idx + 1}] Still failing for ${item.id}:`, err);
         }
       }, delay);
       retryTimersRef.current.push(timer);
@@ -329,6 +318,7 @@ export function LazyItemRenderer({ item, dayTitle, dayIntro, domain, level, lang
       case "checklist": return <CheckSquare className="w-5 h-5 text-amber-500" />;
       case "briefing": return <Briefcase className="w-5 h-5 text-cyan-500" />;
       case "feedback": return <Target className="w-5 h-5 text-pink-500" />;
+      case "smart_lesson": return <Lightbulb className="w-5 h-5 text-yellow-500" />;
       default: return <BookOpen className="w-5 h-5 text-muted-foreground" />;
     }
   };
@@ -345,6 +335,7 @@ export function LazyItemRenderer({ item, dayTitle, dayIntro, domain, level, lang
       case "checklist": return "Feladat";
       case "briefing": return "Helyzetkep";
       case "feedback": return "Visszajelzes";
+      case "smart_lesson": return "Mikro-lecke";
       default: return kind;
     }
   };
@@ -546,6 +537,9 @@ function detectKindFromItem(item: PlanItem): FocusItemKind {
   if (rawType === "briefing") return "briefing";
   if (rawType === "feedback") return "feedback";
 
+  // Smart learning kinds
+  if (rawType === "smart_lesson") return "smart_lesson";
+
   // Direct mappings
   if (rawType === "lesson" || rawType === "content" || rawType === "tananyag") return "lesson";
   if (rawType === "translation" || rawPracticeType === "translation") return "translation";
@@ -680,6 +674,17 @@ function StrictContentRenderer({
       if (content.kind === "feedback") {
         return (
           <FeedbackRenderer
+            content={content.data}
+            onValidationChange={onValidationChange}
+          />
+        );
+      }
+      break;
+
+    case "smart_lesson":
+      if (content.kind === "smart_lesson") {
+        return (
+          <SmartLessonRenderer
             content={content.data}
             onValidationChange={onValidationChange}
           />

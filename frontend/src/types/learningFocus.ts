@@ -134,52 +134,6 @@ export interface StructuredPlan {
 }
 
 // ============================================================================
-// API Types
-// ============================================================================
-
-export interface FocusItemContentRequest {
-  item_type: ItemType;
-  item_id: string;
-  topic: string;
-  context: {
-    day_title: string;
-    day_intro?: string;
-  };
-  domain?: string;
-  level?: string;
-  lang?: string;
-  practice_type?: PracticeType;
-  topics_list?: string[];
-  num_questions?: number;
-  num_cards?: number;
-}
-
-export interface FocusItemContentResponse {
-  ok: boolean;
-  content: ItemContent;
-  item_id: string;
-  error?: string;
-}
-
-export interface FocusApiResponse {
-  ok: boolean;
-  type?: "chat" | "focus_outline" | "focus_day" | "focus_plan" | string;
-  text?: string;
-  outline?: FocusOutline;
-  day?: PlanDay;
-  plan?: StructuredPlan;
-  reply?: string;
-  error?: string;
-  memory_saved?: number;
-  usage?: {
-    tokens_used_today?: number;
-    token_limit?: number;
-    remaining?: number;
-    reset_at?: string;
-  };
-}
-
-// ============================================================================
 // Session Types
 // ============================================================================
 
@@ -263,15 +217,4 @@ export interface LearningFocusSession {
   startedAt: string;
   dayIndex: number;
   lastDoneDay: string | null;
-}
-
-export interface LearningFocusResponse {
-  ok: boolean;
-  mode: "focus_plan";
-  reply: string;
-  focus?: {
-    type: "learning";
-    outline: LearningOutline;
-    lesson: Lesson;
-  };
 }

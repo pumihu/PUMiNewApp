@@ -7,7 +7,6 @@ import {
   type StrictFocusItem,
   type FocusItemKind,
   type FocusItemContent,
-  type FocusValidation,
   type LessonContent,
   FOCUS_ITEM_SCHEMA_VERSION,
   BACKEND_MODE_TO_KIND,
@@ -57,6 +56,10 @@ export function detectKindFromRaw(raw: any): FocusItemKind {
   
   // Content-based detection
   if (raw?.content) {
+    // Smart lesson detection: has hook + micro_task_1 + insight (smart_learning domain)
+    if (raw.content.hook && raw.content.micro_task_1 && raw.content.insight) {
+      return "smart_lesson";
+    }
     // Lesson detection: has summary, key_points, or language content
     if (raw.content.summary || raw.content.key_points || raw.content.content_type === "language_lesson" || raw.content.content_type === "language_nonlatin_beginner" || raw.content.lesson_flow || raw.content.vocabulary_table) {
       return "lesson";
@@ -200,6 +203,27 @@ function extractContent(raw: any, kind: FocusItemKind): FocusItemContent {
           praise: content?.praise,
           placeholder: content?.placeholder,
           message: content?.message,
+        },
+      };
+
+    case "smart_lesson":
+      return {
+        kind: "smart_lesson",
+        data: {
+          hook: content?.hook || "Gondolkodtál már ezen?",
+          micro_task_1: {
+            instruction: content?.micro_task_1?.instruction || "Válaszd ki a helyes választ!",
+            options: Array.isArray(content?.micro_task_1?.options) ? content.micro_task_1.options : undefined,
+            correct_index: content?.micro_task_1?.correct_index,
+            explanation: content?.micro_task_1?.explanation,
+          },
+          micro_task_2: {
+            instruction: content?.micro_task_2?.instruction || "Döntsd el, melyik a jobb megoldás!",
+            options: Array.isArray(content?.micro_task_2?.options) ? content.micro_task_2.options : undefined,
+            correct_index: content?.micro_task_2?.correct_index,
+            explanation: content?.micro_task_2?.explanation,
+          },
+          insight: content?.insight || "Ma ezt tanultad meg!",
         },
       };
   }
@@ -534,7 +558,7 @@ function isValidStrictFocusItem(item: any): item is StrictFocusItem {
 }
 
 function isValidKind(kind: any): kind is FocusItemKind {
-  return ["lesson", "translation", "quiz", "cards", "roleplay", "writing", "checklist", "briefing", "feedback"].includes(kind);
+  return ["lesson", "translation", "quiz", "cards", "roleplay", "writing", "checklist", "briefing", "feedback", "smart_lesson"].includes(kind);
 }
 
 // ============================================================================
@@ -725,6 +749,36 @@ export function getFallbackTemplate(kind: FocusItemKind, topic: string): StrictF
       validation: { require_interaction: true },
       scoring: { max_points: 100, partial_credit: true },
     },
+    smart_lesson: {
+      schema_version: FOCUS_ITEM_SCHEMA_VERSION,
+      kind: "smart_lesson",
+      title: "Napi mikro-lecke",
+      subtitle: topic,
+      instructions_md: "Olvasd el és válaszolj a kérdésekre:",
+      ui: { mode: "inline", estimated_minutes: 5 },
+      input: { type: "choice" },
+      content: {
+        kind: "smart_lesson",
+        data: {
+          hook: `Gondolkodtál már ezen: ${topic}?`,
+          micro_task_1: {
+            instruction: "Melyik állítás igaz?",
+            options: ["Ez a helyes válasz", "Ez nem jó", "Ez sem stimmel"],
+            correct_index: 0,
+            explanation: "Ez a helyes válasz, mert...",
+          },
+          micro_task_2: {
+            instruction: "Mit tennél ebben a helyzetben?",
+            options: ["Jó döntés", "Rossz döntés", "Kockázatos"],
+            correct_index: 0,
+            explanation: "Ez a legjobb megoldás.",
+          },
+          insight: "Ma megtanultad az alapokat!",
+        },
+      },
+      validation: { require_interaction: true, min_items: 1 },
+      scoring: { max_points: 100, partial_credit: true, auto_grade: true },
+    },
   };
 
   return templates[kind];
@@ -792,7 +846,7 @@ export function checkValidationState(
   }
   
   // Briefing and feedback are read-only — always completable
-  if (item.kind === "briefing" || item.kind === "feedback") {
+  if (item.kind === "briefing" || item.kind === "feedback" || item.kind === "smart_lesson") {
     return {
       canComplete: true,
       progress: { current: 1, required: 1, type: "items" },

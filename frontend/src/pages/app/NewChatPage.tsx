@@ -265,7 +265,6 @@ export default function NewChatPage() {
     userScrolledUp.current = false; // Reset scroll tracking when sending
 
     try {
-      console.log("[NewChatPage] Sending message via pumiInvoke...");
       
       const filtered = messages.filter((m) => m.id !== "intro" && !m.isError);
       const history = buildHistory(filtered, 12);
@@ -294,7 +293,6 @@ export default function NewChatPage() {
         ...(imagesPayload && { images: imagesPayload }),
       });
 
-      console.log("[NewChatPage] Response:", response);
 
       // Clear attached files after successful send
       attachedFiles.forEach((f) => {

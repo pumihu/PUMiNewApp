@@ -1,11 +1,18 @@
 // src/types/focusWizard.ts
 // Types for the Focus creation wizard (3-step flow)
 
-export type FocusType = "language" | "project";
+export type FocusType = "language" | "project" | "smart_learning";
 export type LanguageLevel = "beginner" | "basic" | "intermediate";
 export type LanguageTrack = "foundations_language" | "career_language";
 export type ProjectType = "product" | "learning" | "admin" | "creative";
 export type ProjectConstraint = "time" | "budget" | "focus";
+export type SmartLearningCategory =
+  | "financial_basics"
+  | "digital_literacy"
+  | "communication_social"
+  | "study_brain_skills"
+  | "knowledge_bites";
+
 export type Tone = "casual" | "neutral" | "strict";
 export type Difficulty = "easy" | "normal" | "hard";
 export type Pacing = "small_steps" | "big_blocks";
@@ -28,7 +35,13 @@ export interface WizardStep2Generic {
   durationDays: 7 | 14 | 21 | 30;
 }
 
-export type WizardStep2 = WizardStep2Language | WizardStep2Generic;
+export interface WizardStep2SmartLearning {
+  category: SmartLearningCategory;
+  minutesPerDay: 10 | 20 | 45;
+  durationDays: 7 | 14 | 21 | 30;
+}
+
+export type WizardStep2 = WizardStep2Language | WizardStep2Generic | WizardStep2SmartLearning;
 
 export interface WizardStep3 {
   tone: Tone;
@@ -51,6 +64,10 @@ export const DEFAULT_WIZARD_DATA: WizardData = {
 // Helper type guards
 export function isLanguageStep2(step2: WizardStep2 | null): step2 is WizardStep2Language {
   return step2 !== null && "targetLanguage" in step2;
+}
+
+export function isSmartLearningStep2(step2: WizardStep2 | null): step2 is WizardStep2SmartLearning {
+  return step2 !== null && "category" in step2;
 }
 
 // Legacy type aliases for backward compatibility with imports

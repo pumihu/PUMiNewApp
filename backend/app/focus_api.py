@@ -39,7 +39,7 @@ CLAUDE_MODEL = (os.getenv("CLAUDE_MODEL") or "claude-sonnet-4-20250514").strip()
 claude = Anthropic(api_key=CLAUDE_API_KEY) if ANTHROPIC_AVAILABLE and CLAUDE_API_KEY else None
 
 ALLOWED_MODES = {"learning", "project"}
-LEARNING_TASK_TYPES = {"lesson", "quiz", "single_select", "flashcard", "cards", "translation", "roleplay", "writing", "speaking", "listening", "reading", "task", "checklist", "briefing", "feedback"}
+LEARNING_TASK_TYPES = {"lesson", "quiz", "single_select", "flashcard", "cards", "translation", "roleplay", "writing", "speaking", "listening", "reading", "task", "checklist", "briefing", "feedback", "smart_lesson"}
 PROJECT_TASK_TYPES = {"upload_review", "checklist", "quiz", "writing", "task"}
 UPLOAD_REVIEW_MAX_BYTES = 5 * 1024 * 1024  # 5MB
 
@@ -819,6 +819,7 @@ DOMAIN_ALLOWED_TYPES = {
     "fitness": {"lesson", "quiz", "single_select"},
     "habits": {"lesson", "quiz", "single_select"},
     "programming": {"lesson", "quiz", "single_select"},
+    "smart_learning": {"lesson", "quiz", "single_select", "smart_lesson"},
     "other": {"lesson", "quiz", "single_select"},
 }
 
@@ -833,6 +834,7 @@ DOMAIN_ALLOWED_PRACTICE_TYPES = {
     "fitness": set(),
     "habits": set(),
     "programming": set(),
+    "smart_learning": set(),
     "other": set(),
 }
 
@@ -1349,6 +1351,21 @@ def _generate_default_items_for_domain(
                 "practice_type": None,
                 "topic": day_title,
                 "label": "Visszajelzés",
+                "estimated_minutes": 5,
+            },
+        ]
+
+    # Smart learning domain: single smart_lesson item per day (~5 min)
+    if domain_lower == "smart_learning":
+        return [
+            {
+                "order_index": 0,
+                "item_key": f"d{day_index}-smart-lesson-1",
+                "type": "smart_lesson",
+                "kind": "smart_lesson",
+                "practice_type": None,
+                "topic": day_title,
+                "label": "Napi mikro-lecke",
                 "estimated_minutes": 5,
             },
         ]

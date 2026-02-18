@@ -2,8 +2,8 @@
 // 3-step guided wizard for creating a new Focus plan
 
 import { useState } from "react";
-import { ArrowLeft, ArrowRight, Check, Loader2, BookOpen, Briefcase, ChevronDown, ChevronUp } from "lucide-react";
-import { WizardData, DEFAULT_WIZARD_DATA, FocusType, Tone, Difficulty, Pacing, LanguageTrack, LanguageLevel, isLanguageStep2 } from "@/types/focusWizard";
+import { ArrowLeft, ArrowRight, Check, Loader2, BookOpen, Briefcase, Lightbulb, ChevronDown, ChevronUp } from "lucide-react";
+import { WizardData, DEFAULT_WIZARD_DATA, FocusType, Tone, Difficulty, Pacing, LanguageTrack, LanguageLevel, SmartLearningCategory, isLanguageStep2 } from "@/types/focusWizard";
 
 interface FocusWizardProps {
   onComplete: (data: WizardData) => Promise<void>;
@@ -14,6 +14,7 @@ interface FocusWizardProps {
 const FOCUS_TYPES = [
   { type: "language" as FocusType, icon: BookOpen, label: "Nyelvtanulás", desc: "Új nyelv elsajátítása" },
   { type: "project" as FocusType, icon: Briefcase, label: "Projekt / munka", desc: "Feladat vagy projekt" },
+  { type: "smart_learning" as FocusType, icon: Lightbulb, label: "Micro-skill tanulás", desc: "Napi mikro-készségek, Gen-Z stílus" },
 ];
 
 const LANGUAGES = [
@@ -39,6 +40,22 @@ const TRACKS: Array<{ value: LanguageTrack; label: string; desc: string }> = [
   { value: "career_language", label: "Karrier", desc: "B1+ email, meeting, interjú" },
 ];
 
+const SMART_CATEGORIES: Array<{ value: SmartLearningCategory; label: string; desc: string }> = [
+  { value: "financial_basics", label: "Pénzügyi alapok", desc: "Megtakarítás, befektetés, költségvetés" },
+  { value: "digital_literacy", label: "Digitális jártasság", desc: "Online biztonság, AI, digitális eszközök" },
+  { value: "communication_social", label: "Kommunikáció", desc: "Prezentáció, tárgyalás, social skillek" },
+  { value: "study_brain_skills", label: "Tanulás & agy", desc: "Memória, fókusz, hatékony tanulás" },
+  { value: "knowledge_bites", label: "Tudásfalatok", desc: "Tudomány, történelem, kultúra röviden" },
+];
+
+const SMART_CATEGORY_LABELS: Record<string, string> = {
+  financial_basics: "Pénzügyi alapok",
+  digital_literacy: "Digitális jártasság",
+  communication_social: "Kommunikáció",
+  study_brain_skills: "Tanulás & agy",
+  knowledge_bites: "Tudásfalatok",
+};
+
 const MINUTES_OPTIONS = [
   { value: 10, label: "10 perc" },
   { value: 20, label: "20 perc" },
@@ -50,6 +67,12 @@ const DURATIONS = [
   { days: 14, label: "14 nap" },
   { days: 21, label: "21 nap" },
   { days: 30, label: "30 nap" },
+];
+
+const SMART_DURATIONS = [
+  { days: 7, label: "7 nap", desc: "Gyors betekintés" },
+  { days: 14, label: "14 nap", desc: "Alapozó kihívás" },
+  { days: 21, label: "21 nap", desc: "Szokásépítő" },
 ];
 
 const TONES = [
@@ -70,7 +93,7 @@ const PACINGS = [
 ];
 
 // Auto-generate goal title from language wizard selections
-export const LANG_LABELS: Record<string, string> = {
+const LANG_LABELS: Record<string, string> = {
   english: "Angol", german: "Német", spanish: "Spanyol", italian: "Olasz",
   french: "Francia", greek: "Görög", portuguese: "Portugál", korean: "Koreai", japanese: "Japán",
 };
@@ -90,19 +113,24 @@ export function FocusWizard({ onComplete, onCancel, isGenerating }: FocusWizardP
   const [minutesPerDay, setMinutesPerDay] = useState<number>(20);
   const [durationDays, setDurationDays] = useState<number>(7);
 
+  // Step 2 smart_learning states
+  const [smartCategory, setSmartCategory] = useState<SmartLearningCategory>("financial_basics");
+
   // Step 2 generic states
   const [customContext, setCustomContext] = useState<string>("");
 
   // Step 3 advanced settings toggle
   const [showAdvanced, setShowAdvanced] = useState(false);
 
-  const totalSteps = 3;
+  const isSmartFlow = data.step1.focusType === "smart_learning";
+  const totalSteps = isSmartFlow ? 4 : 3;
 
   const canProceed = () => {
     switch (step) {
       case 1: return data.step1.focusType !== null;
       case 2: return true;
       case 3: return true;
+      case 4: return true;
       default: return false;
     }
   };
@@ -119,6 +147,16 @@ export function FocusWizard({ onComplete, onCancel, isGenerating }: FocusWizardP
             track: languageTrack,
             minutesPerDay: minutesPerDay as any,
             durationDays: durationDays as any,
+          },
+        });
+      } else if (data.step1.focusType === "smart_learning") {
+        // Category only — duration is selected in the commitment step (step 3)
+        setData({
+          ...data,
+          step2: {
+            category: smartCategory,
+            minutesPerDay: minutesPerDay as any,
+            durationDays: durationDays as any, // placeholder, overwritten at complete
           },
         });
       } else {
@@ -154,6 +192,12 @@ export function FocusWizard({ onComplete, onCancel, isGenerating }: FocusWizardP
         targetLanguage,
         level: languageLevel,
         track: languageTrack,
+        minutesPerDay: minutesPerDay as any,
+        durationDays: durationDays as any,
+      };
+    } else if (data.step1.focusType === "smart_learning") {
+      finalData.step2 = {
+        category: smartCategory,
         minutesPerDay: minutesPerDay as any,
         durationDays: durationDays as any,
       };
@@ -303,6 +347,33 @@ export function FocusWizard({ onComplete, onCancel, isGenerating }: FocusWizardP
       );
     }
 
+    // Smart learning step 2: category selector only (duration is step 3)
+    if (data.step1.focusType === "smart_learning") {
+      return (
+        <div className="space-y-5">
+          <h2 className="text-xl font-bold text-center mb-4">Válassz kategóriát</h2>
+
+          <div className="grid gap-2">
+            {SMART_CATEGORIES.map(({ value, label, desc }) => (
+              <button
+                key={value}
+                onClick={() => setSmartCategory(value)}
+                className={`p-3 rounded-xl text-left transition-all flex items-center justify-between
+                  ${smartCategory === value
+                    ? "bg-foreground text-background"
+                    : "bg-secondary/50 hover:bg-secondary"}`}
+              >
+                <span className="font-medium text-sm">{label}</span>
+                <span className={`text-xs ${smartCategory === value ? "text-background/70" : "text-muted-foreground"}`}>
+                  {desc}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
     // Generic step 2 for other focus types
     return (
       <div className="space-y-5">
@@ -360,13 +431,45 @@ export function FocusWizard({ onComplete, onCancel, isGenerating }: FocusWizardP
   };
 
   // ============================================================================
-  // STEP 3: Summary + Advanced settings + Launch
+  // STEP 3 (smart_learning only): Commitment — duration selection
   // ============================================================================
-  const renderStep3 = () => {
+  const renderSmartCommitStep = () => (
+    <div className="space-y-6">
+      <div className="text-center">
+        <h2 className="text-xl font-bold mb-2">Mennyi időt szánol rá?</h2>
+        <p className="text-sm text-muted-foreground">Válaszd ki a kihívás hosszát</p>
+      </div>
+
+      <div className="grid gap-3">
+        {SMART_DURATIONS.map(({ days, label, desc }) => (
+          <button
+            key={days}
+            onClick={() => setDurationDays(days)}
+            className={`p-4 rounded-xl border transition-all duration-200 text-left flex items-center justify-between
+              ${durationDays === days
+                ? "neon-glow-card bg-secondary/50"
+                : "bg-card/30 border-border/50 hover:border-foreground/30"}`}
+          >
+            <span className="font-semibold text-lg">{label}</span>
+            <span className={`text-sm ${durationDays === days ? "text-foreground" : "text-muted-foreground"}`}>
+              {desc}
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+
+  // ============================================================================
+  // Summary step (step 3 for language/project, step 4 for smart_learning)
+  // ============================================================================
+  const renderSummary = () => {
     const isLanguage = data.step1.focusType === "language";
+    const isSmartLearning = data.step1.focusType === "smart_learning";
     const langLabel = LANG_LABELS[targetLanguage] || targetLanguage;
     const levelLabel = LANGUAGE_LEVELS.find(l => l.value === languageLevel)?.label || languageLevel;
     const trackLabel = TRACK_LABELS[languageTrack] || languageTrack;
+    const categoryLabel = SMART_CATEGORY_LABELS[smartCategory] || smartCategory;
 
     return (
       <div className="space-y-5">
@@ -387,6 +490,17 @@ export function FocusWizard({ onComplete, onCancel, isGenerating }: FocusWizardP
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">Mód</span>
                 <span className="font-medium">{trackLabel}</span>
+              </div>
+            </>
+          ) : isSmartLearning ? (
+            <>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Mód</span>
+                <span className="font-medium">Micro-skill</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Kategória</span>
+                <span className="font-medium">{categoryLabel}</span>
               </div>
             </>
           ) : (
@@ -502,7 +616,9 @@ export function FocusWizard({ onComplete, onCancel, isGenerating }: FocusWizardP
       <div className="flex-1 py-4">
         {step === 1 && renderStep1()}
         {step === 2 && renderStep2()}
-        {step === 3 && renderStep3()}
+        {step === 3 && isSmartFlow && renderSmartCommitStep()}
+        {step === 3 && !isSmartFlow && renderSummary()}
+        {step === 4 && isSmartFlow && renderSummary()}
       </div>
 
       {/* Bottom CTA */}

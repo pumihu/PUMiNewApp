@@ -14,6 +14,7 @@ import { WizardData, FocusPlanMeta, FocusType } from "@/types/focusWizard";
 import type { FocusOutline, PlanDay } from "@/types/learningFocus";
 import { focusApi } from "@/lib/focusApi";
 import { generateSyllabus, mapSyllabusToDays, type DayForBackend } from "@/lib/syllabusGenerator";
+import { generateSmartTitles, type SmartPlan } from "@/lib/smartPlanGenerator";
 import type { WeekPlan } from "@/types/syllabus";
 
 // ============================================================================
@@ -126,7 +127,6 @@ export default function FocusPage() {
       if (stats.ok) {
         setStreak(stats.streak);
         setLastStreakDate(stats.last_streak_date || null);
-        console.log("[FOCUS] Streak fetched:", stats.streak, "Last:", stats.last_streak_date);
       }
     } catch (err) {
       // Graceful fallback: stats endpoint may not be available yet
@@ -225,7 +225,6 @@ export default function FocusPage() {
     // Check if plan already exists - don't regenerate
     const existingPlanId = localStorage.getItem("pumi_focus_plan_id");
     if (existingPlanId && planMeta && outline) {
-      console.log("[FOCUS] Plan already exists, skipping:", existingPlanId);
       setView("outline");
       return;
     }
@@ -236,6 +235,7 @@ export default function FocusPage() {
     // Extract wizard data (new 3-step structure)
     const domain = data.step1.focusType === "language" ? "language"
       : data.step1.focusType === "project" ? "project"
+      : data.step1.focusType === "smart_learning" ? "smart_learning"
       : "other";
 
     // Auto-generate goal title from wizard selections
@@ -252,12 +252,25 @@ export default function FocusPage() {
     let minutesPerDay = 20;
     let durationDays = 7;
 
+    const SMART_CATEGORY_LABELS: Record<string, string> = {
+      financial_basics: "Pénzügyi alapok",
+      digital_literacy: "Digitális jártasság",
+      communication_social: "Kommunikáció",
+      study_brain_skills: "Tanulás & agy",
+      knowledge_bites: "Tudásfalatok",
+    };
+
     if (data.step2 && "targetLanguage" in data.step2) {
       // Language step2
       goalTitle = `${LANG_LABELS[data.step2.targetLanguage] || data.step2.targetLanguage} - ${TRACK_LABELS[data.step2.track] || data.step2.track}`;
       level = data.step2.level;
       minutesPerDay = data.step2.minutesPerDay || 20;
       durationDays = data.step2.durationDays || 7;
+    } else if (data.step2 && "category" in data.step2) {
+      // Smart learning step2
+      minutesPerDay = data.step2.minutesPerDay || 20;
+      durationDays = data.step2.durationDays || 7;
+      goalTitle = `Micro-skill - ${SMART_CATEGORY_LABELS[data.step2.category] || data.step2.category}`;
     } else if (data.step2 && "minutesPerDay" in data.step2) {
       // Generic step2
       minutesPerDay = data.step2.minutesPerDay || 20;
@@ -270,20 +283,31 @@ export default function FocusPage() {
       let prebuiltDays: DayForBackend[] | undefined;
       let syllabusData: WeekPlan | undefined;
 
+      let smartPlan: SmartPlan | undefined;
+
       if (domain === "language") {
         try {
-          console.log("[FOCUS] Generating syllabus...");
           syllabusData = await generateSyllabus(data);
           prebuiltDays = mapSyllabusToDays(syllabusData, goalTitle, durationDays);
-          console.log("[FOCUS] Syllabus generated:", syllabusData.days.length, "days,", prebuiltDays.reduce((sum, d) => sum + d.items.length, 0), "items");
         } catch (syllabusErr) {
           console.warn("[FOCUS] Syllabus generation failed, falling back to defaults:", syllabusErr);
           // prebuiltDays stays undefined → backend generates defaults
         }
+      } else if (domain === "smart_learning" && data.step2 && "category" in data.step2) {
+        try {
+          smartPlan = await generateSmartTitles(data.step2.category, durationDays);
+          prebuiltDays = smartPlan.titles.map((title, i) => ({
+            dayIndex: i,
+            title: `Nap ${i + 1}: ${title}`,
+            intro: "",
+            items: [],
+          }));
+        } catch (smartErr) {
+          console.warn("[FOCUS] Smart title generation failed, using generic titles:", smartErr);
+        }
       }
 
       // ── Create plan (with or without syllabus items) ──
-      console.log("[FOCUS] Calling backend create-plan...");
       const mode = domain === "project" ? "project" : "learning";
       const dayCount = Math.max(1, Math.min(14, durationDays || 7));
       const days = prebuiltDays || Array.from({ length: dayCount }, (_, i) => ({
@@ -292,8 +316,11 @@ export default function FocusPage() {
         intro: "",
         items: [],
       }));
-      // Extract track system fields from wizard step2 (language settings)
+      // Extract track system fields from wizard step2
       const step2Lang = data.step2 && "targetLanguage" in data.step2
+        ? data.step2
+        : null;
+      const step2Smart = data.step2 && "category" in data.step2
         ? data.step2
         : null;
 
@@ -311,7 +338,7 @@ export default function FocusPage() {
         days,
         // Track system: explicit target language + track + week outline for scope enforcement
         target_language: step2Lang?.targetLanguage,
-        track: step2Lang?.track,
+        track: step2Lang?.track || step2Smart?.category,
         week_outline: syllabusData || undefined,
       });
 
@@ -319,43 +346,55 @@ export default function FocusPage() {
         throw new Error("Backend create-plan failed");
       }
 
-      console.log("[FOCUS] Plan created:", createResult.plan_id);
 
       // Save plan_id
       localStorage.setItem("pumi_focus_plan_id", createResult.plan_id);
 
-      // Save syllabus for reference
+      // Save syllabus / smart plan for reference
       if (syllabusData) {
         localStorage.setItem("pumi_focus_syllabus", JSON.stringify(syllabusData));
       }
+      if (smartPlan) {
+        localStorage.setItem("pumi_focus_smart_plan", JSON.stringify(smartPlan));
+      }
 
-      // Build outline — enriched with syllabus data if available
-      const localOutline: FocusOutline = {
-        title: goalTitle,
-        domain,
-        level,
-        minutes_per_day: minutesPerDay,
-        days: syllabusData
-          ? syllabusData.days.map((sd) => ({
-              day: sd.day,
-              title: `Nap ${sd.day}: ${sd.theme_hu}`,
-              intro: sd.grammar_focus
-                ? `${sd.grammar_focus} | ${sd.key_vocab.slice(0, 4).join(", ")}${sd.key_vocab.length > 4 ? "..." : ""}`
-                : "",
-            }))
-          // Pad remaining days if syllabus covers fewer than durationDays
-          .concat(
+      // Build outline — enriched with syllabus or smart plan data if available
+      const buildOutlineDays = () => {
+        if (syllabusData) {
+          return syllabusData.days.map((sd) => ({
+            day: sd.day,
+            title: `Nap ${sd.day}: ${sd.theme_hu}`,
+            intro: sd.grammar_focus
+              ? `${sd.grammar_focus} | ${sd.key_vocab.slice(0, 4).join(", ")}${sd.key_vocab.length > 4 ? "..." : ""}`
+              : "",
+          })).concat(
             Array.from({ length: Math.max(0, durationDays - syllabusData.days.length) }, (_, i) => ({
               day: syllabusData!.days.length + i + 1,
               title: `${goalTitle} • Nap ${syllabusData!.days.length + i + 1}`,
               intro: "",
             })),
-          )
-          : Array.from({ length: durationDays }, (_, i) => ({
-              day: i + 1,
-              title: `${goalTitle} • Nap ${i + 1}`,
-              intro: "",
-            })),
+          );
+        }
+        if (smartPlan) {
+          return smartPlan.titles.map((t, i) => ({
+            day: i + 1,
+            title: `Nap ${i + 1}: ${t}`,
+            intro: "",
+          }));
+        }
+        return Array.from({ length: durationDays }, (_, i) => ({
+          day: i + 1,
+          title: `${goalTitle} • Nap ${i + 1}`,
+          intro: "",
+        }));
+      };
+
+      const localOutline: FocusOutline = {
+        title: goalTitle,
+        domain,
+        level,
+        minutes_per_day: minutesPerDay,
+        days: buildOutlineDays(),
       };
 
       setOutline(localOutline);
@@ -408,7 +447,6 @@ export default function FocusPage() {
       if (!planId) throw new Error("No planId found");
 
       // ── Via pumi-proxy (focusApi) ──
-      console.log("[FOCUS] Calling backend start-day...");
       const mode = outline?.domain === "project" || outline?.focus_type === "project" ? "project" : "learning";
       const started = await focusApi.startDay({ plan_id: planId, mode });
 
@@ -428,7 +466,6 @@ export default function FocusPage() {
         throw new Error("Backend returned day with no items");
       }
 
-      console.log("[FOCUS] Day loaded:", day);
       setSelectedDayIndex(dayIdx);
       commitDay(day, dayIdx);
     } catch (err) {
@@ -456,7 +493,6 @@ export default function FocusPage() {
         mode,
         ...(resultJson ? { result_json: resultJson } : {}),
       });
-      console.log("[FOCUS] Item completion persisted:", itemId);
     } catch (err) {
       console.warn("[FOCUS] Item completion backend call failed (non-fatal):", err);
     }
@@ -543,7 +579,6 @@ export default function FocusPage() {
       const mode = outline?.domain === "project" || outline?.focus_type === "project" ? "project" : "learning";
       try {
         await focusApi.reset({ plan_id: planId, reset_mode: "archive", mode });
-        console.log("[FOCUS] Plan archived in DB:", planId);
       } catch (err) {
         console.error("[FOCUS] Failed to archive plan in DB:", err);
       }
@@ -556,6 +591,7 @@ export default function FocusPage() {
     localStorage.removeItem(COMPLETED_ITEMS_KEY);
     localStorage.removeItem("pumi_focus_plan_id");
     localStorage.removeItem("pumi_focus_syllabus");
+    localStorage.removeItem("pumi_focus_smart_plan");
 
     // Clear item caches (both old and new prefix)
     Object.keys(localStorage)

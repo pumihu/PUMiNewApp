@@ -1,7 +1,7 @@
 // src/components/focus/FocusHome.tsx
 // Focus Home with 3 states: No active focus, Active plan, In-progress day
 
-import { Sparkles, Play, Flame, MoreHorizontal, BarChart3, List, Plus, BookOpen, Target, Calendar, TrendingUp, CheckCircle2, Clock } from "lucide-react";
+import { Sparkles, Play, Flame, MoreHorizontal, BarChart3, List, Plus, BookOpen, Target, Lightbulb, Calendar, TrendingUp, CheckCircle2, Clock } from "lucide-react";
 import { FocusPlanMeta } from "@/types/focusWizard";
 import pumiLogo from "@/assets/pumi-logo.png";
 
@@ -66,10 +66,11 @@ export function FocusHome({
               Új fókusz létrehozása
             </button>
 
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               {[
                 { icon: BookOpen, label: "Nyelvtanulás", type: "language" },
                 { icon: Target, label: "Projekt", type: "project" },
+                { icon: Lightbulb, label: "Micro-skill", type: "smart_learning" },
               ].map(({ icon: Icon, label, type }) => (
                 <button
                   key={type}
@@ -118,8 +119,9 @@ export function FocusHome({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="neon-badge px-3 py-1 rounded-full text-xs font-medium">
-              {activePlan.focusType === "language" ? "Nyelv" : 
+              {activePlan.focusType === "language" ? "Nyelv" :
                activePlan.focusType === "project" ? "Projekt" :
+               activePlan.focusType === "smart_learning" ? "Micro-skill" :
                activePlan.focusType === "study" ? "Tanulás" : "Fókusz"}
             </span>
             {inProgressDay && (
