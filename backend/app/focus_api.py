@@ -4491,7 +4491,7 @@ _tts_rate_limits: Dict[str, list] = {}
 _TTS_MAX_PER_HOUR = 30
 
 ELEVENLABS_API_KEY = (os.getenv("ELEVENLABS_API_KEY") or "").strip()
-ELEVENLABS_VOICE_DEFAULT = (os.getenv("ELEVENLABS_VOICE_ID_DEFAULT") or "21m00Tcm4TlvDq8ikWAM").strip()
+ELEVENLABS_VOICE_DEFAULT = (os.getenv("ELEVENLABS_VOICE_ID_DEFAULT") or "NIS6mYGxVFNZaeq5OSC1").strip()
 ELEVENLABS_MODEL_DEFAULT = (os.getenv("ELEVENLABS_MODEL_ID_DEFAULT") or "eleven_multilingual_v2").strip()
 
 
