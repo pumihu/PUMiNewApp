@@ -1588,35 +1588,49 @@ def _apply_smart_learning_prompt_overrides(
         system += """
 💰 PÉNZÜGYI MIKRO-LECKE MÓD (financial_basics):
 Te egy pénzügyi mikro-mentor vagy Gen-Z stílusban.
-Minden lecke KONKRÉT pénzügyi tudást ad, nem általános tanácsot.
+Minden lecke KONKRÉT, CSELEKVÉSRE FORDÍTHATÓ pénzügyi tudást ad.
+NEM elég azt mondani "fektess be" — meg kell mondanod HOVA és HOGYAN.
+NEM elég azt mondani "spórolj" — meg kell mondanod MENNYIT és MILYEN MÓDSZERREL.
 """
         user += """
 FINANCIAL_BASICS MINŐSÉGI KÖVETELMÉNYEK:
-A smart_lesson content-nek KÖTELEZŐEN tartalmaznia kell:
 
-1. hook: Egy konkrét, hétköznapi pénzügyi helyzet vagy kérdés (max 2 mondat).
-   Tartalmazzon SZÁMOT vagy összeget (pl. "200k-ból", "havi 50 ezer", "12%-os").
+ARANYSZABÁLY: Minden válasznak meg kell felelnie az "ÉS AKKOR MIT CSINÁLJAK?" tesztnek.
+Ha valaki elolvassa és nem tudja azonnal megcsinálni, az ROSSZ tartalom.
 
-2. micro_task_1: Gyors számolás VAGY választás KONKRÉT számokkal.
-   - instruction: Tartalmaz számokat és pénzügyi műveletet
-   - options: 3 konkrét, számos válasz (pl. "24 000 Ft", "20 000 Ft", "28 000 Ft")
-   - explanation: Megmutatja a számítás lépéseit (pl. "200 000 × 0.12 = 24 000")
+1. hook: Konkrét, hétköznapi pénzügyi helyzet SZÁMMAL (max 2 mondat).
+   JÓ: "Kaptál 200k-t. MÁP+-ba (6.5%) vagy bankba (2%)?"
+   ROSSZ: "Gondolkodtál már azon, mit kezdj a pénzeddel?"
 
-3. micro_task_2: Döntési szcenárió KONKRÉT feltételekkel.
-   - instruction: Valós pénzügyi döntés számokkal (pl. "Van 500k megtakarításod...")
-   - options: 3 konkrét stratégia, mindegyik más eredménnyel
-   - explanation: Megmutatja miért a legjobb (számokkal)
+2. micro_task_1: Gyors számolás KONKRÉT eszközökkel/termékekkel.
+   - instruction: Nevezd meg a KONKRÉT pénzügyi eszközt (MÁP+, PEMÁP, DKJ, babakötvény, lakástakarék, stb.)
+   - options: 3 konkrét, SZÁMOS válasz — mindegyik tartalmaz forintösszeget VAGY százalékot
+   - explanation: Számítási lépések (pl. "200 000 × 0.065 = 13 000 Ft/év kamat a MÁP+-ban")
+   ROSSZ option példa: "Fektess be" / "Rakd bankba" / "Költsd el" (← TOO VAGUE!)
+   JÓ option példa: "MÁP+ 6.5%: 213 000 Ft 1 év múlva" / "Bank 2%: 204 000 Ft" / "Párna alatt: 200 000 Ft"
 
-4. insight: 1 mondatos, megjegyezhető szabály SZÁMMAL vagy képlettel.
-   Jó: "Ha a havi törlesztő > fizetésed 30%-a, túl nagy a hitel."
-   Rossz: "Mindig gondold át a döntéseidet." (← TILOS, túl általános!)
+3. micro_task_2: Döntési szcenárió KONKRÉT feltételekkel ÉS megnevezett termékkel/módszerrel.
+   - instruction: Valós döntés, ami megnevezi a lehetőségeket (nem "mit csinálnál", hanem "melyiket választod")
+   - options: 3 konkrét stratégia — mindegyik tartalmaz: eszköz neve + szám + eredmény
+   - explanation: Miért jobb, SZÁMOKKAL
+   ROSSZ: "Költsd el / Tedd félre / Fektessd be" (← EZ NEM TANÁCS, EZ SEMMI!)
+   JÓ: "DKJ 3 hónapos 5.2%: 26k kamat" / "MÁP+ 6.5%: 32.5k kamat" / "Bankszámla 2%: 10k kamat"
 
-TILTÓLISTÁS minták (ha bármelyik megjelenik szám/példa nélkül → ELUTASÍTVA):
-- "mindig spórolj" / "mindig gondold át" → kell mellé konkrét %/összeg
-- "a legjobb módszer" → melyik? számold ki!
-- "érdemes odafigyelni" → mire pontosan? mutasd meg számmal!
+4. insight: 1 mondatos, megjegyezhető szabály SZÁMMAL + KONKRÉT cselekvéssel.
+   JÓ: "Az első 500k-t MÁP+-ba tedd — 6.5% garantált, nem kell hozzá semmi tudás."
+   JÓ: "Ha <3 hónapra kell, DKJ. Ha >1 évre, MÁP+. Ha holnap kell: bankszámla."
+   ROSSZ: "Mindig gondold át a döntéseidet." (← TILOS!)
+   ROSSZ: "Érdemes befektetni." (← HOVA?? Ez nem tanács!)
 
-KÖTELEZŐ: Minden option és explanation tartalmazzon LEGALÁBB 1 számot.
+TILTÓLISTÁS minták (ELUTASÍTVA ha megjelenik konkrét eszköz/termék neve nélkül):
+- "fektess be" / "fektessd be" → hova? MÁP+? DKJ? ETF? mondd meg!
+- "tedd félre" / "spórolj" → hova? megtakarítási számla? állampapír?
+- "a legjobb módszer" → melyik konkrétan?
+- "érdemes odafigyelni" → mire? mutasd meg!
+- "mindig gondold át" → felesleges bölcsesség, számot adj!
+
+KÖTELEZŐ: Minden option tartalmazzon LEGALÁBB 1 számot ÉS 1 megnevezett pénzügyi eszközt/módszert.
+MAGYAR KONTEXTUS: Használj magyar eszközöket (MÁP+, PEMÁP, DKJ, babakötvény, lakástakarék, K&H/OTP/Revolut számlák, TBSZ).
 """
 
     return system, user
@@ -1634,6 +1648,17 @@ _GENERIC_FINANCIAL_KEYWORDS = [
     "próbálj meg",
 ]
 
+# Vague action verbs that need a concrete product/instrument name nearby
+_VAGUE_VERBS = ["fektess be", "fektessd be", "tedd félre", "rakd félre", "spórolj"]
+# Known Hungarian financial instruments — at least one must appear in options
+_KNOWN_INSTRUMENTS = [
+    "máp", "máp+", "pemáp", "dkj", "tbsz", "etf", "állampapír",
+    "babakötvény", "lakástakarék", "megtakarítási számla",
+    "otp", "k&h", "revolut", "wise", "erste",
+    "részvény", "kötvény", "befektetési alap", "index alap",
+    "bankbetét", "lekötés", "folyószámla",
+]
+
 def _is_generic_smart_lesson(content: Dict[str, Any]) -> tuple[bool, str]:
     """
     Check if a smart_lesson content is too generic (no concrete numbers/examples).
@@ -1644,12 +1669,16 @@ def _is_generic_smart_lesson(content: Dict[str, Any]) -> tuple[bool, str]:
     def _text_has_number(text: str) -> bool:
         return bool(_HAS_NUMBER.search(text or ""))
 
+    def _has_instrument(text: str) -> bool:
+        t = (text or "").lower()
+        return any(inst in t for inst in _KNOWN_INSTRUMENTS)
+
     # Check hook has a number
     hook = content.get("hook", "")
     if not _text_has_number(hook):
         return True, "hook must contain at least one number/amount"
 
-    # Check micro_task options and explanations have numbers
+    # Check micro_task options and explanations have numbers + instruments
     for task_key in ("micro_task_1", "micro_task_2"):
         task = content.get(task_key, {})
         if not isinstance(task, dict):
@@ -1661,6 +1690,11 @@ def _is_generic_smart_lesson(content: Dict[str, Any]) -> tuple[bool, str]:
         nums_in_opts = sum(1 for o in options if _text_has_number(str(o)))
         if nums_in_opts < 2:
             return True, f"{task_key}.options must have at least 2 options with numbers"
+        # Check for vague options without concrete instrument
+        all_opts_text = " ".join(str(o).lower() for o in options)
+        for verb in _VAGUE_VERBS:
+            if verb in all_opts_text and not _has_instrument(all_opts_text):
+                return True, f"{task_key}.options contains vague '{verb}' without naming a concrete instrument"
 
     # Check insight isn't a generic platitude
     insight = content.get("insight", "")

@@ -43,7 +43,7 @@ export function FocusDayView({
   const nextIncompleteIndex = items.findIndex(item => !completedItemIds.includes(item.id));
 
   return (
-    <div className="max-w-2xl mx-auto p-4 md:p-6 pb-28 animate-fade-in">
+    <div className="max-w-2xl mx-auto p-4 md:p-6 pb-40 animate-fade-in">
       {/* Dashboard Header - Locked mode indicator */}
       <div className="mb-6 space-y-4">
         {/* Top bar with lock indicator and controls */}
