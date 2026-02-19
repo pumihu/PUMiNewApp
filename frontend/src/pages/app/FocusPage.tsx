@@ -10,7 +10,7 @@ import { FocusOutlineView } from "@/components/focus/FocusOutlineView";
 import { FocusDayView } from "@/components/focus/FocusDayView";
 import { FocusProgress } from "@/components/focus/FocusProgress";
 import { ArchiveModal } from "@/components/focus/ArchiveModal";
-import { AudioTutorSession } from "@/components/focus/AudioTutorSession";
+import { AudioDaySession } from "@/components/focus/AudioDaySession";
 import { WizardData, FocusPlanMeta, FocusType } from "@/types/focusWizard";
 import type { FocusOutline, PlanDay } from "@/types/learningFocus";
 import { focusApi } from "@/lib/focusApi";
@@ -74,7 +74,7 @@ const COMPLETED_ITEMS_KEY = "pumi_focus_completed_items";
 // Types
 // ============================================================================
 
-type ViewState = "home" | "wizard" | "outline" | "day" | "progress" | "audio_tutor";
+type ViewState = "home" | "wizard" | "outline" | "day" | "progress";
 
 interface SessionData {
   outline: FocusOutline | null;
@@ -663,7 +663,6 @@ export default function FocusPage() {
           onViewOutline={() => setView("outline")}
           onViewProgress={() => setView("progress")}
           onNewPlan={() => setShowArchiveModal(true)}
-          onStartAudioTutor={() => setView("audio_tutor")}
         />
       )}
       
@@ -697,32 +696,39 @@ export default function FocusPage() {
         />
       )}
       
-      {view === "day" && currentDay && outline && planMeta && (
-        <FocusDayView
-          currentDay={currentDay}
-          outline={outline}
-          dayIndex={selectedDayIndex}
-          streak={streak}
-          completedItemIds={completedItemIds}
-          onCompleteItem={handleCompleteItem}
-          onCompleteDay={handleCompleteDay}
-          onBack={() => {}} // Disabled - navigation locked during focus
-          onReset={() => setShowArchiveModal(true)}
-          loading={loading}
-        />
-      )}
-      
+      {view === "day" && currentDay && outline && planMeta && (() => {
+        const isProject = outline.domain === "project" || outline.focus_type === "project";
+        return isProject ? (
+          <FocusDayView
+            currentDay={currentDay}
+            outline={outline}
+            dayIndex={selectedDayIndex}
+            streak={streak}
+            completedItemIds={completedItemIds}
+            onCompleteItem={handleCompleteItem}
+            onCompleteDay={handleCompleteDay}
+            onBack={() => {}}
+            onReset={() => setShowArchiveModal(true)}
+            loading={loading}
+          />
+        ) : (
+          <AudioDaySession
+            currentDay={currentDay}
+            outline={outline}
+            dayIndex={selectedDayIndex}
+            streak={streak}
+            completedItemIds={completedItemIds}
+            onCompleteItem={handleCompleteItem}
+            onCompleteDay={handleCompleteDay}
+            onReset={() => setShowArchiveModal(true)}
+            loading={loading}
+          />
+        );
+      })()}
+
       {view === "progress" && planMeta && (
         <FocusProgress
           planMeta={planMeta}
-          onBack={() => setView("home")}
-        />
-      )}
-
-      {view === "audio_tutor" && (
-        <AudioTutorSession
-          track={planMeta?.track || planMeta?.focusType || "language"}
-          level="beginner"
           onBack={() => setView("home")}
         />
       )}

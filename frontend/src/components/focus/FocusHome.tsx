@@ -1,21 +1,20 @@
 // src/components/focus/FocusHome.tsx
 // Focus Home with 3 states: No active focus, Active plan, In-progress day
 
-import { Sparkles, Play, Flame, MoreHorizontal, BarChart3, List, Plus, BookOpen, Target, Lightbulb, Calendar, TrendingUp, CheckCircle2, Clock, Volume2 } from "lucide-react";
+import { Sparkles, Play, Flame, MoreHorizontal, BarChart3, List, Plus, BookOpen, Target, Lightbulb, Calendar, TrendingUp, CheckCircle2 } from "lucide-react";
 import { FocusPlanMeta } from "@/types/focusWizard";
 import pumiLogo from "@/assets/pumi-logo.png";
 
 interface FocusHomeProps {
   activePlan: FocusPlanMeta | null;
   inProgressDay: boolean;
-  streak: number; // New: pass streak from parent (fresh from stats API)
-  todayCompleted: boolean; // New: whether today's day is already done
+  streak: number;
+  todayCompleted: boolean;
   onStartWizard: () => void;
   onContinueDay: () => void;
   onViewOutline: () => void;
   onViewProgress: () => void;
   onNewPlan: () => void;
-  onStartAudioTutor?: () => void;
 }
 
 export function FocusHome({
@@ -28,7 +27,6 @@ export function FocusHome({
   onViewOutline,
   onViewProgress,
   onNewPlan,
-  onStartAudioTutor,
 }: FocusHomeProps) {
   // ============================================================================
   // STATE 1: No active focus
@@ -90,21 +88,6 @@ export function FocusHome({
             </div>
           </div>
 
-          {/* Audio Tutor standalone */}
-          {onStartAudioTutor && (
-            <button
-              onClick={onStartAudioTutor}
-              className="w-full max-w-sm py-3 px-6 rounded-xl text-sm
-                       bg-secondary/50 border border-border/50
-                       hover:bg-secondary hover:border-foreground/30
-                       transition-all duration-200
-                       flex items-center justify-center gap-2 mb-6"
-            >
-              <Volume2 className="w-4 h-4" />
-              Audio Tutor
-            </button>
-          )}
-
           {/* How it works */}
           <p className="text-xs text-muted-foreground max-w-xs">
             A fókusz mód napi feladatokat generál a célod eléréséhez,
@@ -118,14 +101,14 @@ export function FocusHome({
   // ============================================================================
   // STATE 2 & 3: Active plan (with or without in-progress day)
   // ============================================================================
-  
+
   // Determine day status
   const getDayStatus = () => {
     if (inProgressDay) return { label: "Folyamatban", color: "text-emerald-400", bg: "bg-emerald-500/20" };
     if (todayCompleted) return { label: "Kész ✓", color: "text-green-400", bg: "bg-green-500/20" };
     return { label: "Indítható", color: "text-blue-400", bg: "bg-blue-500/20" };
   };
-  
+
   const dayStatus = getDayStatus();
   const progressPercent = Math.round((activePlan.completedDays.length / activePlan.durationDays) * 100);
 
@@ -148,7 +131,7 @@ export function FocusHome({
               </span>
             )}
           </div>
-          
+
           {/* Overflow menu */}
           <button
             onClick={onNewPlan}
@@ -169,14 +152,14 @@ export function FocusHome({
             {dayStatus.label}
           </p>
         </div>
-        
+
         {/* Streak card */}
         <div className="rounded-xl border border-border/50 bg-card/30 p-3 text-center">
           <Flame className="w-4 h-4 mx-auto mb-1 text-orange-400" />
           <p className="text-lg font-bold">{streak}</p>
           <p className="text-[10px] text-muted-foreground">nap streak</p>
         </div>
-        
+
         {/* Progress card */}
         <div className="rounded-xl border border-border/50 bg-card/30 p-3 text-center">
           <TrendingUp className="w-4 h-4 mx-auto mb-1 text-muted-foreground" />
@@ -203,7 +186,7 @@ export function FocusHome({
               </div>
             </div>
           </div>
-          
+
           {/* Progress Bar */}
           <div className="mt-4">
             <div className="flex justify-between text-xs text-muted-foreground mb-1">
@@ -211,7 +194,7 @@ export function FocusHome({
               <span>{progressPercent}%</span>
             </div>
             <div className="h-2 bg-secondary rounded-full overflow-hidden progress-bar-glow">
-              <div 
+              <div
                 className="h-full bg-foreground rounded-full transition-all duration-500 progress-bar-fill-glow"
                 style={{ width: `${progressPercent}%` }}
               />
@@ -220,7 +203,7 @@ export function FocusHome({
         </div>
 
         {/* Secondary Actions */}
-        <div className="grid grid-cols-3 gap-3 mb-6">
+        <div className="grid grid-cols-2 gap-3 mb-6">
           <button
             onClick={onViewOutline}
             className="py-3 px-4 rounded-xl text-sm
@@ -243,26 +226,12 @@ export function FocusHome({
             <BarChart3 className="w-4 h-4" />
             Haladás
           </button>
-          {onStartAudioTutor && (
-            <button
-              onClick={onStartAudioTutor}
-              className="py-3 px-4 rounded-xl text-sm
-                       bg-secondary/50 border border-border/50
-                       hover:bg-secondary hover:border-foreground/30
-                       transition-all duration-200
-                       flex items-center justify-center gap-2"
-            >
-              <Volume2 className="w-4 h-4" />
-              Audio
-            </button>
-          )}
         </div>
       </div>
 
       {/* Sticky Bottom CTA */}
       <div className="sticky bottom-0 py-4 bg-gradient-to-t from-background via-background to-transparent">
         {todayCompleted && !inProgressDay ? (
-          // Today already completed - show disabled state
           <button
             disabled
             className="w-full py-4 px-6 rounded-xl font-semibold text-lg
