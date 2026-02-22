@@ -4480,6 +4480,11 @@ async def generate_outline(req: OutlineRequest):
 
 # ============================================================================
 # AUDIO TUTOR - TTS Proxy + Lesson Generation
+# LEGACY — used only by the old AudioDaySession / Audio Tutor flow.
+# DO NOT USE FOR FocusRoom. FocusRoom uses focusroom_api.py → /focusroom/tts
+# which calls resolve_tts_voice(locale) for deterministic HU/EN voice selection.
+# FocusRoom env vars: ELEVENLABS_VOICE_ID_HU / ELEVENLABS_VOICE_ID_EN
+# This section uses ELEVENLABS_VOICE_ID_DEFAULT (different env var).
 # ============================================================================
 
 import time as _time

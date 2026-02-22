@@ -280,10 +280,15 @@ async def start_day(req: StartDayReq, request: Request):
             day_title=day_title,
             domain=domain,
             level=level,
-            lang=target_lang or "hu",
+            lang="hu",  # UI/instruction language is always Hungarian
             minutes=per_item_minutes,
             user_goal=day_title,
-            settings={"tone": "casual", "difficulty": "normal"},
+            settings={
+                "tone": "casual",
+                "difficulty": "normal",
+                "target_language": target_lang,   # e.g. "english", "korean" — drives content language
+                "track": req.track or "",
+            },
             preceding_lesson_content=None,
             max_retries=LESSON_MAX_RETRIES,
         )
@@ -298,8 +303,8 @@ async def start_day(req: StartDayReq, request: Request):
 
     # Last-resort fallback — lesson_md must never be empty
     if not lesson_md:
+        print(f"[focusroom/day/start] WARNING: empty lesson | domain={domain} target_language={target_lang} track={req.track} day_title={day_title}")
         lesson_md = f"# {day_title}\n\nA mai lecke tartalma generálás alatt volt. Folytasd a feladatokkal!"
-        print(f"[focusroom/day/start] WARNING: lesson_md was empty, using last-resort fallback")
 
     script_steps = _build_script_steps(lesson_content_raw, day_title)
 
@@ -313,7 +318,8 @@ async def start_day(req: StartDayReq, request: Request):
         "script_steps": script_steps,
         "tts_script": tts_script,
         "tts_script_is_transcript": True,  # marker: this is a transcript, not for single-shot TTS
-        "tasks": [],   # fetched lazily by /day/tasks
+        "tts_locale": "hu",               # script_steps are always in Hungarian
+        "tasks": [],                       # fetched lazily by /day/tasks
     }
 
 
@@ -362,10 +368,15 @@ async def fetch_day_tasks(req: DayTasksReq, request: Request):
                 day_title=day_title,
                 domain=domain,
                 level=level,
-                lang=target_lang or "hu",
+                lang="hu",  # UI/instruction language is always Hungarian
                 minutes=per_item_minutes,
                 user_goal=day_title,
-                settings={"tone": "casual", "difficulty": "normal"},
+                settings={
+                    "tone": "casual",
+                    "difficulty": "normal",
+                    "target_language": target_lang,  # drives content language
+                    "track": req.track or "",
+                },
                 preceding_lesson_content=lesson_md,
                 max_retries=TASK_MAX_RETRIES,
             )
@@ -402,17 +413,21 @@ def _build_script_steps(content: Dict[str, Any], day_title: str) -> List[Dict[st
         })
         step_idx += 1
 
-    # 1. Intro
+    # Unwrap: LLM returns {title: ..., content: {introduction: ..., ...}}
+    # title is at the top level; all content fields are nested inside "content"
     title = content.get("title", day_title)
+    c = content.get("content") or content  # unwrap nested block, fallback to flat
+
+    # 1. Intro
     add_step("intro", f"Szia! A mai leckénk témája: {title}. Figyelj, és kövesd a jegyzeteket!")
 
     # 2. Introduction / summary
-    intro = content.get("introduction") or content.get("summary", "")
+    intro = c.get("introduction") or c.get("summary", "")
     if intro:
         add_step("teach", intro)
 
     # 3. Vocabulary
-    vocab = content.get("vocabulary_table") or []
+    vocab = c.get("vocabulary_table") or []
     if vocab:
         vocab_text = "Most nézzünk pár fontos szót!\n"
         for v in vocab:
@@ -429,7 +444,7 @@ def _build_script_steps(content: Dict[str, Any], day_title: str) -> List[Dict[st
         add_step("teach", vocab_text)
 
     # 4. Grammar
-    grammar = content.get("grammar_explanation")
+    grammar = c.get("grammar_explanation")
     if grammar:
         gram_text = f"Nyelvtani pont: {grammar.get('rule_title', '')}.\n"
         gram_text += grammar.get("explanation", "")
@@ -441,7 +456,7 @@ def _build_script_steps(content: Dict[str, Any], day_title: str) -> List[Dict[st
         add_step("teach", gram_text)
 
     # 5. Dialogues
-    dialogues = content.get("dialogues") or []
+    dialogues = c.get("dialogues") or []
     for d in dialogues:
         dial_text = f"Párbeszéd: {d.get('title', '')}.\n"
         if d.get("context"):
@@ -451,15 +466,15 @@ def _build_script_steps(content: Dict[str, Any], day_title: str) -> List[Dict[st
         add_step("teach", dial_text)
 
     # 6. Smart lesson fields
-    hook = content.get("hook", "")
+    hook = c.get("hook", "")
     if hook:
         add_step("teach", hook)
-    insight = content.get("insight", "")
+    insight = c.get("insight", "")
     if insight:
         add_step("teach", f"A mai tanulság: {insight}")
 
     # 7. Key points
-    kps = content.get("key_points") or []
+    kps = c.get("key_points") or []
     if kps:
         kp_text = "Összefoglalva a legfontosabbakat:\n"
         for kp in kps:
@@ -467,7 +482,7 @@ def _build_script_steps(content: Dict[str, Any], day_title: str) -> List[Dict[st
         add_step("teach", kp_text)
 
     # 8. Non-latin flow
-    flow = content.get("lesson_flow") or []
+    flow = c.get("lesson_flow") or []
     for block in flow:
         block_text = f"{block.get('title_hu', '')}.\n{block.get('body_md', '')}"
         add_step("teach", block_text)
