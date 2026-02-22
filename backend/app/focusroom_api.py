@@ -40,16 +40,14 @@ except Exception as e:
 ELEVENLABS_API_KEY = (os.getenv("ELEVENLABS_API_KEY") or "").strip()
 
 # Hardcoded voice fallbacks — used when env vars not set
-# Override in Railway: ELEVENLABS_VOICE_ID_HU / _EN / _EL
+# Override in Railway: ELEVENLABS_VOICE_ID_HU / _EN
 _VOICE_FALLBACKS: dict[str, str] = {
     "hu": "pMsXgVXv3BLzUgSXRplE",  # Matilda — clear multilingual, good for HU
     "en": "21m00Tcm4TlvDq8ikWAM",  # Rachel — natural EN
-    "el": "pMsXgVXv3BLzUgSXRplE",  # Matilda — fallback (no dedicated EL voice)
 }
 _VOICE_ENV_KEYS: dict[str, str] = {
     "hu": "ELEVENLABS_VOICE_ID_HU",
     "en": "ELEVENLABS_VOICE_ID_EN",
-    "el": "ELEVENLABS_VOICE_ID_EL",
 }
 
 def resolve_tts_voice(locale: str) -> str:
@@ -81,11 +79,6 @@ _TTS_TEST_EN = [
     "If you have 100,000 forints and save 12.5 percent, that equals 12,500 forints.",
     "My savings goal: build a three-month emergency fund.",
     "Budget: income minus expenses equals savings.",
-]
-_TTS_TEST_EL = [
-    "Αν έχεις 100.000 φιορίνια και αποταμιεύεις 12,5%, αυτό ισούται με 12.500 φιορίνια.",
-    "Ο στόχος των αποταμιεύσεών μου: ταμείο έκτακτης ανάγκης 3 μηνών.",
-    "Προϋπολογισμός: έσοδα μείον έξοδα ίσον αποταμιεύσεις.",
 ]
 
 # Auth helper
@@ -834,7 +827,7 @@ async def tts_voice_test(req: VoiceTestReq, request: Request):
       [2] "Költségvetés: bevétel mínusz kiadás egyenlő megtakarítás."
     """
     locale = req.locale.strip().lower()
-    sentence_bank = {"hu": _TTS_TEST_HU, "en": _TTS_TEST_EN, "el": _TTS_TEST_EL}
+    sentence_bank = {"hu": _TTS_TEST_HU, "en": _TTS_TEST_EN}
     sentences = sentence_bank.get(locale, _TTS_TEST_HU)
     idx = max(0, min(req.sentence_index, len(sentences) - 1))
     text = req.text or sentences[idx]

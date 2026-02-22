@@ -35,7 +35,6 @@ function computeLocales(domain: string, targetLanguage?: string): {
     const lang = targetLanguage.toLowerCase();
     const locale: AppLocale =
       lang === "english" || lang.startsWith("en") ? "en" :
-      lang === "greek"   || lang.startsWith("el") ? "el" :
       "hu";
     return { locale_ui, locale_content: locale, locale_tts: locale };
   }
@@ -47,15 +46,19 @@ function computeLocales(domain: string, targetLanguage?: string): {
  * Locale v1 (those rooms have no locale_* fields).
  */
 function ensureLocaleConfig(config: FocusRoomConfig): FocusRoomConfig {
-  if (config.locale_ui && config.locale_content && config.locale_tts) {
-    return config; // already migrated
-  }
   const locales = computeLocales(config.domain, config.targetLanguage);
+  // Migrate any "el" locale values to "hu" (EL support removed)
+  const migrateLocale = (v: AppLocale | undefined): AppLocale | undefined =>
+    (v as string) === "el" ? "hu" : v;
+  if (config.locale_ui && config.locale_content && config.locale_tts
+      && config.locale_ui !== "el" && config.locale_content !== "el" && config.locale_tts !== "el") {
+    return config; // already migrated, no EL to fix
+  }
   return {
     ...config,
-    locale_ui:      config.locale_ui      ?? locales.locale_ui,
-    locale_content: config.locale_content ?? locales.locale_content,
-    locale_tts:     config.locale_tts     ?? locales.locale_tts,
+    locale_ui:      migrateLocale(config.locale_ui)      ?? locales.locale_ui,
+    locale_content: migrateLocale(config.locale_content) ?? locales.locale_content,
+    locale_tts:     migrateLocale(config.locale_tts)     ?? locales.locale_tts,
   };
 }
 

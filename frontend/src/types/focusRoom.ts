@@ -23,8 +23,8 @@ export type SessionPhase =
 // Locale
 // ============================================================================
 
-/** The 3 locales with dedicated TTS voices */
-export type AppLocale = "hu" | "en" | "el";
+/** The 2 supported locales with dedicated TTS voices */
+export type AppLocale = "hu" | "en";
 
 // ============================================================================
 // Room Configuration
