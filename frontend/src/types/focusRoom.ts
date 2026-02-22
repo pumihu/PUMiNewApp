@@ -221,6 +221,25 @@ export interface TtsResp {
   error?: string;
 }
 
+export interface FetchTasksPayload {
+  room_id: string;
+  day_index: number;
+  domain: RoomDomain;
+  target_language?: string;
+  track?: string;
+  level?: string;
+  category?: string;
+  minutes_per_day?: number;
+  day_title?: string;
+  lesson_md?: string;
+}
+
+export interface FetchTasksResp {
+  ok: boolean;
+  tasks: StartDayResp["tasks"];
+  error?: string;
+}
+
 export interface ClosePayload {
   room_id: string;
   day_index: number;

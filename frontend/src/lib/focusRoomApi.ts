@@ -7,6 +7,8 @@ import type {
   CreateRoomResp,
   StartDayPayload,
   StartDayResp,
+  FetchTasksPayload,
+  FetchTasksResp,
   EvaluatePayload,
   EvaluateResp,
   TtsPayload,
@@ -21,6 +23,9 @@ export const focusRoomApi = {
 
   startDay: (payload: StartDayPayload) =>
     pumiInvoke<StartDayResp>("/focusroom/day/start", payload),
+
+  fetchTasks: (payload: FetchTasksPayload) =>
+    pumiInvoke<FetchTasksResp>("/focusroom/day/tasks", payload),
 
   evaluate: (payload: EvaluatePayload) =>
     pumiInvoke<EvaluateResp>("/focusroom/evaluate", payload),

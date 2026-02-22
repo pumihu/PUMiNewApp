@@ -226,24 +226,62 @@ export function RoomSession({ room, onRoomUpdate, onExit }: RoomSessionProps) {
           // More teach steps
           playNextScript(nextIdx);
         } else {
-          // Play transition step if exists, then go to tasks
+          // Play transition step if exists
           const transStep = scriptSteps.find(s => s.type === "transition");
           if (transStep) {
             addStep("tutor", transStep.text);
             playTts(transStep.text);
           }
 
-          // Move to first task
           if (items.length > 0) {
+            // Items already loaded (session resumed) — go directly
             setTimeout(() => {
               setPhase("task");
               setCurrentItemIdx(0);
               setCurrentAttempt(1);
-              const item = items[0];
-              addStep("task_prompt", `**${item.title}**`);
+              addStep("task_prompt", `**${items[0].title}**`);
             }, transStep ? 1500 : 0);
           } else {
-            goToSummary();
+            // Lazy fetch: tasks not yet loaded (normal flow after day/start)
+            setIsLoading(true);
+            addStep("tutor", "Feladatok betöltése...");
+            try {
+              const tasksResp = await focusRoomApi.fetchTasks({
+                room_id: room.id,
+                day_index: dayIndex,
+                domain: room.config.domain,
+                target_language: room.config.targetLanguage,
+                track: room.config.track,
+                level: room.config.level,
+                category: room.config.category,
+                minutes_per_day: room.config.minutesPerDay,
+                day_title: currentDay?.title,
+                lesson_md: lessonMd || undefined,
+              });
+              if (tasksResp.ok && tasksResp.tasks.length > 0) {
+                const dayItems: DaySessionItem[] = tasksResp.tasks.map(t => ({
+                  id: t.id,
+                  kind: t.kind as DaySessionItem["kind"],
+                  title: t.title,
+                  status: "pending" as const,
+                  content: t.content,
+                  attempts: 0,
+                }));
+                setItems(dayItems);
+                setCurrentItemIdx(0);
+                setCurrentAttempt(1);
+                setPhase("task");
+                addStep("task_prompt", `**${dayItems[0].title}**`);
+              } else {
+                addStep("tutor", "Feladatok nem érhetők el. A nap befejezéséhez kattints az Összefoglalóra.");
+                goToSummary();
+              }
+            } catch {
+              addStep("tutor", "Feladatok betöltése sikertelen.");
+              goToSummary();
+            } finally {
+              setIsLoading(false);
+            }
           }
         }
         break;

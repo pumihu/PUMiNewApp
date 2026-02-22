@@ -92,6 +92,18 @@ class TtsReq(BaseModel):
     voice_id: Optional[str] = None
     model_config = {"protected_namespaces": ()}
 
+class DayTasksReq(BaseModel):
+    room_id: str
+    day_index: int
+    domain: str
+    target_language: Optional[str] = None
+    track: Optional[str] = None
+    level: Optional[str] = "beginner"
+    category: Optional[str] = None
+    minutes_per_day: Optional[int] = 20
+    day_title: Optional[str] = None
+    lesson_md: Optional[str] = None  # for content chaining
+
 class CloseReq(BaseModel):
     room_id: str
     day_index: int
@@ -185,14 +197,9 @@ SMART_DAY_ITEMS = [
 @router.post("/day/start")
 async def start_day(req: StartDayReq, request: Request):
     """
-    Start a day session. Returns:
-    - lesson_md: full lesson as markdown (for canvas/notes)
-    - script_steps: what the tutor says step-by-step (for TTS)
-    - tasks: practice items with content (for Task phase)
-
-    Performance: max_retries=0 → single LLM attempt per item, fallback on failure.
-    Lesson first (sequential), practice items in parallel.
-    Target: <15s total.
+    Phase 1: Generate lesson only (~5s). Returns tasks: [].
+    Practice items are fetched lazily via POST /day/tasks when teach phase ends.
+    This keeps each request under the Supabase Edge Function ~10s wall-clock limit.
     """
     import time
     t0 = time.monotonic()
@@ -210,13 +217,9 @@ async def start_day(req: StartDayReq, request: Request):
 
     templates = LANGUAGE_DAY_ITEMS if domain == "language" else SMART_DAY_ITEMS
     per_item_minutes = max(3, minutes // len(templates))
-
-    # Lesson: up to 2 retries (validation now relaxed, so usually passes on 1st try)
-    # Tasks: 0 retries — fallback immediately to avoid timeout
     LESSON_MAX_RETRIES = 2
-    TASK_MAX_RETRIES = 0
 
-    # ── Phase 1: Generate lesson FIRST (practice items chain from it) ──
+    # ── Generate lesson only ──
     lesson_tmpl = templates[0]  # always lesson or smart_lesson
     lesson_md = ""
     lesson_content_raw = {}
@@ -243,11 +246,56 @@ async def start_day(req: StartDayReq, request: Request):
     except Exception as e:
         print(f"[focusroom/day/start] Lesson generation failed: {e}")
 
-    t_lesson = time.monotonic()
-    print(f"[focusroom/day/start] Lesson done in {t_lesson - t0:.1f}s | body_md len={len(lesson_md)}")
+    t_end = time.monotonic()
+    print(f"[focusroom/day/start] TOTAL: {t_end - t0:.1f}s | body_md len={len(lesson_md)} | domain={domain} day={req.day_index}")
 
-    # ── Phase 2: Generate practice items IN PARALLEL ──
+    # Last-resort fallback — lesson_md must never be empty
+    if not lesson_md:
+        lesson_md = f"# {day_title}\n\nA mai lecke tartalma generálás alatt volt. Folytasd a feladatokkal!"
+        print(f"[focusroom/day/start] WARNING: lesson_md was empty, using last-resort fallback")
+
+    script_steps = _build_script_steps(lesson_content_raw, day_title)
+
+    return {
+        "ok": True,
+        "lesson_md": lesson_md,
+        "script_steps": script_steps,
+        "tasks": [],   # fetched lazily by /day/tasks
+    }
+
+
+# ============================================================================
+# POST /focusroom/day/tasks
+# Phase 2: Generate practice items (called lazily at teach→task transition)
+# ============================================================================
+
+@router.post("/day/tasks")
+async def fetch_day_tasks(req: DayTasksReq, request: Request):
+    """
+    Phase 2: Generate practice items in parallel (~5-8s).
+    Called by the frontend when the teach phase ends (user has been reading
+    the lesson for 10-30s, so this never races with day/start).
+    lesson_md is passed for content chaining.
+    """
+    import time
+    t0 = time.monotonic()
+
+    uid = await get_user_id(request)
+
+    if not LLM_AVAILABLE:
+        raise HTTPException(status_code=503, detail="LLM not available")
+
+    domain = req.domain or "language"
+    level = req.level or "beginner"
+    day_title = req.day_title or f"Nap {req.day_index}"
+    target_lang = req.target_language or ""
+    minutes = req.minutes_per_day or 20
+    lesson_md = req.lesson_md or None
+
+    templates = LANGUAGE_DAY_ITEMS if domain == "language" else SMART_DAY_ITEMS
     practice_templates = templates[1:]
+    per_item_minutes = max(3, minutes // len(templates))
+    TASK_MAX_RETRIES = 0
 
     async def gen_task(idx: int, tmpl: Dict[str, str]) -> Dict[str, Any]:
         item_id = f"room-{req.room_id[:8]}-d{req.day_index}-{tmpl['kind']}-{idx}"
@@ -265,12 +313,12 @@ async def start_day(req: StartDayReq, request: Request):
                 minutes=per_item_minutes,
                 user_goal=day_title,
                 settings={"tone": "casual", "difficulty": "normal"},
-                preceding_lesson_content=lesson_md or None,
+                preceding_lesson_content=lesson_md,
                 max_retries=TASK_MAX_RETRIES,
             )
             return {"id": item_id, "kind": kind, "title": tmpl["label"], "content": result}
         except Exception as e:
-            print(f"[focusroom/day/start] Task generation failed ({kind}): {e}")
+            print(f"[focusroom/day/tasks] Task generation failed ({kind}): {e}")
             return {"id": item_id, "kind": kind, "title": tmpl["label"], "content": _fallback_content(kind)}
 
     tasks = list(await asyncio.gather(*[
@@ -278,22 +326,9 @@ async def start_day(req: StartDayReq, request: Request):
     ]))
 
     t_end = time.monotonic()
-    print(f"[focusroom/day/start] Tasks done in {t_end - t_lesson:.1f}s | TOTAL: {t_end - t0:.1f}s | domain={domain} day={req.day_index}")
+    print(f"[focusroom/day/tasks] TOTAL: {t_end - t0:.1f}s | {len(tasks)} tasks | domain={domain} day={req.day_index}")
 
-    # Guarantee lesson_md is never empty — last-resort fallback
-    if not lesson_md:
-        lesson_md = f"# {day_title}\n\nA mai lecke tartalma generálás alatt volt. Folytasd a feladatokkal!"
-        print(f"[focusroom/day/start] WARNING: lesson_md was empty, using last-resort fallback")
-
-    # Build script_steps from lesson content
-    script_steps = _build_script_steps(lesson_content_raw, day_title)
-
-    return {
-        "ok": True,
-        "lesson_md": lesson_md,
-        "script_steps": script_steps,
-        "tasks": tasks,
-    }
+    return {"ok": True, "tasks": tasks}
 
 
 def _build_script_steps(content: Dict[str, Any], day_title: str) -> List[Dict[str, str]]:
