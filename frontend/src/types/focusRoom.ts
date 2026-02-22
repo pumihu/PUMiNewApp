@@ -20,6 +20,13 @@ export type SessionPhase =
   | "end";            // session over, return to canvas
 
 // ============================================================================
+// Locale
+// ============================================================================
+
+/** The 3 locales with dedicated TTS voices */
+export type AppLocale = "hu" | "en" | "el";
+
+// ============================================================================
 // Room Configuration
 // ============================================================================
 
@@ -35,6 +42,12 @@ export interface FocusRoomConfig {
   minutesPerDay: number;
   durationDays: number;
   tone?: "casual" | "neutral" | "strict";
+  /** UI language (app labels, buttons) — always "hu" for now */
+  locale_ui?: AppLocale;
+  /** Language the lesson content is generated in */
+  locale_content?: AppLocale;
+  /** Language/voice used for TTS playback */
+  locale_tts?: AppLocale;
 }
 
 // ============================================================================
@@ -175,6 +188,7 @@ export interface StartDayResp {
   lesson_md: string;
   script_steps: Array<{ id: string; type: string; text: string }>;
   tts_script?: string;
+  tts_script_is_transcript?: boolean;  // true = do NOT use for single-shot TTS; play script_steps sequentially
   tasks: Array<{
     id: string;
     kind: string;

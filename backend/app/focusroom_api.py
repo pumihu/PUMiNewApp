@@ -38,21 +38,55 @@ except Exception as e:
 
 # ElevenLabs TTS
 ELEVENLABS_API_KEY = (os.getenv("ELEVENLABS_API_KEY") or "").strip()
-# Locale-based voice selection — override via env vars
-# Default voice is a multilingual-capable voice, not András (NIS6mYGxVFNZaeq5OSC1)
-ELEVENLABS_VOICE_HU = os.getenv("ELEVENLABS_VOICE_ID_HU", "pMsXgVXv3BLzUgSXRplE")  # Matilda — clear, natural HU
-ELEVENLABS_VOICE_EN = os.getenv("ELEVENLABS_VOICE_ID_EN", "21m00Tcm4TlvDq8ikWAM")  # Rachel
-ELEVENLABS_VOICE_EL = os.getenv("ELEVENLABS_VOICE_ID_EL", "pMsXgVXv3BLzUgSXRplE")  # fallback to HU voice
-ELEVENLABS_VOICE_DEFAULT = os.getenv("ELEVENLABS_VOICE_ID_DEFAULT", ELEVENLABS_VOICE_HU)
 
-_LOCALE_VOICES: dict[str, str] = {
-    "hu": ELEVENLABS_VOICE_HU,
-    "en": ELEVENLABS_VOICE_EN,
-    "el": ELEVENLABS_VOICE_EL,
+# Hardcoded voice fallbacks — used when env vars not set
+# Override in Railway: ELEVENLABS_VOICE_ID_HU / _EN / _EL
+_VOICE_FALLBACKS: dict[str, str] = {
+    "hu": "pMsXgVXv3BLzUgSXRplE",  # Matilda — clear multilingual, good for HU
+    "en": "21m00Tcm4TlvDq8ikWAM",  # Rachel — natural EN
+    "el": "pMsXgVXv3BLzUgSXRplE",  # Matilda — fallback (no dedicated EL voice)
+}
+_VOICE_ENV_KEYS: dict[str, str] = {
+    "hu": "ELEVENLABS_VOICE_ID_HU",
+    "en": "ELEVENLABS_VOICE_ID_EN",
+    "el": "ELEVENLABS_VOICE_ID_EL",
 }
 
-def _voice_for_locale(locale: str) -> str:
-    return _LOCALE_VOICES.get((locale or "hu").lower(), ELEVENLABS_VOICE_DEFAULT)
+def resolve_tts_voice(locale: str) -> str:
+    """
+    Deterministically map locale → ElevenLabs voice ID.
+    Precedence: env var > hardcoded fallback.
+    Logs WARNING when falling back so it's always visible in Railway logs.
+    """
+    locale_lower = (locale or "hu").strip().lower()
+    env_key = _VOICE_ENV_KEYS.get(locale_lower)
+    if env_key:
+        env_val = os.getenv(env_key, "").strip()
+        if env_val:
+            return env_val
+        fallback = _VOICE_FALLBACKS.get(locale_lower, _VOICE_FALLBACKS["hu"])
+        print(f"[TTS] WARNING: {env_key} not set — using hardcoded fallback voice={fallback} for locale={locale_lower}")
+        return fallback
+    fallback = _VOICE_FALLBACKS["hu"]
+    print(f"[TTS] WARNING: unknown locale='{locale_lower}' — falling back to HU voice={fallback}")
+    return fallback
+
+# Test sentences for /tts/voice-test endpoint
+_TTS_TEST_HU = [
+    "Ha 100 000 forintod van, és félreteszel 12,5%-ot, az 12 500 forint.",
+    "A megtakarításom célja: 3 hónap vésztartalék.",
+    "Költségvetés: bevétel mínusz kiadás egyenlő megtakarítás.",
+]
+_TTS_TEST_EN = [
+    "If you have 100,000 forints and save 12.5 percent, that equals 12,500 forints.",
+    "My savings goal: build a three-month emergency fund.",
+    "Budget: income minus expenses equals savings.",
+]
+_TTS_TEST_EL = [
+    "Αν έχεις 100.000 φιορίνια και αποταμιεύεις 12,5%, αυτό ισούται με 12.500 φιορίνια.",
+    "Ο στόχος των αποταμιεύσεών μου: ταμείο έκτακτης ανάγκης 3 μηνών.",
+    "Προϋπολογισμός: έσοδα μείον έξοδα ίσον αποταμιεύσεις.",
+]
 
 # Auth helper
 try:
@@ -106,6 +140,11 @@ class TtsReq(BaseModel):
     voice_id: Optional[str] = None
     locale: Optional[str] = "hu"
     model_config = {"protected_namespaces": ()}
+
+class VoiceTestReq(BaseModel):
+    locale: str = "hu"
+    text: Optional[str] = None   # None → use built-in test sentence
+    sentence_index: int = 0      # 0-2 for the three test sentences
 
 class DayTasksReq(BaseModel):
     room_id: str
@@ -271,16 +310,16 @@ async def start_day(req: StartDayReq, request: Request):
 
     script_steps = _build_script_steps(lesson_content_raw, day_title)
 
-    # tts_script: one-shot concatenation of all teach steps (for single TTS call)
-    tts_script = " ".join(
-        s["text"] for s in script_steps if s.get("type") in ("intro", "teach")
-    )
+    # tts_script: full transcript of all script_steps for debug / transcript display.
+    # Frontend must play from script_steps (sequential), NOT from tts_script (too long for single TTS).
+    tts_script = "\n\n".join(s["text"] for s in script_steps)
 
     return {
         "ok": True,
         "lesson_md": lesson_md,
         "script_steps": script_steps,
         "tts_script": tts_script,
+        "tts_script_is_transcript": True,  # marker: this is a transcript, not for single-shot TTS
         "tasks": [],   # fetched lazily by /day/tasks
     }
 
@@ -743,7 +782,7 @@ async def generate_tts(req: TtsReq, request: Request):
     try:
         import httpx
 
-        voice = req.voice_id or _voice_for_locale(req.locale or "hu")
+        voice = req.voice_id or resolve_tts_voice(req.locale or "hu")
         url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice}"
 
         async with httpx.AsyncClient(timeout=30.0) as client:
@@ -777,6 +816,32 @@ async def generate_tts(req: TtsReq, request: Request):
     except Exception as e:
         print(f"[focusroom/tts] TTS failed: {e}")
         return {"ok": False, "error": str(e)}
+
+
+# ============================================================================
+# POST /focusroom/tts/voice-test — dev endpoint for voice quality QA
+# ============================================================================
+
+@router.post("/tts/voice-test")
+async def tts_voice_test(req: VoiceTestReq, request: Request):
+    """
+    Dev/QA endpoint: render one of the built-in test sentences for a locale.
+    Returns audio identical to /tts.
+
+    Built-in HU test sentences:
+      [0] "Ha 100 000 forintod van, és félreteszel 12,5%-ot, az 12 500 forint."
+      [1] "A megtakarításom célja: 3 hónap vésztartalék."
+      [2] "Költségvetés: bevétel mínusz kiadás egyenlő megtakarítás."
+    """
+    locale = req.locale.strip().lower()
+    sentence_bank = {"hu": _TTS_TEST_HU, "en": _TTS_TEST_EN, "el": _TTS_TEST_EL}
+    sentences = sentence_bank.get(locale, _TTS_TEST_HU)
+    idx = max(0, min(req.sentence_index, len(sentences) - 1))
+    text = req.text or sentences[idx]
+    voice = resolve_tts_voice(locale)
+    print(f"[tts/voice-test] locale={locale} voice={voice} sentence_index={idx} text={text[:80]}")
+    tts_req = TtsReq(text=text, voice_id=voice, locale=locale)
+    return await generate_tts(tts_req, request)
 
 
 # ============================================================================

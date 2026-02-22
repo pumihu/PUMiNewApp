@@ -81,13 +81,9 @@ export function RoomSession({ room, onRoomUpdate, onExit }: RoomSessionProps) {
   const dayIndex = room.currentDayIndex;
   const currentDay = room.plan.days.find(d => d.dayIndex === dayIndex);
 
-  // TTS locale: for language domain use target language, otherwise Hungarian
-  const ttsLocale =
-    room.config.domain === "language" && room.config.targetLanguage
-      ? room.config.targetLanguage.toLowerCase().startsWith("en") ? "en"
-        : room.config.targetLanguage.toLowerCase().startsWith("el") ? "el"
-        : "hu"
-      : "hu";
+  // TTS locale comes from explicit room config (set at creation, migrated for old rooms).
+  // Never derived from domain at render time — that logic lives in FocusRoomPage.computeLocales.
+  const ttsLocale: string = room.config.locale_tts ?? "hu";
 
   // ── Step management ──
   const addStep = useCallback((type: StepEntry["type"], content: string, metadata?: StepEntry["metadata"]) => {
@@ -131,12 +127,16 @@ export function RoomSession({ room, onRoomUpdate, onExit }: RoomSessionProps) {
         attempts: 0,
       }));
 
-      // Parse script steps
+      // Parse script steps — canonical TTS source
+      // tts_script in the response is a transcript for display/debug only (tts_script_is_transcript=true)
       const scripts: ScriptStep[] = (resp.script_steps || []).map(s => ({
         id: s.id,
         type: s.type as ScriptStep["type"],
         text: s.text,
       }));
+      if (scripts.length === 0) {
+        console.warn("[RoomSession] Empty script_steps from backend — TTS will be skipped");
+      }
 
       const newSession: DaySession = {
         dayIndex,
@@ -168,8 +168,12 @@ export function RoomSession({ room, onRoomUpdate, onExit }: RoomSessionProps) {
       setCurrentItemIdx(0);
       setScoreSum(0);
 
-      // Show the first intro script step
-      if (scripts.length > 0 && scripts[0].type === "intro") {
+      // Show the first intro script step (or warning if none)
+      if (scripts.length === 0) {
+        setSteps([makeStep("tutor",
+          `[Figyelem] A lecke hanganyaga nem érhető el. A szöveges tartalom az alábbiakban olvasható.`
+        )]);
+      } else if (scripts[0].type === "intro") {
         setSteps([makeStep("tutor", scripts[0].text)]);
         setCurrentScriptIdx(1);
         // Start TTS for intro

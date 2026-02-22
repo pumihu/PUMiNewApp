@@ -12,10 +12,52 @@ import type {
   FocusRoom,
   FocusRoomConfig,
   PlanDaySummary,
+  AppLocale,
 } from "@/types/focusRoom";
 
 const STORAGE_KEY = "pumi_focusroom_v1";
 const PROGRESS_KEY = "pumi_focusroom_in_progress";
+
+// ── Locale helpers ────────────────────────────────────────────────────────────
+
+/**
+ * Derive locale triple from domain + targetLanguage.
+ * locale_ui is always "hu" (app UI language).
+ * locale_content / locale_tts follow the target language for language rooms.
+ */
+function computeLocales(domain: string, targetLanguage?: string): {
+  locale_ui: AppLocale;
+  locale_content: AppLocale;
+  locale_tts: AppLocale;
+} {
+  const locale_ui: AppLocale = "hu";
+  if (domain === "language" && targetLanguage) {
+    const lang = targetLanguage.toLowerCase();
+    const locale: AppLocale =
+      lang === "english" || lang.startsWith("en") ? "en" :
+      lang === "greek"   || lang.startsWith("el") ? "el" :
+      "hu";
+    return { locale_ui, locale_content: locale, locale_tts: locale };
+  }
+  return { locale_ui, locale_content: "hu", locale_tts: "hu" };
+}
+
+/**
+ * Migration: add locale fields to a room config that was created before
+ * Locale v1 (those rooms have no locale_* fields).
+ */
+function ensureLocaleConfig(config: FocusRoomConfig): FocusRoomConfig {
+  if (config.locale_ui && config.locale_content && config.locale_tts) {
+    return config; // already migrated
+  }
+  const locales = computeLocales(config.domain, config.targetLanguage);
+  return {
+    ...config,
+    locale_ui:      config.locale_ui      ?? locales.locale_ui,
+    locale_content: config.locale_content ?? locales.locale_content,
+    locale_tts:     config.locale_tts     ?? locales.locale_tts,
+  };
+}
 
 type ViewState = "setup" | "home" | "session";
 
@@ -31,14 +73,23 @@ export default function FocusRoomPage() {
     if (saved) {
       try {
         const parsed: FocusRoom = JSON.parse(saved);
-        setRoom(parsed);
+        // Migration: fill locale fields if missing (rooms created before Locale v1)
+        const migratedConfig = ensureLocaleConfig(parsed.config);
+        const migratedRoom = migratedConfig !== parsed.config
+          ? { ...parsed, config: migratedConfig }
+          : parsed;
+        setRoom(migratedRoom);
         // Determine view based on state
-        if (parsed.session) {
+        if (migratedRoom.session) {
           setView("session");
           localStorage.setItem(PROGRESS_KEY, "1");
           dispatchFocusProgressChange();
         } else {
           setView("home");
+        }
+        // Persist migrated room immediately so future loads don't re-run migration
+        if (migratedRoom !== parsed) {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(migratedRoom));
         }
       } catch (err) {
         console.error("[FocusRoom] Failed to load saved room:", err);
@@ -54,7 +105,9 @@ export default function FocusRoomPage() {
   }, [room]);
 
   // ── Create room ──
-  const handleCreateRoom = useCallback(async (config: FocusRoomConfig) => {
+  const handleCreateRoom = useCallback(async (rawConfig: FocusRoomConfig) => {
+    // Inject explicit locale fields — never derived at render time after this point
+    const config: FocusRoomConfig = ensureLocaleConfig(rawConfig);
     setIsCreating(true);
     setError(null);
 
