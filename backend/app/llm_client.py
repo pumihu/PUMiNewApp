@@ -3308,8 +3308,52 @@ If nothing: []
     return out
 
 
+# ============================================================================
+# Public v2 interface — clean wrappers for new workspace/tutor consumers
+# Existing code continues to use the private _claude_* helpers unchanged.
+# ============================================================================
+
+async def call_llm_text(
+    system: str,
+    user: str,
+    history: Optional[List[Dict[str, str]]] = None,
+    model: Optional[str] = None,
+    max_tokens: int = 1024,
+    temperature: float = 0.5,
+) -> str:
+    """
+    Public: conversational text response.
+    Defaults to Sonnet for quality. Pass model=CLAUDE_MODEL_HAIKU for speed.
+    """
+    return await _claude_messages_create(
+        system=system,
+        user=user,
+        max_tokens=max_tokens,
+        temperature=temperature,
+        history=history,
+        model=model or CLAUDE_MODEL_SONNET,
+    )
 
 
+async def call_llm_json(
+    system: str,
+    user: str,
+    model: Optional[str] = None,
+    max_tokens: int = 2000,
+    temperature: float = 0.3,
+) -> Optional[Dict[str, Any]]:
+    """
+    Public: structured JSON generation. Returns parsed dict or None on failure.
+    Defaults to Haiku for speed/cost. Pass model=CLAUDE_MODEL_SONNET for quality.
+    """
+    raw = await _claude_messages_create(
+        system=system,
+        user=user,
+        max_tokens=max_tokens,
+        temperature=temperature,
+        model=model or CLAUDE_MODEL_HAIKU,
+    )
+    return _extract_json_object(raw)
 
 
 

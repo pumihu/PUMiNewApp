@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .schemas import HealthOutput
 from .db import db_ok
 
-BUILD = os.getenv("BUILD_TAG", "SUPABASE-AUTH-V2-FIX-PRACTICE-KIND")
+BUILD = os.getenv("BUILD_TAG", "V2-WORKSPACE-CANVAS-TUTOR")
 
 app = FastAPI(title="pumi-backend", version=BUILD)
 
@@ -57,19 +57,38 @@ from .usage import router as usage_router
 from .summarize import router as summarize_router
 from .billing import router as billing_router
 from .webhooks import router as webhooks_router  # <-- IMPORTANT
-from .focus_api import router as focus_router
-from .focusroom_api import router as focusroom_router
 from .account import router as account_router
 
+# [LEGACY] LMS-style focus system — kept wired for frontend backwards compat.
+# Source files archived in app/legacy/. Scheduled for removal once the new
+# /workspace + /canvas + /tutor frontend screen is fully rolled out.
+from .focus_api import router as focus_router
+from .focusroom_api import router as focusroom_router
+
+# v2 — AI Learning Workspace
+from .workspace_api import router as workspace_router
+from .canvas_api import router as canvas_router
+from .tutor_api import router as tutor_router
+from .tts_api import router as tts_router
+
+# Core infrastructure
 app.include_router(chat_enhanced_router)
 app.include_router(guard_router)
 app.include_router(usage_router)
 app.include_router(summarize_router)
 app.include_router(billing_router)
 app.include_router(webhooks_router)  # <-- IMPORTANT
+app.include_router(account_router)
+
+# [LEGACY] — preserved for backwards compat; do not build new features here
 app.include_router(focus_router)
 app.include_router(focusroom_router)
-app.include_router(account_router)
+
+# v2 — AI Learning Workspace (new surface)
+app.include_router(workspace_router)
+app.include_router(canvas_router)
+app.include_router(tutor_router)
+app.include_router(tts_router)
 
 @app.get("/healthz", response_model=HealthOutput)
 def healthz():
