@@ -18,7 +18,7 @@ const LoginPage = () => {
   useEffect(() => {
     // If already logged in, redirect to chat
     if (isReady && isLoggedIn) {
-      navigate("/app/chat", { replace: true });
+      navigate("/dashboard", { replace: true });
     }
   }, [isLoggedIn, isReady, navigate]);
 
@@ -63,7 +63,7 @@ const LoginPage = () => {
       description: "Üdv újra!",
     });
     
-    navigate("/app/chat", { replace: true });
+    navigate("/dashboard", { replace: true });
   };
 
   // Show loading state while checking auth
@@ -157,3 +157,4 @@ const LoginPage = () => {
 };
 
 export default LoginPage;
+

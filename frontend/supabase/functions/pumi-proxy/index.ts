@@ -1,12 +1,12 @@
-// Supabase Edge Function — pumi-proxy
-// Uses RAILWAY_TOKEN for upstream auth and X-User-ID header for user identification
+// Supabase Edge Function - pumi-proxy
+// Uses RAILWAY_TOKEN for upstream auth and X-User-ID for user identification
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Allow-Methods": "GET, POST, PATCH, DELETE, OPTIONS",
 };
 
 function json(status: number, body: unknown) {
@@ -16,8 +16,17 @@ function json(status: number, body: unknown) {
   });
 }
 
-// Normalize base URL - remove trailing slashes
 const BACKEND_BASE = (Deno.env.get("PUMI_BACKEND_URL")?.trim() ?? "https://api.emoria.life").replace(/\/+$/, "");
+
+type ForwardMethod = "GET" | "POST" | "PATCH" | "DELETE";
+
+function normalizeRequestedMethod(raw: unknown): ForwardMethod {
+  const value = String(raw ?? "POST").toUpperCase();
+  if (value === "GET" || value === "POST" || value === "PATCH" || value === "DELETE") {
+    return value;
+  }
+  return "POST";
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -25,88 +34,73 @@ Deno.serve(async (req) => {
   }
 
   const auth = req.headers.get("authorization");
-
   if (!auth) {
     return json(401, { ok: false, error: "Missing Authorization" });
   }
 
-  // Validate Supabase JWT and extract user ID
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_ANON_KEY")!,
-    { global: { headers: { Authorization: auth } } }
+    { global: { headers: { Authorization: auth } } },
   );
 
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-  
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
   if (authError || !user) {
     console.error("[pumi-proxy] JWT validation failed:", authError?.message);
     return json(401, { ok: false, error: "Invalid token" });
   }
 
-  console.log(`[pumi-proxy] User validated: ${user.id}`);
-
-  // Get RAILWAY_TOKEN for upstream authentication
   const railwayToken = Deno.env.get("RAILWAY_TOKEN");
   if (!railwayToken) {
     console.error("[pumi-proxy] RAILWAY_TOKEN not configured");
     return json(500, { ok: false, error: "Server configuration error" });
   }
 
-  let payload: any = null;
+  let payload: Record<string, unknown> | null = null;
   let targetPath = "";
-  let method = req.method;
+  let method: ForwardMethod = "POST";
 
-  if (req.method === "POST") {
-    try {
-      payload = await req.json();
-    } catch {
-      return json(400, { ok: false, error: "Invalid JSON" });
-    }
-
-    targetPath = payload._path;
-    delete payload._path;
-
-    // Extract and clean _method before forwarding payload
-    const requestedMethod = payload._method;
-    delete payload._method;
-
-    // If caller wants GET → real GET, no body
-    if (requestedMethod === "GET") {
-      method = "GET";
-      payload = null;
-    } else {
-      method = "POST";
-    }
+  try {
+    payload = (await req.json()) as Record<string, unknown>;
+  } catch {
+    return json(400, { ok: false, error: "Invalid JSON" });
   }
 
-  // Normalize path - ensure exactly one leading slash, no double slashes
+  targetPath = String(payload?._path ?? "");
+  method = normalizeRequestedMethod(payload?._method);
+
+  delete (payload as Record<string, unknown>)._path;
+  delete (payload as Record<string, unknown>)._method;
+
+  if (method === "GET" || method === "DELETE") {
+    payload = null;
+  }
+
   const normalizedPath = ("/" + targetPath).replace(/\/+/g, "/");
   const url = `${BACKEND_BASE}${normalizedPath}`;
-  
-  console.log(`[pumi-proxy] ${method} ${url} (user: ${user.id})`);
 
   const options: RequestInit = {
     method,
     headers: {
       Authorization: `Bearer ${railwayToken}`,
       "X-User-ID": user.id,
-      ...(method === "POST" ? { "Content-Type": "application/json" } : {}),
+      ...(payload ? { "Content-Type": "application/json" } : {}),
     },
-    ...(method === "POST" && payload ? { body: JSON.stringify(payload) } : {}),
+    ...(payload ? { body: JSON.stringify(payload) } : {}),
   };
 
-  // Use AbortSignal for 58s timeout (Supabase edge fn limit is ~60s)
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 58000);
 
   try {
     const upstream = await fetch(url, { ...options, signal: controller.signal });
     clearTimeout(timeoutId);
+
     const text = await upstream.text();
-
-    console.log(`[pumi-proxy] Response: ${upstream.status}`);
-
     return new Response(text, {
       status: upstream.status,
       headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
@@ -115,6 +109,7 @@ Deno.serve(async (req) => {
     clearTimeout(timeoutId);
     const isTimeout = e instanceof DOMException && e.name === "AbortError";
     console.error(`[pumi-proxy] ${isTimeout ? "Timeout" : "Upstream error"}:`, e);
+
     return json(isTimeout ? 504 : 500, {
       ok: false,
       error: isTimeout ? "timeout" : String(e),

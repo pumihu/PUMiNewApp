@@ -1,5 +1,95 @@
-// i18n translations - updated
+// i18n.ts — PUMi v2 UI string dictionary
+// AI-generated content is multilingual. This file covers fixed UI labels only.
+
 export const translations = {
+  en: {
+    // Nav / common
+    dashboard: "Dashboard",
+    workspace: "Workspace",
+    settings: "Settings",
+    pricing: "Pricing",
+    login: "Log in",
+    logout: "Log out",
+    cancel: "Cancel",
+    save: "Save",
+    delete: "Delete",
+    create: "Create",
+    close: "Close",
+    loading: "Loading...",
+    error: "Something went wrong",
+
+    // Workspace
+    newWorkspace: "New Workspace",
+    workspaceName: "Workspace name",
+    workspaceDescription: "Description (optional)",
+    workspaceMode: "Mode",
+    modeBuild: "Build",
+    modeLearn: "Learn",
+    modeCreative: "Creative",
+    noWorkspaces: "No workspaces yet. Create your first one.",
+    workspaceCreated: "Workspace created.",
+
+    // Canvas
+    addBlock: "Add block",
+    blockTypes: "Block type",
+    note: "Note",
+    taskList: "Task list",
+    source: "Source",
+    summary: "Summary",
+    idea: "Idea",
+    creativeBrief: "Creative brief",
+    imageAsset: "Image asset",
+    storyboard: "Storyboard",
+    untitled: "Untitled",
+    editBlock: "Edit block",
+    deleteBlock: "Delete block",
+    blockDeleted: "Block deleted.",
+
+    // Mentor
+    mentorPanelTitle: "AI Mentor",
+    mentorPlaceholder: "Ask your mentor...",
+    mentorSend: "Send",
+    suggestedActions: "Suggested actions",
+    mentorThinking: "Thinking...",
+    selectBlocksHint: "Select blocks to give your mentor more context.",
+
+    // Creative
+    creativeModeTitle: "Creative Mode",
+    buildBriefLabel: "Build a brief",
+    briefGoalPlaceholder: "Describe your creative goal...",
+    generateBrief: "Generate brief",
+    visualDirections: "Visual directions",
+    generateVisuals: "Generate visuals",
+    generateStoryboard: "Generate storyboard",
+
+    // Documents
+    uploadSource: "Upload source",
+    pasteContent: "Paste content",
+    documentName: "Document name",
+    summarize: "Summarize",
+    uploadSuccess: "Document uploaded.",
+    summaryReady: "Summary ready.",
+
+    // Pricing
+    pricingTitle: "Choose your plan",
+    planFree: "Free",
+    planBuilder: "Builder",
+    planCreator: "Creator",
+    perMonth: "/ month",
+    getStarted: "Get started",
+    mostPopular: "Most popular",
+    currentPlan: "Current plan",
+
+    // Settings
+    settingsTitle: "Settings",
+    language: "Language",
+    account: "Account",
+    dangerZone: "Danger zone",
+    deleteAccount: "Delete account",
+    privacyPolicy: "Privacy Policy",
+    terms: "Terms of Service",
+  },
+
   hu: {
     // Sidebar
     chat: "Chat",
@@ -395,14 +485,82 @@ export const translations = {
     allLocalDataDeleted: "All local data deleted.",
     logoutNotAvailable: "Logout not available yet.",
     deleteAll: "Delete all",
-    privacyPolicyText: "PUMi collects minimal data to provide a personalized experience. All your data is stored locally on your device. We do not share, sell, or transmit your personal information to third parties. Your privacy is our priority.",
-    termsText: "By using PUMi, you agree to use the app responsibly and for personal purposes only. PUMi is provided \"as is\" without warranties of any kind. We reserve the right to modify these terms at any time.",
+    privacyPolicyText: "PUMi minimális adatot gyűjt a személyre szabott élmény biztosításához. Minden adatod helyileg, a készülékeden tárolódik. Nem osztjuk meg, nem adjuk el és nem továbbítjuk személyes adataidat harmadik félnek.",
+    termsText: "A PUMi használatával elfogadod, hogy felelősségteljesen és csak személyes célokra használod az alkalmazást.",
+
+    // v2 HU keys
+    dashboard: "Vezérlőpult",
+    workspace: "Munkaterület",
+    pricing: "Csomagok",
+    login: "Bejelentkezés",
+    logout: "Kijelentkezés",
+    create: "Létrehozás",
+    close: "Bezárás",
+    error: "Valami hiba történt",
+    newWorkspace: "Új munkaterület",
+    workspaceName: "Munkaterület neve",
+    workspaceDescription: "Leírás (opcionális)",
+    workspaceMode: "Mód",
+    modeBuild: "Építés",
+    modeLearn: "Tanulás",
+    modeCreative: "Kreatív",
+    noWorkspaces: "Még nincsenek munkaterületek. Hozd létre az elsőt.",
+    workspaceCreated: "Munkaterület létrehozva.",
+    addBlock: "Blokk hozzáadása",
+    blockTypes: "Blokk típusa",
+    note: "Jegyzet",
+    taskList: "Feladatlista",
+    source: "Forrás",
+    summary: "Összefoglaló",
+    idea: "Ötlet",
+    creativeBrief: "Kreatív brief",
+    imageAsset: "Kép",
+    storyboard: "Storyboard",
+    untitled: "Cím nélkül",
+    editBlock: "Blokk szerkesztése",
+    deleteBlock: "Blokk törlése",
+    blockDeleted: "Blokk törölve.",
+    mentorPanelTitle: "AI Mentor",
+    mentorPlaceholder: "Kérdezd a mentort...",
+    mentorSend: "Küldés",
+    suggestedActions: "Javasolt lépések",
+    mentorThinking: "Gondolkodik...",
+    selectBlocksHint: "Válassz blokkokat, hogy a mentor több kontextust kapjon.",
+    creativeModeTitle: "Kreatív mód",
+    buildBriefLabel: "Brief készítése",
+    briefGoalPlaceholder: "Írd le a kreatív célodat...",
+    generateBrief: "Brief generálása",
+    visualDirections: "Vizuális irányok",
+    generateVisuals: "Vizualizáció generálása",
+    generateStoryboard: "Storyboard generálása",
+    uploadSource: "Forrás feltöltése",
+    pasteContent: "Tartalom beillesztése",
+    documentName: "Dokumentum neve",
+    summarize: "Összefoglalás",
+    uploadSuccess: "Dokumentum feltöltve.",
+    summaryReady: "Összefoglaló kész.",
+    pricingTitle: "Válassz csomagot",
+    planFree: "Ingyenes",
+    planBuilder: "Builder",
+    planCreator: "Creator",
+    perMonth: "/ hó",
+    getStarted: "Kezdés",
+    mostPopular: "Legnépszerűbb",
+    currentPlan: "Jelenlegi csomag",
+    settingsTitle: "Beállítások",
+    account: "Fiók",
+    deleteAccount: "Fiók törlése",
   },
 } as const;
 
-export type TranslationKey = keyof (typeof translations)["en"];
 export type Language = keyof typeof translations;
+export type TranslationKey = keyof (typeof translations)["en"];
 
-export const getTranslation = (lang: Language, key: TranslationKey): string => {
-  return translations[lang]?.[key] || translations.en[key] || key;
-};
+export function t(lang: Language, key: TranslationKey): string {
+  return (translations[lang] as Record<string, string>)?.[key]
+    ?? translations.en[key]
+    ?? key;
+}
+
+// Legacy alias
+export const getTranslation = t;

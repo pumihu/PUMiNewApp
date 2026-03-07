@@ -1,12 +1,14 @@
 // src/lib/pumiInvoke.ts
-// Unified API wrapper - ALL backend calls go through this single function
+// Unified API wrapper - all backend calls go through this function.
 
 import { supabase } from "@/integrations/supabase/client";
 
+export type PumiMethod = "GET" | "POST" | "PATCH" | "DELETE";
+
 export async function pumiInvoke<T>(
   path: string,
-  body: Record<string, any> = {},
-  method: "GET" | "POST" = "POST"
+  body: Record<string, unknown> = {},
+  method: PumiMethod = "POST",
 ): Promise<T> {
   const { data, error } = await supabase.functions.invoke("pumi-proxy", {
     body: {

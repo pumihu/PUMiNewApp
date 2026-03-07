@@ -1,18 +1,24 @@
-# app/main.py
 from __future__ import annotations
-import os
 
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .schemas import HealthOutput
-from .db import db_ok
+from app.core.config import settings
+from app.core.db import ensure_schema
 
-BUILD = os.getenv("BUILD_TAG", "V2-WORKSPACE-CANVAS-TUTOR")
+from app.modules.auth.router import router as auth_router
+from app.modules.workspace.router import router as workspace_router
+from app.modules.canvas.router import router as canvas_router
+from app.modules.mentor.router import router as mentor_router
+from app.modules.documents.router import router as documents_router
+from app.modules.creative.router import router as creative_router
+from app.modules.tts.router import router as tts_router
 
-app = FastAPI(title="pumi-backend", version=BUILD)
+BUILD = os.getenv("BUILD_TAG", "v2.0.0")
 
-# CORS origins: env-based + hardcoded defaults
+app = FastAPI(title="PUMi v2 API", version=BUILD)
+
 _env_origins = os.getenv("ALLOWED_ORIGINS", "")
 ALLOWED_ORIGINS = [o.strip() for o in _env_origins.split(",") if o.strip()] or [
     "https://emoria.life",
@@ -20,7 +26,6 @@ ALLOWED_ORIGINS = [o.strip() for o in _env_origins.split(",") if o.strip()] or [
     "https://pu-mi-new-app.vercel.app",
     "https://pu-mi-new-app-git-main-pum-i-team.vercel.app",
     "http://localhost:5173",
-    "http://localhost:8080",
     "http://localhost:3000",
 ]
 
@@ -33,64 +38,21 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.on_event("startup")
-def startup():
-    # Log critical env vars (not secrets)
-    sb_url = os.getenv("SUPABASE_URL", "")
-    print(f"[startup] SUPABASE_URL(raw)={sb_url[:50]}..." if len(sb_url) > 50 else f"[startup] SUPABASE_URL(raw)={sb_url}")
-
-    # NOTE: No ensure_schema() - Supabase schema is managed manually
-    # NOTE: No direct psycopg2 DB connections - use Supabase REST client
-
-    # preload billing env once at startup (warning only, no crash)
-    try:
-        from .billing import init_billing_env
-        init_billing_env()
-        print("[startup] Billing env initialized")
-    except Exception as e:
-        print(f"[startup] Billing init skipped (not fatal): {e}")
-
-# Routers (REGISTER AT IMPORT TIME — not in startup)
-from .chat_enhanced import router as chat_enhanced_router
-from .guard import router as guard_router
-from .usage import router as usage_router
-from .summarize import router as summarize_router
-from .billing import router as billing_router
-from .webhooks import router as webhooks_router  # <-- IMPORTANT
-from .account import router as account_router
-
-# [LEGACY] LMS-style focus system — kept wired for frontend backwards compat.
-# Source files archived in app/legacy/. Scheduled for removal once the new
-# /workspace + /canvas + /tutor frontend screen is fully rolled out.
-from .focus_api import router as focus_router
-from .focusroom_api import router as focusroom_router
-
-# v2 — AI Learning Workspace
-from .workspace_api import router as workspace_router
-from .canvas_api import router as canvas_router
-from .tutor_api import router as tutor_router
-from .tts_api import router as tts_router
-
-# Core infrastructure
-app.include_router(chat_enhanced_router)
-app.include_router(guard_router)
-app.include_router(usage_router)
-app.include_router(summarize_router)
-app.include_router(billing_router)
-app.include_router(webhooks_router)  # <-- IMPORTANT
-app.include_router(account_router)
-
-# [LEGACY] — preserved for backwards compat; do not build new features here
-app.include_router(focus_router)
-app.include_router(focusroom_router)
-
-# v2 — AI Learning Workspace (new surface)
+app.include_router(auth_router)
 app.include_router(workspace_router)
 app.include_router(canvas_router)
-app.include_router(tutor_router)
+app.include_router(mentor_router)
+app.include_router(documents_router)
+app.include_router(creative_router)
 app.include_router(tts_router)
 
-@app.get("/healthz", response_model=HealthOutput)
-def healthz():
-    routes = [r.path for r in app.router.routes if hasattr(r, "path")]
-    return HealthOutput(db=db_ok(), build=BUILD, routes=routes)
+
+@app.on_event("startup")
+def on_startup():
+    ensure_schema()
+    print(f"[startup] PUMi v2 API ready — build={BUILD}")
+
+
+@app.get("/health")
+def health():
+    return {"status": "ok", "version": BUILD}

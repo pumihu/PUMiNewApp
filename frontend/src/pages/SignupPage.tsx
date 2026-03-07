@@ -35,7 +35,7 @@ const SignupPage = () => {
   useEffect(() => {
     // If already logged in, redirect to chat
     if (isReady && isLoggedIn) {
-      navigate("/app/chat", { replace: true });
+      navigate("/dashboard", { replace: true });
     }
   }, [isLoggedIn, isReady, navigate]);
 
@@ -109,7 +109,7 @@ const SignupPage = () => {
       description: "Bejelentkeztünk a fiókodba.",
     });
     
-    navigate("/app/chat", { replace: true });
+    navigate("/dashboard", { replace: true });
   };
 
   // Show loading state while checking auth
@@ -148,7 +148,7 @@ const SignupPage = () => {
           {/* Links */}
           <div className="flex flex-col items-center gap-3 text-sm">
             <Link
-              to="/home"
+              to="/"
               className="text-foreground underline hover:no-underline transition-all"
             >
               Vissza a főoldalra
@@ -264,3 +264,4 @@ const SignupPage = () => {
 };
 
 export default SignupPage;
+

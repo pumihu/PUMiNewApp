@@ -75,13 +75,14 @@ export const canvasApi = {
 
   /** Update a block's title, content, or order. */
   update: (blockId: string, payload: UpdateBlockPayload) =>
-    pumiInvoke<BlockResp>(`/canvas/block/${blockId}`, payload, "PATCH" as any),
+    pumiInvoke<BlockResp>(`/canvas/block/${blockId}`, payload, "PATCH"),
 
   /** Permanently delete a block. */
   delete: (blockId: string) =>
-    pumiInvoke<DeleteBlockResp>(`/canvas/block/${blockId}`, {}, "DELETE" as any),
+    pumiInvoke<DeleteBlockResp>(`/canvas/block/${blockId}`, {}, "DELETE"),
 
   /** List all blocks in a workspace (ordered by order_index). */
   list: (workspaceId: string) =>
     pumiInvoke<ListBlocksResp>(`/canvas/${workspaceId}`, {}, "GET"),
 };
+

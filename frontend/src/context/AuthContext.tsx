@@ -164,7 +164,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signInWithProvider = useCallback(async (provider: Provider) => {
-    const redirectUrl = `${window.location.origin}/app/chat`;
+    const redirectUrl = `${window.location.origin}/dashboard`;
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
       options: {
@@ -261,3 +261,4 @@ export function useAuth() {
   if (!ctx) throw new Error("useAuth must be used within an AuthProvider");
   return ctx;
 }
+
