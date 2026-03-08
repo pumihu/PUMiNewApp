@@ -28,6 +28,7 @@ const BLOCK_TITLE_BY_TYPE: Record<CanvasBlock["type"], string> = {
   source: "Source",
   summary: "Summary",
   idea: "Idea",
+  ai_sticky: "AI Insight",
   creative_brief: "Creative brief",
   image_asset: "Image asset",
   storyboard: "Storyboard",

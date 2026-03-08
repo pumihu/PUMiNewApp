@@ -1,4 +1,4 @@
-import { BookOpen, Layers, Sparkles } from "lucide-react";
+import { BookOpen, ChevronLeft, Layers, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 import { useTranslation } from "@/hooks/useTranslation";
@@ -20,25 +20,30 @@ export function WorkspaceHeader({ workspace, onModeChange }: Props) {
   ];
 
   return (
-    <header className="h-12 border-b border-neutral-800 flex items-center justify-between px-4 shrink-0 bg-neutral-950/80 backdrop-blur-sm sticky top-0 z-10">
+    <header className="h-[62px] border-b border-[var(--shell-border)] bg-[var(--shell-surface)]/70 backdrop-blur-lg flex items-center justify-between px-4 shrink-0 sticky top-0 z-20">
       <div className="flex items-center gap-3 min-w-0">
         <button
           onClick={() => navigate("/dashboard")}
-          className="text-neutral-500 hover:text-white transition text-sm"
+          className="h-8 w-8 rounded-lg border border-[var(--shell-border)] shell-muted hover:text-[var(--shell-text)] flex items-center justify-center shell-interactive"
           aria-label="Back to dashboard"
         >
-          {"<-"}
+          <ChevronLeft className="h-4 w-4" />
         </button>
-        <span className="text-sm font-medium text-white truncate">{workspace.title}</span>
+        <div className="min-w-0">
+          <p className="text-sm font-medium truncate">{workspace.title}</p>
+          <p className="text-[11px] shell-muted">AI Mentor Workspace</p>
+        </div>
       </div>
 
-      <div className="flex items-center gap-1 bg-neutral-900 border border-neutral-800 rounded-lg p-0.5">
+      <div className="flex items-center gap-1 rounded-xl border border-[var(--shell-border)] bg-[var(--shell-surface-2)] p-1 shell-panel">
         {modes.map((mode) => (
           <button
             key={mode.id}
             onClick={() => onModeChange(mode.id)}
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition ${
-              workspace.mode === mode.id ? "bg-white text-black" : "text-neutral-400 hover:text-white"
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition shell-interactive ${
+              workspace.mode === mode.id
+                ? "bg-[var(--shell-accent-soft)] text-[var(--shell-text)]"
+                : "shell-muted hover:text-[var(--shell-text)]"
             }`}
           >
             {mode.icon}
@@ -47,8 +52,7 @@ export function WorkspaceHeader({ workspace, onModeChange }: Props) {
         ))}
       </div>
 
-      <div className="w-24" />
+      <div className="w-14" />
     </header>
   );
 }
-

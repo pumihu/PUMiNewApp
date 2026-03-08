@@ -13,29 +13,29 @@ export function SummaryBlock({ block }: Props) {
   const keyPoints = Array.isArray(content?.key_points) ? content?.key_points : [];
   const suggested = Array.isArray(content?.suggested_next_actions) ? content?.suggested_next_actions : [];
 
-  const noContent = lang === "hu" ? "Nincs tartalom." : "No content yet.";
+  const noContent = lang === "hu" ? "Adj forrast vagy kerd a mentort egy rovid osszefoglalora." : "Add source material or ask mentor for a concise summary.";
   const keyPointsLabel = lang === "hu" ? "Kulcspontok" : "Key points";
   const nextActionsLabel = lang === "hu" ? "Javasolt kovetkezo lepesek" : "Suggested next actions";
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-2 text-emerald-400 text-xs font-medium">
+      <div className="flex items-center gap-2 text-[var(--shell-accent)] text-xs font-medium">
         <span>{t("summary")}</span>
       </div>
 
       {content?.text ? (
-        <p className="text-sm text-neutral-300 leading-relaxed whitespace-pre-wrap">{content.text}</p>
+        <p className="text-sm text-[var(--shell-text)]/92 leading-relaxed whitespace-pre-wrap">{content.text}</p>
       ) : (
-        <p className="text-xs text-neutral-600 italic">{noContent}</p>
+        <p className="text-xs shell-muted italic">{noContent}</p>
       )}
 
       {keyPoints.length > 0 && (
         <div>
-          <p className="text-[11px] uppercase tracking-wide text-neutral-500 mb-1">{keyPointsLabel}</p>
+          <p className="text-[11px] uppercase tracking-wide shell-muted mb-1">{keyPointsLabel}</p>
           <ul className="space-y-1.5">
             {keyPoints.map((point, index) => (
-              <li key={`${point}-${index}`} className="text-xs text-neutral-300 leading-relaxed flex gap-2">
-                <span className="text-emerald-400">-</span>
+              <li key={`${point}-${index}`} className="text-xs text-[var(--shell-text)]/88 leading-relaxed flex gap-2">
+                <span className="text-[var(--shell-accent)]">-</span>
                 <span>{point}</span>
               </li>
             ))}
@@ -45,11 +45,11 @@ export function SummaryBlock({ block }: Props) {
 
       {suggested.length > 0 && (
         <div>
-          <p className="text-[11px] uppercase tracking-wide text-neutral-500 mb-1">{nextActionsLabel}</p>
+          <p className="text-[11px] uppercase tracking-wide shell-muted mb-1">{nextActionsLabel}</p>
           <ul className="space-y-1.5">
             {suggested.map((item, index) => (
-              <li key={`${item}-${index}`} className="text-xs text-neutral-300 leading-relaxed flex gap-2">
-                <span className="text-neutral-500">{index + 1}.</span>
+              <li key={`${item}-${index}`} className="text-xs text-[var(--shell-text)]/88 leading-relaxed flex gap-2">
+                <span className="shell-muted">{index + 1}.</span>
                 <span>{item}</span>
               </li>
             ))}

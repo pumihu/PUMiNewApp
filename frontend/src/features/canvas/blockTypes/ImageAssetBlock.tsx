@@ -1,3 +1,4 @@
+import { useTranslation } from "@/hooks/useTranslation";
 import type { CanvasBlock } from "@/types/canvas";
 
 interface Props {
@@ -6,26 +7,31 @@ interface Props {
 }
 
 export function ImageAssetBlock({ block }: Props) {
+  const { lang } = useTranslation();
   const content = block.content_json as { prompt?: string; url?: string; direction_name?: string } | undefined;
+
+  const emptyLabel =
+    lang === "hu"
+      ? "Valassz vizualis iranyt, es itt jelenik meg az elso kep output."
+      : "Pick a visual direction and your first generated image will appear here.";
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-2 text-orange-400 text-xs font-medium">
-        <span>🖼️</span> Image Asset
+      <div className="flex items-center gap-2 text-[var(--shell-accent)] text-xs font-medium">
+        <span>Image Asset</span>
       </div>
-      {content?.direction_name && (
-        <p className="text-xs text-neutral-400 font-medium">{content.direction_name}</p>
-      )}
+
+      {content?.direction_name && <p className="text-xs shell-muted font-medium">{content.direction_name}</p>}
+
       {content?.url ? (
-        <img src={content.url} alt={content.direction_name ?? "asset"} className="rounded-lg w-full" />
+        <img src={content.url} alt={content.direction_name ?? "asset"} className="rounded-xl w-full border border-[var(--shell-border)]" />
       ) : (
-        <div className="rounded-lg border border-neutral-800 bg-neutral-900 h-32 flex items-center justify-center text-xs text-neutral-600">
-          Image not generated yet
+        <div className="rounded-xl border border-[var(--shell-border)] bg-[var(--shell-highlight)] h-36 flex items-center justify-center text-xs shell-muted px-4 text-center leading-relaxed">
+          {emptyLabel}
         </div>
       )}
-      {content?.prompt && (
-        <p className="text-xs text-neutral-500 italic leading-relaxed">{content.prompt}</p>
-      )}
+
+      {content?.prompt && <p className="text-xs shell-muted italic leading-relaxed">{content.prompt}</p>}
     </div>
   );
 }

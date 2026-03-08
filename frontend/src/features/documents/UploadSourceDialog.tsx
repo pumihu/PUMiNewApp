@@ -40,7 +40,7 @@ export function UploadSourceDialog({ workspaceId, locale = "en", onCompleted, on
 
       setStatus(lang === "hu" ? "Kesz." : "Done.");
       onCompleted?.(result);
-      setTimeout(onClose, 600);
+      setTimeout(onClose, 450);
     } catch {
       setStatus(errorState);
     } finally {
@@ -49,40 +49,47 @@ export function UploadSourceDialog({ workspaceId, locale = "en", onCompleted, on
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-6 w-full max-w-2xl shadow-2xl space-y-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
+      <div className="w-full max-w-2xl rounded-3xl border shell-surface p-6 shadow-2xl space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-base font-semibold text-white">{t("uploadSource")}</h2>
-          <button onClick={onClose} className="text-neutral-500 hover:text-white transition" aria-label={t("close")}>
+          <div>
+            <h2 className="text-lg font-semibold">{t("uploadSource")}</h2>
+            <p className="text-xs shell-muted mt-1">
+              {lang === "hu"
+                ? "Illessz be forrasanyagot, es a mentor automatikusan strukturalt blokkokat keszit."
+                : "Paste source material and the mentor will generate structured blocks automatically."}
+            </p>
+          </div>
+          <button onClick={onClose} className="text-[var(--shell-muted)] hover:text-[var(--shell-text)]" aria-label={t("close")}>
             x
           </button>
         </div>
 
         <input
-          className="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm text-white placeholder-neutral-600 outline-none"
+          className="w-full rounded-xl border shell-surface-2 px-3 py-2 text-sm bg-transparent outline-none focus:border-[var(--shell-accent)]"
           placeholder={`${t("documentName")}...`}
           value={name}
           onChange={(event) => setName(event.target.value)}
         />
 
         <textarea
-          className="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2.5 text-sm text-white placeholder-neutral-600 outline-none resize-none"
+          className="w-full rounded-xl border shell-surface-2 px-3 py-2.5 text-sm bg-transparent outline-none resize-none"
           rows={10}
           placeholder={`${t("pasteContent")}...`}
           value={content}
           onChange={(event) => setContent(event.target.value)}
         />
 
-        {status && <p className="text-xs text-neutral-400">{status}</p>}
+        {status && <p className="text-xs shell-muted">{status}</p>}
 
         <div className="flex gap-2 justify-end">
-          <button onClick={onClose} className="text-sm text-neutral-400 hover:text-white px-4 py-2 transition">
+          <button onClick={onClose} className="text-sm shell-muted hover:text-[var(--shell-text)] px-4 py-2 transition">
             {t("cancel")}
           </button>
           <button
             onClick={handleUpload}
             disabled={!name.trim() || !content.trim() || loading}
-            className="bg-white text-black hover:bg-neutral-200 disabled:opacity-50 text-sm font-medium px-4 py-2 rounded-lg transition"
+            className="rounded-xl bg-[var(--shell-accent-soft)] text-[var(--shell-text)] disabled:opacity-50 text-sm font-medium px-4 py-2 transition"
           >
             {loading ? processingText : `${t("uploadSource")} + ${t("summarize")}`}
           </button>

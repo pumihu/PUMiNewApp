@@ -1,4 +1,6 @@
 import { useState } from "react";
+
+import { useTranslation } from "@/hooks/useTranslation";
 import { patchBlock } from "@/lib/api";
 import type { CanvasBlock } from "@/types/canvas";
 
@@ -8,13 +10,24 @@ interface Props {
 }
 
 export function NoteBlock({ block, onUpdate }: Props) {
+  const { lang } = useTranslation();
   const content = block.content_json as { text?: string } | undefined;
   const [text, setText] = useState(content?.text ?? "");
   const [saving, setSaving] = useState(false);
 
+  const placeholder =
+    lang === "hu"
+      ? "Ird le a lenyeget: mit kell tisztazni vagy eldonteni?"
+      : "Capture the key thought: what needs to be clarified or decided?";
+
   const save = async () => {
     setSaving(true);
-    const updated = await patchBlock(block.id, { content_json: { text } });
+    const updated = await patchBlock(block.id, {
+      content_json: {
+        ...(content ?? {}),
+        text,
+      },
+    });
     onUpdate(updated);
     setSaving(false);
   };
@@ -22,13 +35,13 @@ export function NoteBlock({ block, onUpdate }: Props) {
   return (
     <div className="space-y-2">
       <textarea
-        className="w-full bg-transparent text-sm text-neutral-100 placeholder-neutral-600 resize-none outline-none min-h-[80px]"
-        placeholder="Write your note here..."
+        className="w-full bg-transparent text-sm text-[var(--shell-text)] placeholder-[var(--shell-muted)] resize-none outline-none min-h-[86px] leading-relaxed rounded-lg shell-interactive"
+        placeholder={placeholder}
         value={text}
-        onChange={(e) => setText(e.target.value)}
+        onChange={(event) => setText(event.target.value)}
         onBlur={save}
       />
-      {saving && <p className="text-xs text-neutral-500">Saving...</p>}
+      {saving && <p className="text-[11px] shell-muted">{lang === "hu" ? "Mentes..." : "Saving..."}</p>}
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { CheckSquare, X } from "lucide-react";
 import { useTranslation } from "@/hooks/useTranslation";
 import { deleteBlock } from "@/lib/api";
 import type { BlockType, CanvasBlock } from "@/types/canvas";
+import { AiStickyBlock } from "./blockTypes/AiStickyBlock";
 import { CreativeBriefBlock } from "./blockTypes/CreativeBriefBlock";
 import { IdeaBlock } from "./blockTypes/IdeaBlock";
 import { ImageAssetBlock } from "./blockTypes/ImageAssetBlock";
@@ -35,6 +36,8 @@ function BlockBody({
       return <TaskListBlock block={block} onUpdate={onUpdate} />;
     case "idea":
       return <IdeaBlock block={block} onUpdate={onUpdate} />;
+    case "ai_sticky":
+      return <AiStickyBlock block={block} onUpdate={onUpdate} />;
     case "source":
       return <SourceBlock block={block} onUpdate={onUpdate} />;
     case "summary":
@@ -46,7 +49,7 @@ function BlockBody({
     case "storyboard":
       return <StoryboardBlock block={block} onUpdate={onUpdate} />;
     default:
-      return <p className="text-xs text-neutral-500">Unknown block type.</p>;
+      return <p className="text-xs shell-muted">Unknown block type.</p>;
   }
 }
 
@@ -61,11 +64,12 @@ export function CanvasBlockCard({ block, selected, onToggleSelect, onUpdate, onD
       source: t("source"),
       summary: t("summary"),
       idea: t("idea"),
+      ai_sticky: lang === "hu" ? "AI Insight" : "AI Insight",
       creative_brief: t("creativeBrief"),
       image_asset: t("imageAsset"),
       storyboard: t("storyboard"),
     }),
-    [t],
+    [lang, t],
   );
 
   const confirmDeleteLabel = lang === "hu" ? "Toroljuk ezt a blokkot?" : "Delete this block?";
@@ -84,34 +88,39 @@ export function CanvasBlockCard({ block, selected, onToggleSelect, onUpdate, onD
   };
 
   return (
-    <div
-      className={`relative rounded-xl border p-4 transition group ${
-        selected ? "border-white bg-neutral-800" : "border-neutral-800 bg-neutral-900 hover:border-neutral-700"
+    <article
+      className={`relative rounded-2xl border p-4 transition shell-interactive ${
+        selected
+          ? "border-[var(--shell-accent)] bg-[var(--shell-accent-soft)] shadow-[0_0_0_1px_var(--shell-accent)]"
+          : block.type === "ai_sticky"
+            ? "ai-sticky-card hover:border-[var(--shell-accent)]/60"
+            : "border-[var(--shell-border)] bg-[var(--shell-surface-2)] hover:border-[var(--shell-accent)]/60"
       }`}
     >
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
+      <header className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2 min-w-0">
           <button
             onClick={() => onToggleSelect(block.id)}
-            className={`transition ${selected ? "text-white" : "text-neutral-600 hover:text-neutral-400"}`}
+            className={`transition ${selected ? "text-[var(--shell-text)]" : "shell-muted hover:text-[var(--shell-text)]"}`}
             title={selectHint}
           >
             <CheckSquare className="h-3.5 w-3.5" />
           </button>
-          <span className="text-xs font-medium text-neutral-500 uppercase tracking-wider">{blockTypeLabels[block.type]}</span>
-          {block.title && <span className="text-xs text-neutral-300 font-medium">- {block.title}</span>}
+          <span className="text-[11px] uppercase tracking-[0.14em] shell-muted">{blockTypeLabels[block.type]}</span>
+          {block.title && <span className="text-xs text-[var(--shell-text)] truncate">{block.title}</span>}
         </div>
+
         <button
           onClick={handleDelete}
           disabled={deleting}
-          className="text-neutral-700 hover:text-red-400 transition opacity-0 group-hover:opacity-100"
+          className="shell-muted hover:text-red-400 transition"
           title={t("deleteBlock")}
         >
           <X className="h-3.5 w-3.5" />
         </button>
-      </div>
+      </header>
 
       <BlockBody block={block} onUpdate={onUpdate} />
-    </div>
+    </article>
   );
 }

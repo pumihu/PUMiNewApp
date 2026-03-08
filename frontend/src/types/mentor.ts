@@ -29,3 +29,11 @@ export interface MentorMessage {
   timestamp: number;
   suggested_actions?: SuggestedAction[];
 }
+
+export const MENTOR_MESSAGE_DND_MIME = "application/x-pumi-mentor-message";
+
+export interface MentorCanvasCapturePayload {
+  source_message_id: string;
+  text: string;
+  action_type: "pin" | "drag";
+}

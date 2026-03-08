@@ -4,6 +4,7 @@ export type BlockType =
   | "source"
   | "summary"
   | "idea"
+  | "ai_sticky"
   | "creative_brief"
   | "image_asset"
   | "storyboard";

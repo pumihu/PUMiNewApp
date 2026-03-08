@@ -13,26 +13,26 @@ export function SourceBlock({ block }: Props) {
 
   const wordsLabel = lang === "hu" ? "szo" : "words";
   const charsLabel = lang === "hu" ? "karakter" : "chars";
-  const noExcerpt = lang === "hu" ? "Nincs forras reszlet." : "No source excerpt available.";
+  const noExcerpt = lang === "hu" ? "Adj forrasreszletet a pontosabb mentor kontextushoz." : "Add source context so mentor responses stay grounded.";
 
   return (
-    <div className="space-y-2">
-      <div className="flex items-center gap-2 text-blue-400 text-xs font-medium">
+    <div className="space-y-3">
+      <div className="flex items-center gap-2 text-[var(--shell-accent)] text-xs font-medium">
         <span>{t("source")}</span>
       </div>
 
-      {content?.name && <p className="text-sm font-medium text-neutral-200">{content.name}</p>}
+      {content?.name && <p className="text-sm font-medium text-[var(--shell-text)]">{content.name}</p>}
 
-      <div className="flex flex-wrap gap-2 text-[11px] text-neutral-500">
-        {typeof content?.word_count === "number" && <span>{content.word_count} {wordsLabel}</span>}
-        {typeof content?.char_count === "number" && <span>{content.char_count} {charsLabel}</span>}
-        {content?.source_type && <span>{content.source_type}</span>}
+      <div className="flex flex-wrap gap-1.5 text-[11px] shell-muted">
+        {typeof content?.word_count === "number" && <span className="shell-chip rounded-full px-2 py-0.5">{content.word_count} {wordsLabel}</span>}
+        {typeof content?.char_count === "number" && <span className="shell-chip rounded-full px-2 py-0.5">{content.char_count} {charsLabel}</span>}
+        {content?.source_type && <span className="shell-chip rounded-full px-2 py-0.5">{content.source_type}</span>}
       </div>
 
       {content?.excerpt ? (
-        <p className="text-xs text-neutral-400 leading-relaxed whitespace-pre-wrap line-clamp-6">{content.excerpt}</p>
+        <p className="text-xs shell-muted leading-relaxed whitespace-pre-wrap line-clamp-6">{content.excerpt}</p>
       ) : (
-        <p className="text-xs text-neutral-600 italic">{noExcerpt}</p>
+        <p className="text-xs shell-muted italic">{noExcerpt}</p>
       )}
     </div>
   );

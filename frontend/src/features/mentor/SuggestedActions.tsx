@@ -13,13 +13,13 @@ export function SuggestedActions({ actions, onAction }: Props) {
 
   return (
     <div className="mt-2.5">
-      <p className="text-[11px] uppercase tracking-wide text-neutral-400 mb-1">{t("suggestedActions")}</p>
+      <p className="text-[11px] uppercase tracking-wide shell-muted mb-1">{t("suggestedActions")}</p>
       <div className="flex flex-wrap gap-1.5">
         {actions.map((action, index) => (
           <button
             key={`${action.action}-${index}`}
             onClick={() => onAction?.(action.action)}
-            className="text-xs bg-neutral-700 hover:bg-neutral-600 text-neutral-200 px-2.5 py-1 rounded-full transition"
+            className="text-xs rounded-full shell-chip px-2.5 py-1 shell-muted hover:text-[var(--shell-text)] shell-interactive"
           >
             {action.label}
           </button>

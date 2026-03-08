@@ -401,3 +401,144 @@
 }
 
 /* Mobile bottom nav is now always visible via MobileBottomNav component */
+
+/* PUMi v2 Product Shell Theme Tokens */
+:root,
+[data-pumi-theme="graphite"] {
+  --shell-bg: #11131a;
+  --shell-surface: #1a1d29;
+  --shell-surface-2: #222637;
+  --shell-border: #32384f;
+  --shell-text: #f4f6ff;
+  --shell-muted: #a6adc7;
+  --shell-accent: #9287ff;
+  --shell-accent-soft: rgba(146, 135, 255, 0.18);
+  --shell-highlight: rgba(255, 255, 255, 0.06);
+  --shell-shadow-soft: 0 14px 30px rgba(7, 9, 18, 0.32);
+  --shell-shadow-strong: 0 20px 52px rgba(5, 7, 14, 0.45);
+  --shell-glass: rgba(32, 36, 52, 0.76);
+  --shell-ai-sticky-bg: rgba(147, 134, 255, 0.18);
+  --shell-ai-sticky-border: rgba(167, 155, 255, 0.46);
+  --shell-ai-sticky-glow: rgba(129, 116, 255, 0.26);
+  --shell-gradient: radial-gradient(1200px 500px at 8% -10%, rgba(146, 135, 255, 0.2), transparent 60%), radial-gradient(900px 420px at 100% -20%, rgba(111, 183, 255, 0.12), transparent 55%);
+}
+
+[data-pumi-theme="olive"] {
+  --shell-bg: #1a1d18;
+  --shell-surface: #242a21;
+  --shell-surface-2: #31382d;
+  --shell-border: #4f5843;
+  --shell-text: #f3f1e6;
+  --shell-muted: #c0bda8;
+  --shell-accent: #b8b07a;
+  --shell-accent-soft: rgba(184, 176, 122, 0.2);
+  --shell-highlight: rgba(255, 246, 219, 0.06);
+  --shell-shadow-soft: 0 14px 30px rgba(11, 14, 8, 0.32);
+  --shell-shadow-strong: 0 20px 52px rgba(9, 12, 7, 0.45);
+  --shell-glass: rgba(45, 53, 40, 0.76);
+  --shell-ai-sticky-bg: rgba(167, 178, 121, 0.2);
+  --shell-ai-sticky-border: rgba(196, 190, 149, 0.52);
+  --shell-ai-sticky-glow: rgba(159, 169, 105, 0.26);
+  --shell-gradient: radial-gradient(1200px 520px at 8% -10%, rgba(133, 157, 98, 0.2), transparent 60%), radial-gradient(900px 420px at 100% -20%, rgba(219, 201, 155, 0.14), transparent 56%);
+}
+
+[data-pumi-theme="cloud"] {
+  --shell-bg: #f5f2f7;
+  --shell-surface: #ffffff;
+  --shell-surface-2: #f1ecf6;
+  --shell-border: #d7cfe2;
+  --shell-text: #322b3f;
+  --shell-muted: #6f6684;
+  --shell-accent: #8d78c7;
+  --shell-accent-soft: rgba(141, 120, 199, 0.18);
+  --shell-highlight: rgba(114, 102, 154, 0.08);
+  --shell-shadow-soft: 0 14px 30px rgba(66, 53, 87, 0.18);
+  --shell-shadow-strong: 0 20px 52px rgba(72, 57, 95, 0.24);
+  --shell-glass: rgba(255, 255, 255, 0.8);
+  --shell-ai-sticky-bg: rgba(191, 168, 224, 0.22);
+  --shell-ai-sticky-border: rgba(180, 154, 214, 0.52);
+  --shell-ai-sticky-glow: rgba(255, 205, 186, 0.24);
+  --shell-gradient: radial-gradient(1100px 430px at 8% -10%, rgba(255, 221, 208, 0.45), transparent 55%), radial-gradient(900px 360px at 100% -20%, rgba(206, 211, 255, 0.45), transparent 50%), radial-gradient(650px 300px at 60% -20%, rgba(227, 210, 242, 0.35), transparent 45%);
+}
+
+body {
+  font-family: "Space Grotesk", "Inter", "Segoe UI", sans-serif;
+}
+
+.shell-app-bg {
+  background: var(--shell-gradient), var(--shell-bg);
+  color: var(--shell-text);
+  transition: background 260ms ease, color 220ms ease;
+}
+
+.shell-surface {
+  background: color-mix(in srgb, var(--shell-surface) 92%, transparent);
+  border-color: color-mix(in srgb, var(--shell-border) 78%, transparent);
+  box-shadow: var(--shell-shadow-soft);
+}
+
+.shell-surface-2 {
+  background: color-mix(in srgb, var(--shell-surface-2) 90%, transparent);
+  border-color: color-mix(in srgb, var(--shell-border) 75%, transparent);
+}
+
+.shell-muted {
+  color: var(--shell-muted);
+}
+
+.shell-accent {
+  color: var(--shell-accent);
+}
+
+.shell-accent-bg {
+  background: var(--shell-accent-soft);
+}
+
+.shell-panel {
+  background: var(--shell-glass);
+  border: 1px solid color-mix(in srgb, var(--shell-border) 78%, transparent);
+  box-shadow: var(--shell-shadow-soft);
+  backdrop-filter: blur(10px);
+}
+
+.shell-panel-strong {
+  background: color-mix(in srgb, var(--shell-surface) 92%, transparent);
+  border: 1px solid color-mix(in srgb, var(--shell-border) 80%, transparent);
+  box-shadow: var(--shell-shadow-strong);
+}
+
+.shell-chip {
+  border: 1px solid color-mix(in srgb, var(--shell-border) 75%, transparent);
+  background: color-mix(in srgb, var(--shell-surface-2) 88%, transparent);
+}
+
+.shell-interactive {
+  transition: transform 180ms ease, border-color 180ms ease, background-color 180ms ease, box-shadow 180ms ease;
+}
+
+.shell-interactive:hover {
+  border-color: color-mix(in srgb, var(--shell-accent) 64%, var(--shell-border));
+  background: color-mix(in srgb, var(--shell-surface-2) 86%, var(--shell-highlight));
+}
+
+@keyframes pumi-drop-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--shell-accent) 20%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 10px color-mix(in srgb, var(--shell-accent) 0%, transparent);
+  }
+}
+
+.shell-drop-active {
+  animation: pumi-drop-pulse 1.2s ease-in-out infinite;
+}
+
+.ai-sticky-card {
+  background:
+    radial-gradient(120% 140% at 0% 0%, var(--shell-ai-sticky-glow), transparent 58%),
+    linear-gradient(148deg, var(--shell-ai-sticky-bg), color-mix(in srgb, var(--shell-surface-2) 84%, transparent));
+  border-color: var(--shell-ai-sticky-border);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), var(--shell-shadow-soft);
+}
