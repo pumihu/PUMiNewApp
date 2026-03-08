@@ -15,3 +15,9 @@ export interface WorkspaceCreate {
   description?: string;
   mode?: WorkspaceMode;
 }
+
+export interface WorkspaceUpdate {
+  title?: string;
+  description?: string;
+  mode?: WorkspaceMode;
+}

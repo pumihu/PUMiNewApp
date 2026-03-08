@@ -23,7 +23,7 @@ import type {
   VisualizeRequest,
 } from "@/types/creative";
 import type { MentorChatRequest, MentorChatResponse } from "@/types/mentor";
-import type { Workspace, WorkspaceCreate } from "@/types/workspace";
+import type { Workspace, WorkspaceCreate, WorkspaceUpdate } from "@/types/workspace";
 
 const FORCE_MOCK = import.meta.env.VITE_PUMI_FORCE_MOCK === "1";
 
@@ -125,6 +125,13 @@ export const getWorkspace = (id: string) =>
     "getWorkspace",
     async () => unwrapWorkspace(await pumiInvoke<unknown>(`/workspace/${id}`, {}, "GET")),
     () => mockWorkspaceApi.getWorkspace(id),
+  );
+
+export const updateWorkspace = (id: string, data: WorkspaceUpdate) =>
+  withMockFallback(
+    "updateWorkspace",
+    async () => unwrapWorkspace(await pumiInvoke<unknown>(`/workspace/${id}/update`, data, "POST")),
+    () => mockWorkspaceApi.updateWorkspace(id, data),
   );
 
 // ---- Canvas ----
