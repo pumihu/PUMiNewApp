@@ -12,7 +12,7 @@ export function ImageAssetBlock({ block }: Props) {
 
   const emptyLabel =
     lang === "hu"
-      ? "Valassz vizualis iranyt, es itt jelenik meg az elso kep output."
+      ? "Válassz vizuális irányt, és itt jelenik meg az első kép output."
       : "Pick a visual direction and your first generated image will appear here.";
 
   return (

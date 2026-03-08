@@ -11,9 +11,9 @@ export function SourceBlock({ block }: Props) {
   const { t, lang } = useTranslation();
   const content = block.content_json as SourceBlockContent | undefined;
 
-  const wordsLabel = lang === "hu" ? "szo" : "words";
+  const wordsLabel = lang === "hu" ? "szó" : "words";
   const charsLabel = lang === "hu" ? "karakter" : "chars";
-  const noExcerpt = lang === "hu" ? "Adj forrasreszletet a pontosabb mentor kontextushoz." : "Add source context so mentor responses stay grounded.";
+  const noExcerpt = lang === "hu" ? "Adj forrásrészletet a pontosabb mentor kontextushoz." : "Add source context so mentor responses stay grounded.";
 
   return (
     <div className="space-y-3">

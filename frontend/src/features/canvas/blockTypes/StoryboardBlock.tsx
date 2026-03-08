@@ -14,7 +14,7 @@ export function StoryboardBlock({ block }: Props) {
 
   const emptyText =
     lang === "hu"
-      ? "Adj 3-4 jelenetvazlatot, es a mentor segit finomhangolni a ritmust."
+      ? "Adj 3-4 jelenetvázlatot, és a mentor segít finomhangolni a ritmust."
       : "Drop 3-4 scene beats here and the mentor will help sharpen pacing and flow.";
 
   return (

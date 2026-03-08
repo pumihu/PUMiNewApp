@@ -23,9 +23,9 @@ export function WorkspaceSidebar({ workspaceId }: Props) {
     listWorkspaces().then(setWorkspaces).catch(console.error);
   }, [workspaceId]);
 
-  const createLabel = lang === "hu" ? "Uj workspace" : "New workspace";
-  const myWorkspaces = lang === "hu" ? "Workspace-ek" : "Workspaces";
-  const countLabel = lang === "hu" ? `${workspaces.length} aktiv` : `${workspaces.length} active`;
+  const createLabel = lang === "hu" ? "Új munkatér" : "New workspace";
+  const myWorkspaces = lang === "hu" ? "Munkaterek" : "Workspaces";
+  const countLabel = lang === "hu" ? `${workspaces.length} aktív` : `${workspaces.length} active`;
 
   const handleCreate = async () => {
     if (!title.trim()) return;
@@ -40,7 +40,7 @@ export function WorkspaceSidebar({ workspaceId }: Props) {
   return (
     <aside className="w-[236px] border-r border-[var(--shell-border)] bg-[var(--shell-surface)]/78 backdrop-blur-xl flex flex-col shrink-0">
       <div className="px-3 py-3 border-b border-[var(--shell-border)]/70 space-y-3">
-        <div className="shell-chip rounded-xl px-2.5 py-2">
+        <div className="rounded-xl border border-[var(--shell-border)]/70 bg-[var(--shell-surface-2)]/65 px-2.5 py-2">
           <p className="text-[10px] uppercase tracking-[0.16em] shell-muted">PUMi Studio</p>
           <p className="text-xs mt-1 font-medium">{countLabel}</p>
         </div>
@@ -57,7 +57,7 @@ export function WorkspaceSidebar({ workspaceId }: Props) {
         </div>
 
         {showCreate && (
-          <div className="space-y-2 shell-chip rounded-xl p-2">
+          <div className="space-y-2 rounded-xl border border-[var(--shell-border)]/70 bg-[var(--shell-surface-2)]/65 p-2">
             <input
               value={title}
               onChange={(event) => setTitle(event.target.value)}
@@ -69,7 +69,7 @@ export function WorkspaceSidebar({ workspaceId }: Props) {
                 onClick={handleCreate}
                 className="flex-1 rounded-lg bg-[var(--shell-accent-soft)] px-2 py-1.5 text-xs font-medium shell-interactive"
               >
-                {lang === "hu" ? "Letrehoz" : "Create"}
+                {lang === "hu" ? "Létrehoz" : "Create"}
               </button>
               <button
                 onClick={() => {
@@ -78,7 +78,7 @@ export function WorkspaceSidebar({ workspaceId }: Props) {
                 }}
                 className="rounded-lg border border-[var(--shell-border)] px-2 py-1.5 text-xs shell-muted shell-interactive"
               >
-                {lang === "hu" ? "Megse" : "Cancel"}
+                {lang === "hu" ? "Mégse" : "Cancel"}
               </button>
             </div>
           </div>

@@ -72,8 +72,8 @@ export function CanvasBlockCard({ block, selected, onToggleSelect, onUpdate, onD
     [lang, t],
   );
 
-  const confirmDeleteLabel = lang === "hu" ? "Toroljuk ezt a blokkot?" : "Delete this block?";
-  const selectHint = lang === "hu" ? "Blokk kijelolese mentor kontextushoz" : "Select for mentor context";
+  const confirmDeleteLabel = lang === "hu" ? "Töröljük ezt a blokkot?" : "Delete this block?";
+  const selectHint = lang === "hu" ? "Blokk kijelölése mentor kontextushoz" : "Select for mentor context";
 
   const handleDelete = async () => {
     if (!confirm(confirmDeleteLabel)) return;

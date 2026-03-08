@@ -12,9 +12,9 @@ type StarterTemplate = Omit<CanvasBlockCreate, "workspace_id">;
 function defaultTasks(lang: "en" | "hu"): { id: string; text: string; done: boolean }[] {
   if (lang === "hu") {
     return [
-      { id: crypto.randomUUID(), text: "Rogzitsd a kovetkezo konkret lepest.", done: false },
-      { id: crypto.randomUUID(), text: "Jelold ki, mivel haladsz ma 25 percet.", done: false },
-      { id: crypto.randomUUID(), text: "Kerdezd meg a mentort, mi a legnagyobb kockazat.", done: false },
+      { id: crypto.randomUUID(), text: "Rögzítsd a következő konkrét lépést.", done: false },
+      { id: crypto.randomUUID(), text: "Jelöld ki, mivel haladsz ma 25 percet.", done: false },
+      { id: crypto.randomUUID(), text: "Kérdezd meg a mentort, mi a legnagyobb kockázat.", done: false },
     ];
   }
 
@@ -44,9 +44,9 @@ export function inferWorkspaceTitle(payload: OnboardingPayload, lang: "en" | "hu
     return primary.slice(0, 90);
   }
 
-  if (payload.intent === "build") return lang === "hu" ? "Uj projekt" : "New Project";
-  if (payload.intent === "learn") return lang === "hu" ? "Tanulasi terv" : "Learning Track";
-  return lang === "hu" ? "Kreativ workspace" : "Creative Workspace";
+  if (payload.intent === "build") return lang === "hu" ? "Új projekt" : "New Project";
+  if (payload.intent === "learn") return lang === "hu" ? "Tanulási terv" : "Learning Track";
+  return lang === "hu" ? "Kreatív munkatér" : "Creative Workspace";
 }
 
 export function buildStarterBlocks(payload: OnboardingPayload, lang: "en" | "hu"): StarterTemplate[] {
@@ -61,71 +61,71 @@ export function buildStarterBlocks(payload: OnboardingPayload, lang: "en" | "hu"
     return [
       {
         ...section("note", "ideas"),
-        title: lang === "hu" ? "Tanulasi cel" : "Learning Goal",
+        title: lang === "hu" ? "Tanulási cél" : "Learning Goal",
         content_json: {
           section: "ideas",
           text:
             topic ||
             (lang === "hu"
-              ? "Mit szeretnel biztosan erteni 1-2 heten belul?"
+              ? "Mit szeretnél biztosan érteni 1-2 héten belül?"
               : "What do you want to truly understand in the next 1-2 weeks?"),
         },
         position: 0,
       },
       {
         ...section("note", "ideas"),
-        title: lang === "hu" ? "Miert most" : "Why Now",
+        title: lang === "hu" ? "Miért most" : "Why Now",
         content_json: {
           section: "ideas",
           text:
             goal ||
             (lang === "hu"
-              ? "Milyen donteshez kell ez a tudas?"
+              ? "Milyen döntéshez kell ez a tudás?"
               : "What decision or deadline makes this important now?"),
         },
         position: 1,
       },
       {
         ...section("note", "plan"),
-        title: lang === "hu" ? "Melyseg" : "Depth",
+        title: lang === "hu" ? "Mélység" : "Depth",
         content_json: {
           section: "plan",
           text:
             depth ||
             (lang === "hu"
-              ? "Valassz: gyors attekintes vagy mely gyakorlat."
+              ? "Válassz: gyors áttekintés vagy mély gyakorlat."
               : "Choose: quick overview or deeper practical mastery."),
         },
         position: 2,
       },
       {
         ...section("task_list", "plan"),
-        title: lang === "hu" ? "Tanulasi terv" : "Study Plan",
+        title: lang === "hu" ? "Tanulási terv" : "Study Plan",
         content_json: { section: "plan", tasks: defaultTasks(lang) },
         position: 3,
       },
       {
         ...section("source", "sources"),
-        title: lang === "hu" ? "Forrasok" : "Sources",
+        title: lang === "hu" ? "Források" : "Sources",
         content_json: {
           section: "sources",
-          name: lang === "hu" ? "Elso forras" : "First Source",
+          name: lang === "hu" ? "Első forrás" : "First Source",
           excerpt:
             materials ||
             (lang === "hu"
-              ? "Adj hozza egy cikket, jegyzetet vagy videot, es osszefoglalom neked."
+              ? "Adj hozzá egy cikket, jegyzetet vagy videót, és összefoglalom neked."
               : "Add an article, note, or transcript and I will summarize it for you."),
         },
         position: 4,
       },
       {
         ...section("summary", "output"),
-        title: lang === "hu" ? "Tanulasi output" : "Learning Output",
+        title: lang === "hu" ? "Tanulási output" : "Learning Output",
         content_json: {
           section: "output",
           text:
             lang === "hu"
-              ? "Itt lesz a legfontosabb tanulsag es kovetkezo lepes."
+              ? "Itt lesz a legfontosabb tanulság és következő lépés."
               : "This is where your key takeaways and next step will live.",
           key_points: [],
         },
@@ -142,62 +142,62 @@ export function buildStarterBlocks(payload: OnboardingPayload, lang: "en" | "hu"
     return [
       {
         ...section("creative_brief", "ideas"),
-        title: lang === "hu" ? "Kreativ brief" : "Creative Brief",
+        title: lang === "hu" ? "Kreatív brief" : "Creative Brief",
         content_json: {
           section: "ideas",
           title: inferWorkspaceTitle(payload, lang),
           objective,
           audience: answers.audience || "",
-          tone: mood || (lang === "hu" ? "Friss, fokuszalt" : "Focused, evocative"),
+          tone: mood || (lang === "hu" ? "Friss, fókuszált" : "Focused, evocative"),
           key_messages: [],
         },
         position: 0,
       },
       {
         ...section("idea", "ideas"),
-        title: lang === "hu" ? "Iranyok" : "Directions",
+        title: lang === "hu" ? "Irányok" : "Directions",
         content_json: {
           section: "ideas",
           text:
             lang === "hu"
-              ? "Gyujts 3 eros kreativ iranyt."
+              ? "Gyűjts 3 erős kreatív irányt."
               : "Capture three strong creative directions.",
         },
         position: 1,
       },
       {
         ...section("task_list", "plan"),
-        title: lang === "hu" ? "Produkciorend" : "Production Steps",
+        title: lang === "hu" ? "Produkciós rend" : "Production Steps",
         content_json: { section: "plan", tasks: defaultTasks(lang) },
         position: 2,
       },
       {
         ...section("source", "sources"),
-        title: lang === "hu" ? "Inspiracio" : "Inspiration Sources",
+        title: lang === "hu" ? "Inspiráció" : "Inspiration Sources",
         content_json: {
           section: "sources",
-          name: format || (lang === "hu" ? "Moodboard forras" : "Moodboard Source"),
+          name: format || (lang === "hu" ? "Moodboard forrás" : "Moodboard Source"),
           excerpt:
             lang === "hu"
-              ? "Tegyel be referenciaszoveget vagy koncepcio anyagot."
+              ? "Tegyél be referenciaszöveget vagy koncepció anyagot."
               : "Drop reference material or concept notes here.",
         },
         position: 3,
       },
       {
         ...section("storyboard", "output"),
-        title: lang === "hu" ? "Elso storyboard" : "First Storyboard",
+        title: lang === "hu" ? "Első storyboard" : "First Storyboard",
         content_json: { section: "output", scenes: [] },
         position: 4,
       },
       {
         ...section("summary", "output"),
-        title: lang === "hu" ? "Output osszegzes" : "Output Summary",
+        title: lang === "hu" ? "Output összegzés" : "Output Summary",
         content_json: {
           section: "output",
           text:
             lang === "hu"
-              ? "A mentor itt fogja osszefoglalni az aktualis kreativ iranyt."
+              ? "A mentor itt fogja összefoglalni az aktuális kreatív irányt."
               : "The mentor will summarize your current creative direction here.",
         },
         position: 5,
@@ -208,51 +208,51 @@ export function buildStarterBlocks(payload: OnboardingPayload, lang: "en" | "hu"
   return [
     {
       ...section("note", "ideas"),
-      title: lang === "hu" ? "Projekt cel" : "Project Goal",
+      title: lang === "hu" ? "Projekt cél" : "Project Goal",
       content_json: {
         section: "ideas",
         text:
           goal ||
           answers.project ||
           (lang === "hu"
-            ? "Mi a legfontosabb eredmeny, amit el akarsz erni?"
+            ? "Mi a legfontosabb eredmény, amit el akarsz érni?"
             : "What outcome matters most right now?"),
       },
       position: 0,
     },
     {
       ...section("note", "ideas"),
-      title: lang === "hu" ? "Kinek epul" : "Audience",
+      title: lang === "hu" ? "Kinek épül" : "Audience",
       content_json: { section: "ideas", text: answers.audience || "" },
       position: 1,
     },
     {
       ...section("idea", "ideas"),
-      title: lang === "hu" ? "Otletek" : "Ideas",
+      title: lang === "hu" ? "Ötletek" : "Ideas",
       content_json: {
         section: "ideas",
         text:
           lang === "hu"
-            ? "Ird ide a legerosebb otleteket es hipotiziseket."
+            ? "Írd ide a legerősebb ötleteket és hipotéziseket."
             : "Capture strongest ideas and assumptions here.",
       },
       position: 2,
     },
     {
       ...section("task_list", "plan"),
-      title: lang === "hu" ? "Kovetkezo lepesek" : "Next Steps",
+      title: lang === "hu" ? "Következő lépések" : "Next Steps",
       content_json: { section: "plan", tasks: defaultTasks(lang) },
       position: 3,
     },
     {
       ...section("source", "sources"),
-      title: lang === "hu" ? "Forrasok" : "Sources",
+        title: lang === "hu" ? "Források" : "Sources",
       content_json: {
         section: "sources",
-        name: lang === "hu" ? "Kutatasi forras" : "Research Source",
+        name: lang === "hu" ? "Kutatási forrás" : "Research Source",
         excerpt:
           lang === "hu"
-            ? "Adj hozza forrasanyagot es a mentor strukturalt osszefoglalot keszit."
+            ? "Adj hozzá forrásanyagot és a mentor strukturált összefoglalót készít."
             : "Add source material and the mentor will generate a structured summary.",
       },
       position: 4,
@@ -264,7 +264,7 @@ export function buildStarterBlocks(payload: OnboardingPayload, lang: "en" | "hu"
         section: "output",
         text:
           lang === "hu"
-            ? "Itt fog kialakulni a vegleges output es dontesi osszefoglalo."
+            ? "Itt fog kialakulni a végleges output és döntési összefoglaló."
             : "This is where your final output and decision summary will evolve.",
       },
       position: 5,

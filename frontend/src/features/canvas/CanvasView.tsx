@@ -43,14 +43,14 @@ function defaultContentForType(type: BlockType, section: SectionId, lang: "en" |
   if (type === "note") {
     return {
       section,
-      text: lang === "hu" ? "Rovid, lenyegi jegyzet a kovetkezo lepeshez." : "Capture the sharpest thought that should guide the next step.",
+      text: lang === "hu" ? "Rövid, lényegi jegyzet a következő lépéshez." : "Capture the sharpest thought that should guide the next step.",
     };
   }
 
   if (type === "idea") {
     return {
       section,
-      text: lang === "hu" ? "Milyen iranyokban eri meg tovabbgondolni?" : "Which directions are worth exploring next?",
+      text: lang === "hu" ? "Milyen irányokban éri meg továbbgondolni?" : "Which directions are worth exploring next?",
     };
   }
 
@@ -60,7 +60,7 @@ function defaultContentForType(type: BlockType, section: SectionId, lang: "en" |
       tasks: [
         {
           id: crypto.randomUUID(),
-          text: lang === "hu" ? "Definiald a kovetkezo merfoldkovet." : "Define the next milestone.",
+          text: lang === "hu" ? "Definiáld a következő mérföldkövet." : "Define the next milestone.",
           done: false,
         },
       ],
@@ -70,15 +70,15 @@ function defaultContentForType(type: BlockType, section: SectionId, lang: "en" |
   if (type === "source") {
     return {
       section,
-      name: lang === "hu" ? "Forras" : "Source",
-      excerpt: lang === "hu" ? "Adj hozza szoveges forrast a gyors osszefoglalashoz." : "Add source material for mentor-ready summarization.",
+      name: lang === "hu" ? "Forrás" : "Source",
+      excerpt: lang === "hu" ? "Adj hozzá szöveges forrást a gyors összefoglaláshoz." : "Add source material for mentor-ready summarization.",
     };
   }
 
   if (type === "summary") {
     return {
       section,
-      text: lang === "hu" ? "Itt gyulik majd a lenyegi osszefoglalo." : "This section will hold the distilled summary.",
+      text: lang === "hu" ? "Itt gyűlik majd a lényegi összefoglaló." : "This section will hold the distilled summary.",
       key_points: [],
     };
   }
@@ -86,7 +86,7 @@ function defaultContentForType(type: BlockType, section: SectionId, lang: "en" |
   if (type === "creative_brief") {
     return {
       section,
-      title: lang === "hu" ? "Kreativ brief" : "Creative Brief",
+      title: lang === "hu" ? "Kreatív brief" : "Creative Brief",
       objective: "",
       audience: "",
       tone: "",
@@ -131,26 +131,26 @@ export function CanvasView({
     () => [
       {
         id: "ideas" as SectionId,
-        title: isHu ? "Otletek" : "Ideas",
-        hint: isHu ? "Mit akarsz letisztazni?" : "What should become clearer next?",
+        title: isHu ? "Ötletek" : "Ideas",
+        hint: isHu ? "Mit akarsz letisztázni?" : "What should become clearer next?",
         defaultType: "idea" as BlockType,
       },
       {
         id: "plan" as SectionId,
         title: isHu ? "Terv" : "Plan",
-        hint: isHu ? "Melyik a kovetkezo vegrehajthato lepes?" : "What is the next executable move?",
+        hint: isHu ? "Melyik a következő végrehajtható lépés?" : "What is the next executable move?",
         defaultType: "task_list" as BlockType,
       },
       {
         id: "sources" as SectionId,
-        title: isHu ? "Forrasok" : "Sources",
-        hint: isHu ? "Hozz be anyagot, a mentor strukturalt osszefoglalot ad." : "Bring material in, let the mentor summarize it.",
+        title: isHu ? "Források" : "Sources",
+        hint: isHu ? "Hozz be anyagot, a mentor strukturált összefoglalót ad." : "Bring material in, let the mentor summarize it.",
         defaultType: "source" as BlockType,
       },
       {
         id: "output" as SectionId,
         title: isHu ? "Output" : "Output",
-        hint: isHu ? "Itt formalodik a vegleges eredmeny." : "This is where the final output takes shape.",
+        hint: isHu ? "Itt formálódik a végleges eredmény." : "This is where the final output takes shape.",
         defaultType: "summary" as BlockType,
       },
     ],
@@ -192,9 +192,9 @@ export function CanvasView({
     [t],
   );
 
-  const addLabel = isHu ? "Blokk hozzaadas" : "Add block";
+  const addLabel = isHu ? "Blokk hozzáadása" : "Add block";
   const dropHint = isHu
-    ? "Dobd ide, es AI Insight blokkent mentem a canvasra."
+    ? "Dobd ide, és AI Insight blokként mentem a vászonra."
     : "Drop here to save this as an AI Insight on your canvas.";
 
   const hasMentorPayloadType = (event: DragEvent<HTMLElement>) =>
@@ -336,7 +336,7 @@ export function CanvasView({
             <h2 className="text-lg font-semibold">{workspace.title}</h2>
             <p className="text-sm shell-muted">
               {isHu
-                ? "A mentor itt segit strukturalni, tisztazni es kivitelezni a kovetkezo lepeseket."
+                ? "A mentor itt segít strukturálni, tisztázni és kivitelezni a következő lépéseket."
                 : "Your mentor helps you structure, clarify, and execute the next meaningful step."}
             </p>
           </div>
@@ -348,7 +348,7 @@ export function CanvasView({
               className="inline-flex items-center gap-2 rounded-xl border shell-surface-2 px-3 py-2 text-sm shell-muted hover:text-[var(--shell-text)] shell-interactive"
             >
               <Plus className="h-4 w-4" />
-              {adding ? (isHu ? "Hozzaadas..." : "Adding...") : addLabel}
+              {adding ? (isHu ? "Hozzáadás..." : "Adding...") : addLabel}
             </button>
 
             <button
@@ -398,13 +398,13 @@ export function CanvasView({
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <span className="shell-chip rounded-full px-2 py-1 text-[11px] shell-muted">{sectionBlocks.length}</span>
+                  <span className="text-[11px] shell-muted">{sectionBlocks.length} {isHu ? "blokk" : "blocks"}</span>
                   <button
                     onClick={() => handleAdd(section.defaultType, section.id)}
                     className="inline-flex items-center gap-1.5 rounded-lg border shell-surface-2 px-2.5 py-1.5 text-xs shell-muted hover:text-[var(--shell-text)] shell-interactive"
                   >
                     <Plus className="h-3.5 w-3.5" />
-                    {isHu ? "Uj blokk" : "Add"}
+                    {isHu ? "Új blokk" : "Add"}
                   </button>
                 </div>
               </div>
@@ -412,7 +412,7 @@ export function CanvasView({
               {sectionBlocks.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-[var(--shell-border)]/80 bg-[var(--shell-surface-2)]/70 px-4 py-6 text-xs shell-muted leading-relaxed">
                   {isHu
-                    ? "Ez a szekcio meg ures. Adj hozza blokkot vagy kerd a mentort, hogy javasoljon kovetkezo lepest."
+                    ? "Ez a szekció még üres. Adj hozzá blokkot vagy kérd a mentort, hogy javasoljon következő lépést."
                     : "This section is empty for now. Add a block or ask your mentor to suggest the next move."}
                 </div>
               ) : (

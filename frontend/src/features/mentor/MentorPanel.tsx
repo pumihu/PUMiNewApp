@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Compass, Sparkles } from "lucide-react";
+import { Check, Compass, Sparkles } from "lucide-react";
 
 import { MentorComposer } from "./MentorComposer";
 import { MentorMessageList } from "./MentorMessageList";
@@ -62,21 +62,17 @@ export function MentorPanel({
 
     if (lang === "hu") {
       return {
-        blockLine: `${blockCount} blokk van ebben a workspace-ben.`,
+        blockLine: `${blockCount} blokk van ebben a munkatérben.`,
         selectedLine:
           selectedBlockIds.length > 0
-            ? `${selectedBlockIds.length} blokk van kijelolve mentor munkahoz.`
-            : "Valassz egy blokkot, hogy konkretan azon dolgozzunk.",
+            ? `${selectedBlockIds.length} blokk van kijelölve mentor munkához.`
+            : "Válassz egy blokkot, hogy pontosan azon dolgozzunk.",
         sourceLine:
           sourceCount > 0
-            ? `${sourceCount} forras/osszefoglalo blokk elerheto kontextuskent.`
-            : "Adj hozza forrast, es strukturalt osszefoglalot keszitek.",
-        capabilityLine: "Osszefoglalok, kritizalok, vagy brieffe formalom az anyagodat.",
-        actions: [
-          "Keszits kovetkezo lepes tervet",
-          "Critique-olj egy blokkot",
-          "Foglald ossze 3 pontban",
-        ],
+            ? `${sourceCount} forrás/összefoglaló blokk elérhető kontextusként.`
+            : "Adj hozzá forrást, és strukturált összefoglalót készítek.",
+        capabilityLine: "Összefoglalok, kritizálok, vagy briefbe formálom az anyagodat.",
+        actions: ["Finomítsuk a célt", "Bontsuk feladatokra", "Készítsünk rövid briefet"],
       };
     }
 
@@ -90,8 +86,8 @@ export function MentorPanel({
         sourceCount > 0
           ? `${sourceCount} source/summary block(s) available as context.`
           : "Add a source and I will generate a structured summary.",
-      capabilityLine: "I can summarize, critique, or turn this into a creative brief.",
-      actions: ["Build a next-step plan", "Critique one block", "Summarize in 3 bullets"],
+      capabilityLine: "I can summarize, critique, or turn this into a concise brief.",
+      actions: ["Refine the goal", "Turn this into tasks", "Create a concise brief"],
     };
   }, [blocks, lang, selectedBlockIds.length]);
 
@@ -99,6 +95,70 @@ export function MentorPanel({
     () => blocks.filter((block) => selectedBlockIds.includes(block.id)).slice(0, 3),
     [blocks, selectedBlockIds],
   );
+
+  const tutorial = useMemo(() => {
+    const hasSticky = blocks.some((block) => block.type === "ai_sticky");
+    const hasSourceContext = blocks.some((block) => block.type === "source" || block.type === "summary");
+    const hasBrief = blocks.some((block) => block.type === "creative_brief");
+
+    if (lang === "hu") {
+      return [
+        {
+          id: "select",
+          title: "Válassz ki egy blokkot",
+          prompt: "Segíts kiválasztani, melyik blokkot érdemes most fókuszba tenni.",
+          done: blocks.length > 0 && selectedBlockIds.length > 0,
+        },
+        {
+          id: "pin",
+          title: "Pinelj egy mentor insightot",
+          prompt: "Adj egy rövid insightot, amit érdemes a canvasra pinelni.",
+          done: hasSticky,
+        },
+        {
+          id: "source",
+          title: "Adj hozzá egy forrást",
+          prompt: "Kérdezz vissza, milyen forrást töltsek fel, és készíts összefoglalót.",
+          done: hasSourceContext,
+        },
+        {
+          id: "brief",
+          title: "Készíts rövid briefet",
+          prompt: "Fordítsd a jelenlegi blokkokat rövid, használható briefbe.",
+          done: hasBrief,
+        },
+      ] as const;
+    }
+
+    return [
+      {
+        id: "select",
+        title: "Select one block",
+        prompt: "Help me choose which block to focus on first.",
+        done: blocks.length > 0 && selectedBlockIds.length > 0,
+      },
+      {
+        id: "pin",
+        title: "Pin one mentor insight",
+        prompt: "Give me one compact insight worth pinning to canvas.",
+        done: hasSticky,
+      },
+      {
+        id: "source",
+        title: "Add source material",
+        prompt: "Ask what source material to upload, then summarize it.",
+        done: hasSourceContext,
+      },
+      {
+        id: "brief",
+        title: "Generate a brief",
+        prompt: "Turn the current blocks into a concise working brief.",
+        done: hasBrief,
+      },
+    ] as const;
+  }, [blocks, lang, selectedBlockIds.length]);
+
+  const tutorialDoneCount = tutorial.filter((step) => step.done).length;
 
   const handleSend = async (text: string) => {
     const userMsg: MentorMessage = {
@@ -131,7 +191,7 @@ export function MentorPanel({
     } catch {
       const fallbackText =
         lang === "hu"
-          ? "Nem sikerult kapcsolodni a mentorhoz. Probald ujra."
+          ? "Nem sikerült kapcsolódni a mentorhoz. Próbáld újra."
           : "Sorry, I could not connect to the mentor. Please try again.";
 
       const errMsg: MentorMessage = {
@@ -166,7 +226,7 @@ export function MentorPanel({
           </p>
           <p className="text-[11px] shell-muted">{workspace.title}</p>
         </div>
-        <span className="text-[10px] uppercase tracking-[0.14em] shell-muted shell-chip rounded-full px-2 py-0.5">{workspace.mode}</span>
+        <span className="text-[10px] uppercase tracking-[0.14em] shell-muted">{workspace.mode}</span>
       </div>
 
       <div className="px-4 py-3 border-b border-[var(--shell-border)] space-y-3">
@@ -177,33 +237,60 @@ export function MentorPanel({
           <p className="text-xs shell-muted">{guidance.capabilityLine}</p>
         </div>
 
-        <div className="flex flex-wrap gap-1.5">
+        <div className="space-y-1">
+          <p className="text-[11px] uppercase tracking-[0.12em] shell-muted">
+            {lang === "hu" ? "Kijelölt blokkok" : "Selected blocks"}
+          </p>
           {selectedBlocks.length > 0 ? (
             selectedBlocks.map((block) => (
-              <span
-                key={block.id}
-                className="rounded-full shell-chip px-2.5 py-1 text-[11px] shell-muted"
-              >
-                {block.title || (lang === "hu" ? "Kijelolt blokk" : "Selected block")}
-              </span>
+              <p key={block.id} className="text-xs text-[var(--shell-text)]/88">
+                • {block.title || (lang === "hu" ? "Kijelölt blokk" : "Selected block")}
+              </p>
             ))
           ) : (
-            <span className="rounded-full shell-chip px-2.5 py-1 text-[11px] shell-muted">
-              {lang === "hu" ? "Nincs kijelolt blokk" : "No block selected"}
-            </span>
+            <p className="text-xs shell-muted">{lang === "hu" ? "Nincs kijelölt blokk." : "No block selected yet."}</p>
           )}
         </div>
 
-        <div className="flex flex-wrap gap-1.5">
+        <div className="grid grid-cols-1 gap-1.5">
           {guidance.actions.map((action) => (
             <button
               key={action}
               onClick={() => void handleSend(action)}
-              className="rounded-full border shell-surface-2 px-3 py-1 text-[11px] shell-muted hover:text-[var(--shell-text)] shell-interactive"
+              className="rounded-lg border shell-surface-2 px-3 py-1.5 text-left text-[11px] shell-muted hover:text-[var(--shell-text)] shell-interactive"
             >
               {action}
             </button>
           ))}
+        </div>
+
+        <div className="rounded-xl border border-[var(--shell-border)]/70 bg-[var(--shell-surface-2)]/65 p-3 space-y-2">
+          <div className="flex items-center justify-between">
+            <p className="text-[11px] uppercase tracking-[0.12em] shell-muted">
+              {lang === "hu" ? "Gyors mentor útmutató" : "Guided start"}
+            </p>
+            <p className="text-[11px] shell-muted">{tutorialDoneCount}/{tutorial.length}</p>
+          </div>
+
+          <div className="space-y-1.5">
+            {tutorial.map((step) => (
+              <button
+                key={step.id}
+                disabled={step.done}
+                onClick={() => void handleSend(step.prompt)}
+                className={`w-full rounded-lg border px-2.5 py-2 text-left text-xs shell-interactive ${
+                  step.done
+                    ? "border-[var(--shell-border)]/55 bg-[var(--shell-highlight)] text-[var(--shell-muted)]"
+                    : "border-[var(--shell-border)] bg-transparent text-[var(--shell-text)]"
+                }`}
+              >
+                <span className="inline-flex items-center gap-2">
+                  {step.done ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <span className="h-1.5 w-1.5 rounded-full bg-[var(--shell-accent)]" />}
+                  {step.title}
+                </span>
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 

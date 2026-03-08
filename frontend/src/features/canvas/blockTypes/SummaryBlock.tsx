@@ -13,9 +13,9 @@ export function SummaryBlock({ block }: Props) {
   const keyPoints = Array.isArray(content?.key_points) ? content?.key_points : [];
   const suggested = Array.isArray(content?.suggested_next_actions) ? content?.suggested_next_actions : [];
 
-  const noContent = lang === "hu" ? "Adj forrast vagy kerd a mentort egy rovid osszefoglalora." : "Add source material or ask mentor for a concise summary.";
+  const noContent = lang === "hu" ? "Adj forrást vagy kérd a mentort egy rövid összefoglalóra." : "Add source material or ask mentor for a concise summary.";
   const keyPointsLabel = lang === "hu" ? "Kulcspontok" : "Key points";
-  const nextActionsLabel = lang === "hu" ? "Javasolt kovetkezo lepesek" : "Suggested next actions";
+  const nextActionsLabel = lang === "hu" ? "Javasolt következő lépések" : "Suggested next actions";
 
   return (
     <div className="space-y-3">

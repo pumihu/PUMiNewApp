@@ -2,9 +2,9 @@ import { useShellTheme, type ShellTheme } from "@/context/ShellThemeContext";
 import { useTranslation } from "@/hooks/useTranslation";
 
 const THEMES: { id: ShellTheme; labelEn: string; labelHu: string; swatch: string }[] = [
+  { id: "cloud", labelEn: "Cloud", labelHu: "Felhő", swatch: "linear-gradient(120deg,#f7f0f5,#d8daf7)" },
   { id: "graphite", labelEn: "Graphite", labelHu: "Grafit", swatch: "linear-gradient(120deg,#1a1d29,#2f3450)" },
   { id: "olive", labelEn: "Olive Studio", labelHu: "Olive Studio", swatch: "linear-gradient(120deg,#242a21,#6e7757)" },
-  { id: "cloud", labelEn: "Cloud", labelHu: "Cloud", swatch: "linear-gradient(120deg,#f7f0f5,#d8daf7)" },
 ];
 
 interface Props {
@@ -14,7 +14,7 @@ interface Props {
 export function ThemeSwitcher({ compact = false }: Props) {
   const { theme, setTheme } = useShellTheme();
   const { lang } = useTranslation();
-  const label = lang === "hu" ? "Tema" : "Theme";
+  const label = lang === "hu" ? "Téma" : "Theme";
 
   return (
     <div className="space-y-2">

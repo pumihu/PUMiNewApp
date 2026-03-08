@@ -29,8 +29,8 @@ export function AiStickyBlock({ block, onUpdate }: Props) {
 
   const metaLine = useMemo(() => {
     if (lang === "hu") {
-      if (content.action_type === "drag") return "Mentorbol huzva mentve";
-      if (content.action_type === "pin") return "Mentorbol rogzitve";
+      if (content.action_type === "drag") return "Mentorból húzva mentve";
+      if (content.action_type === "pin") return "Mentorból rögzítve";
       return "Mentor insight";
     }
 
@@ -41,7 +41,7 @@ export function AiStickyBlock({ block, onUpdate }: Props) {
 
   const placeholder =
     lang === "hu"
-      ? "Rogzitett AI insight. Finomitsd sajat munkablokkra."
+      ? "Rögzített AI insight. Finomítsd saját munkablokká."
       : "Captured AI insight. Refine it into your own working block.";
 
   const save = async () => {
@@ -76,7 +76,7 @@ export function AiStickyBlock({ block, onUpdate }: Props) {
         className="w-full min-h-[96px] resize-none bg-transparent text-sm leading-relaxed text-[var(--shell-text)] placeholder-[var(--shell-muted)] outline-none"
       />
 
-      {saving && <p className="text-[11px] shell-muted">{lang === "hu" ? "Mentes..." : "Saving..."}</p>}
+      {saving && <p className="text-[11px] shell-muted">{lang === "hu" ? "Mentés..." : "Saving..."}</p>}
     </div>
   );
 }

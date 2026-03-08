@@ -19,7 +19,7 @@ export function SuggestedActions({ actions, onAction }: Props) {
           <button
             key={`${action.action}-${index}`}
             onClick={() => onAction?.(action.action)}
-            className="text-xs rounded-full shell-chip px-2.5 py-1 shell-muted hover:text-[var(--shell-text)] shell-interactive"
+            className="text-xs rounded-md border border-[var(--shell-border)]/70 bg-[var(--shell-surface-2)]/75 px-2.5 py-1 shell-muted hover:text-[var(--shell-text)] shell-interactive"
           >
             {action.label}
           </button>

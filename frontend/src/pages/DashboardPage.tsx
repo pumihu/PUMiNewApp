@@ -60,7 +60,7 @@ export default function DashboardPage() {
 
   const isHu = lang === "hu";
 
-  const creatingLabel = isHu ? "Letrehozas..." : "Creating...";
+  const creatingLabel = isHu ? "Létrehozás..." : "Creating...";
 
   const handleCreate = async () => {
     if (!newTitle.trim()) return;
@@ -110,10 +110,10 @@ export default function DashboardPage() {
 
       const welcome = isHu
         ? payload.intent === "learn"
-          ? "Elokeszitettem egy indulostrukturat a tanulasi celodhoz. Finomitsuk egyutt."
+          ? "Előkészítettem egy induló struktúrát a tanulási célodhoz. Finomítsuk együtt."
           : payload.intent === "creative"
-            ? "Elokeszitettem egy indulostrukturat a kreativ munkadhoz. Finomitsuk egyutt."
-            : "Elokeszitettem egy indulostrukturat a projektedhez. Finomitsuk egyutt."
+            ? "Előkészítettem egy induló struktúrát a kreatív munkádhoz. Finomítsuk együtt."
+            : "Előkészítettem egy induló struktúrát a projektedhez. Finomítsuk együtt."
         : payload.intent === "learn"
           ? "I set up an initial workspace based on what you want to learn. We can refine it together."
           : payload.intent === "creative"
@@ -122,11 +122,11 @@ export default function DashboardPage() {
 
       const mentorWelcomeActions: SuggestedAction[] = isHu
         ? [
-            { label: "Cel finomitasa", action: "Finomitsuk a celblokkot." },
-            { label: "Otletek bovitese", action: "Bovitsuk az otleteket 5 eros irannyal." },
-            { label: "Feladatlista", action: "Forditsuk ezt vegrehajthato feladatokka." },
-            { label: "Brief keszites", action: "Keszits rovid briefet a jelenlegi blokkok alapjan." },
-            { label: "Forras hozzaadasa", action: "Mutasd meg, milyen forrast erdemes eloszor betolteni." },
+            { label: "Cél finomítása", action: "Finomítsuk a célblokkot." },
+            { label: "Ötletek bővítése", action: "Bővítsük az ötleteket 5 erős iránnyal." },
+            { label: "Feladatlista", action: "Fordítsuk ezt végrehajtható feladatokká." },
+            { label: "Brief készítés", action: "Készíts rövid briefet a jelenlegi blokkok alapján." },
+            { label: "Forrás hozzáadása", action: "Mutasd meg, milyen forrást érdemes először betölteni." },
           ]
         : [
             { label: "Refine the goal", action: "Refine the goal block to be specific and testable." },
@@ -164,7 +164,7 @@ export default function DashboardPage() {
               {isHu ? "AI Mentor Workspace" : "AI Mentor Workspace"}
             </h1>
             <p className="shell-muted text-sm md:text-base">
-              {user?.email ?? (isHu ? "Valassz munkateret vagy indits egy uj iranyt." : "Pick a workspace or start a new guided direction.")}
+              {user?.email ?? (isHu ? "Válassz munkateret vagy indíts egy új irányt." : "Pick a workspace or start a new guided direction.")}
             </p>
           </div>
 
@@ -245,7 +245,7 @@ export default function DashboardPage() {
               </CardHeader>
               <CardContent>
                 <p className="text-xs shell-muted line-clamp-3">
-                  {workspace.description || (isHu ? "Nyisd meg es folytasd ott, ahol abbahagytad." : "Open and continue where you left off.")}
+                  {workspace.description || (isHu ? "Nyisd meg, és folytasd ott, ahol abbahagytad." : "Open and continue where you left off.")}
                 </p>
               </CardContent>
             </Card>

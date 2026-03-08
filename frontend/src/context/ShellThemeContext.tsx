@@ -16,7 +16,7 @@ function resolveInitialTheme(): ShellTheme {
   if (stored === "graphite" || stored === "olive" || stored === "cloud") {
     return stored;
   }
-  return "graphite";
+  return "cloud";
 }
 
 export function ShellThemeProvider({ children }: { children: React.ReactNode }) {

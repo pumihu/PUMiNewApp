@@ -94,21 +94,21 @@ export default function WorkspacePage() {
       );
 
       toast({
-        description: lang === "hu" ? "Mentve a canvasra: AI Insight." : "Saved to canvas: AI Insight.",
+        description: lang === "hu" ? "Mentve a vászonra: AI Insight." : "Saved to canvas: AI Insight.",
       });
     } catch (error) {
       console.error(error);
       toast({
         description:
           lang === "hu"
-            ? "Nem sikerult elmenteni a canvasra."
+            ? "Nem sikerült elmenteni a vászonra."
             : "Could not save this to canvas.",
         variant: "destructive",
       });
     }
   };
 
-  const notFoundLabel = lang === "hu" ? "Munkaterulet nem talalhato." : "Workspace not found.";
+  const notFoundLabel = lang === "hu" ? "A munkatér nem található." : "Workspace not found.";
 
   if (loading) {
     return (

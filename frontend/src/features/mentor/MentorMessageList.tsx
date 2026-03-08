@@ -18,10 +18,10 @@ export function MentorMessageList({ messages, onAction, onPinMessage }: Props) {
 
   const emptyText =
     lang === "hu"
-      ? "Irj egy kerdest, vagy valassz egy blokkot, es a mentor konkret javaslatot ad."
+      ? "Írj egy kérdést, vagy válassz egy blokkot, és a mentor konkrét javaslatot ad."
       : "Ask a question or select a block, and your mentor will give concrete next moves.";
-  const pinLabel = lang === "hu" ? "Pin a canvasra" : "Pin to canvas";
-  const dragHint = lang === "hu" ? "Huzd a canvasra" : "Drag to canvas";
+  const pinLabel = lang === "hu" ? "Pin a vászonra" : "Pin to canvas";
+  const dragHint = lang === "hu" ? "Húzd a vászonra" : "Drag to canvas";
 
   const onDragStart = (event: DragEvent<HTMLDivElement>, message: MentorMessage) => {
     if (message.role !== "assistant" || !message.text.trim()) return;
@@ -62,13 +62,13 @@ export function MentorMessageList({ messages, onAction, onPinMessage }: Props) {
               <div className="mb-2 flex items-center justify-end gap-1.5 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition">
                 <button
                   onClick={() => onPinMessage?.(msg)}
-                  className="inline-flex items-center gap-1 rounded-full shell-chip px-2 py-0.5 text-[11px] shell-muted hover:text-[var(--shell-text)] shell-interactive"
+                  className="inline-flex items-center gap-1 rounded-md border border-[var(--shell-border)]/70 bg-[var(--shell-surface-2)]/75 px-2 py-1 text-[11px] shell-muted hover:text-[var(--shell-text)] shell-interactive"
                 >
                   <Pin className="h-3 w-3" />
                   {pinLabel}
                 </button>
                 <span
-                  className="inline-flex items-center rounded-full shell-chip px-2 py-0.5 text-[11px] shell-muted"
+                  className="inline-flex items-center rounded-md border border-[var(--shell-border)]/70 bg-[var(--shell-surface-2)]/75 px-2 py-1 text-[11px] shell-muted"
                   title={dragHint}
                 >
                   <GripVertical className="h-3 w-3" />

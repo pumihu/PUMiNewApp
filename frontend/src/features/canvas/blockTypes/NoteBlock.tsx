@@ -17,7 +17,7 @@ export function NoteBlock({ block, onUpdate }: Props) {
 
   const placeholder =
     lang === "hu"
-      ? "Ird le a lenyeget: mit kell tisztazni vagy eldonteni?"
+      ? "Írd le a lényeget: mit kell tisztázni vagy eldönteni?"
       : "Capture the key thought: what needs to be clarified or decided?";
 
   const save = async () => {
@@ -41,7 +41,7 @@ export function NoteBlock({ block, onUpdate }: Props) {
         onChange={(event) => setText(event.target.value)}
         onBlur={save}
       />
-      {saving && <p className="text-[11px] shell-muted">{lang === "hu" ? "Mentes..." : "Saving..."}</p>}
+      {saving && <p className="text-[11px] shell-muted">{lang === "hu" ? "Mentés..." : "Saving..."}</p>}
     </div>
   );
 }

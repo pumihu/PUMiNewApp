@@ -14,7 +14,7 @@ export function MentorComposer({ onSend, disabled }: Props) {
 
   const helperText =
     lang === "hu"
-      ? "Shift+Enter uj sorhoz, Enter kuldeshez"
+      ? "Shift+Enter új sorhoz, Enter küldéshez"
       : "Shift+Enter for new line, Enter to send";
 
   const handleSend = () => {

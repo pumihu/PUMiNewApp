@@ -20,38 +20,38 @@ const QUESTION_SETS: Record<OnboardingIntent, Question[]> = {
     {
       id: "project",
       titleEn: "What are you building?",
-      titleHu: "Mit epitesz?",
+      titleHu: "Mit építesz?",
       placeholderEn: "A product, campaign, service...",
-      placeholderHu: "Termek, kampany, szolgaltatas...",
+      placeholderHu: "Termék, kampány, szolgáltatás...",
       suggestionsEn: ["A landing page", "A SaaS MVP", "A client project"],
-      suggestionsHu: ["Landing page", "SaaS MVP", "Ugyfelprojekt"],
+      suggestionsHu: ["Landing page", "SaaS MVP", "Ügyfélprojekt"],
     },
     {
       id: "audience",
       titleEn: "Who is it for?",
-      titleHu: "Kinek szol?",
+      titleHu: "Kinek szól?",
       placeholderEn: "Primary user or customer...",
-      placeholderHu: "Fo felhasznalo vagy ugyfel...",
-      suggestionsEn: ["Early adopters", "B2B teams", "Content creators"],
-      suggestionsHu: ["Korai felhasznalok", "B2B csapatok", "Tartalomkeszitok"],
+      placeholderHu: "Fő felhasználó vagy ügyfél...",
+      suggestionsEn: ["Early adopters", "B2B teams", "Creators"],
+      suggestionsHu: ["Korai felhasználók", "B2B csapatok", "Alkotók"],
     },
     {
       id: "goal",
       titleEn: "What outcome matters most now?",
-      titleHu: "Most mi a legfontosabb eredmeny?",
+      titleHu: "Most mi a legfontosabb eredmény?",
       placeholderEn: "Launch, validation, revenue, clarity...",
-      placeholderHu: "Indulas, validacio, bevetel, tisztazas...",
+      placeholderHu: "Indulás, validáció, bevétel, tisztázás...",
       suggestionsEn: ["Ship first version", "Validate demand", "Align team"],
-      suggestionsHu: ["Elso verzio kiadasa", "Igeny validalasa", "Csapat igazitas"],
+      suggestionsHu: ["Első verzió kiadása", "Igény validálása", "Csapat igazítása"],
     },
     {
       id: "stage",
       titleEn: "What stage are you at?",
-      titleHu: "Milyen fazisban vagy?",
+      titleHu: "Milyen fázisban vagy?",
       placeholderEn: "Idea, planning, execution...",
-      placeholderHu: "Otlet, tervezes, kivitelezes...",
+      placeholderHu: "Ötlet, tervezés, kivitelezés...",
       suggestionsEn: ["Idea", "Planning", "Execution"],
-      suggestionsHu: ["Otlet", "Tervezes", "Kivitelezes"],
+      suggestionsHu: ["Ötlet", "Tervezés", "Kivitelezés"],
       optional: true,
     },
   ],
@@ -59,38 +59,38 @@ const QUESTION_SETS: Record<OnboardingIntent, Question[]> = {
     {
       id: "topic",
       titleEn: "What do you want to understand?",
-      titleHu: "Mit szeretnel megerteni?",
+      titleHu: "Mit szeretnél megérteni?",
       placeholderEn: "Topic, concept, skill...",
-      placeholderHu: "Tema, koncepcio, skill...",
+      placeholderHu: "Téma, koncepció, készség...",
       suggestionsEn: ["Prompting systems", "Brand strategy", "Visual storytelling"],
-      suggestionsHu: ["Prompting rendszerek", "Brand strategia", "Visual storytelling"],
+      suggestionsHu: ["Prompting rendszerek", "Brand stratégia", "Vizuális történetmesélés"],
     },
     {
       id: "why",
       titleEn: "Why does it matter right now?",
-      titleHu: "Miert fontos ez most?",
+      titleHu: "Miért fontos ez most?",
       placeholderEn: "Decision, deadline, project pressure...",
-      placeholderHu: "Dontes, hatarido, projekt helyzet...",
-      suggestionsEn: ["Upcoming launch", "Client delivery", "Career growth"],
-      suggestionsHu: ["Kovetkezo indulas", "Ugyfel delivery", "Karrier lepes"],
+      placeholderHu: "Döntés, határidő, projekt nyomás...",
+      suggestionsEn: ["Upcoming launch", "Client deadline", "Career growth"],
+      suggestionsHu: ["Közelgő indulás", "Ügyfél határidő", "Karrier növekedés"],
     },
     {
       id: "depth",
       titleEn: "How deep do you want to go?",
-      titleHu: "Milyen melysegig menjunk?",
+      titleHu: "Milyen mélységig menjünk?",
       placeholderEn: "Quick overview, practical depth, expert level...",
-      placeholderHu: "Gyors attekintes, gyakorlat, expert szint...",
+      placeholderHu: "Gyors áttekintés, gyakorlati mélység, expert szint...",
       suggestionsEn: ["Quick overview", "Practical depth", "Deep dive"],
-      suggestionsHu: ["Gyors attekintes", "Gyakorlati melyseg", "Melymerules"],
+      suggestionsHu: ["Gyors áttekintés", "Gyakorlati mélység", "Mélymerülés"],
     },
     {
       id: "materials",
       titleEn: "Do you already have materials?",
-      titleHu: "Van mar forrasanyagod?",
+      titleHu: "Van már forrásanyagod?",
       placeholderEn: "Articles, notes, links, docs...",
-      placeholderHu: "Cikk, jegyzet, link, doksi...",
+      placeholderHu: "Cikk, jegyzet, link, dokumentum...",
       suggestionsEn: ["Yes, notes ready", "Some links", "Not yet"],
-      suggestionsHu: ["Igen, vannak jegyzetek", "Van nehany link", "Meg nincs"],
+      suggestionsHu: ["Igen, vannak jegyzetek", "Van néhány link", "Még nincs"],
       optional: true,
     },
   ],
@@ -100,36 +100,36 @@ const QUESTION_SETS: Record<OnboardingIntent, Question[]> = {
       titleEn: "What are you creating?",
       titleHu: "Mit alkotsz?",
       placeholderEn: "Campaign, script, brand concept...",
-      placeholderHu: "Kampany, script, brand koncepcio...",
+      placeholderHu: "Kampány, script, brand koncepció...",
       suggestionsEn: ["Ad campaign", "Brand direction", "Story concept"],
-      suggestionsHu: ["Kampany", "Brand irany", "Story koncepcio"],
+      suggestionsHu: ["Kampány", "Brand irány", "Story koncepció"],
     },
     {
       id: "audience",
       titleEn: "Who is it for?",
-      titleHu: "Kinek szol?",
+      titleHu: "Kinek szól?",
       placeholderEn: "Audience, buyer, community...",
-      placeholderHu: "Kozonseg, vasarlo, kozosseg...",
-      suggestionsEn: ["Young founders", "Premium audience", "Social-native users"],
-      suggestionsHu: ["Fiatal alapitok", "Premium kozonseg", "Social-native userek"],
+      placeholderHu: "Közönség, vásárló, közösség...",
+      suggestionsEn: ["Young founders", "Premium audience", "Social-first users"],
+      suggestionsHu: ["Fiatal alapítók", "Prémium közönség", "Social-first userek"],
     },
     {
       id: "format",
       titleEn: "What platform or format is this for?",
-      titleHu: "Melyik platformra vagy formatumra keszul?",
+      titleHu: "Melyik platformra vagy formátumra készül?",
       placeholderEn: "Instagram reel, campaign, landing page, deck...",
-      placeholderHu: "Instagram reel, kampany, landing page, deck...",
+      placeholderHu: "Instagram reel, kampány, landing page, deck...",
       suggestionsEn: ["Social short-form", "Campaign concept", "Landing page"],
-      suggestionsHu: ["Social rovid format", "Kampany koncepcio", "Landing page"],
+      suggestionsHu: ["Social rövid formátum", "Kampány koncepció", "Landing page"],
     },
     {
       id: "mood",
       titleEn: "What mood or style do you want?",
-      titleHu: "Milyen hangulatot vagy stilust szeretnel?",
+      titleHu: "Milyen hangulatot vagy stílust szeretnél?",
       placeholderEn: "Bold, cinematic, premium, playful...",
-      placeholderHu: "Bator, cinematikus, premium, jatekos...",
+      placeholderHu: "Bátor, cinematikus, prémium, játékos...",
       suggestionsEn: ["Bold and premium", "Cinematic", "Warm minimal"],
-      suggestionsHu: ["Bator es premium", "Cinematikus", "Meleg minimal"],
+      suggestionsHu: ["Bátor és prémium", "Cinematikus", "Meleg minimal"],
       optional: true,
     },
   ],
@@ -152,29 +152,29 @@ export function IntentOnboarding({ busy = false, onComplete }: Props) {
   const activeQuestion = questions[index];
 
   const title = isHu
-    ? "Mit szeretnel ma tovabbmozditani?"
+    ? "Mit szeretnél ma előre mozdítani?"
     : "What would you like to move forward today?";
 
   const subtitle = isHu
-    ? "Indulj egy irannyal. A mentor korad rendezi a workspace-t."
+    ? "Kezdj egy iránnyal. A mentor köréd rendezi a munkateret."
     : "Start with a direction. I'll help shape the workspace around it.";
 
   const choices = useMemo(
     () => [
       {
         id: "build" as const,
-        label: isHu ? "Projekt epites" : "Build a project",
-        description: isHu ? "Struktura + kovetkezo lepesek" : "Structure + practical next steps",
+        label: isHu ? "Projekt építése" : "Build a project",
+        description: isHu ? "Struktúra + következő lépések" : "Structure + practical next steps",
       },
       {
         id: "learn" as const,
-        label: isHu ? "Tanulas" : "Learn something",
-        description: isHu ? "Tisztabb kerdesek + terv" : "Clear questions + a guided plan",
+        label: isHu ? "Tanulás" : "Learn something",
+        description: isHu ? "Tisztább kérdések + terv" : "Clear questions + a guided plan",
       },
       {
         id: "creative" as const,
-        label: isHu ? "Kreativ alkotas" : "Create something",
-        description: isHu ? "Brief + output irany" : "Brief + output direction",
+        label: isHu ? "Kreatív alkotás" : "Create something",
+        description: isHu ? "Brief + output irány" : "Brief + output direction",
       },
     ],
     [isHu],
@@ -235,7 +235,7 @@ export function IntentOnboarding({ busy = false, onComplete }: Props) {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-[11px] uppercase tracking-[0.2em] shell-muted">
-                  {isHu ? "Gyors beallitas" : "Quick setup"}
+                  {isHu ? "Gyors beállítás" : "Quick setup"}
                 </p>
                 <h2 className="text-2xl font-semibold mt-1">
                   {isHu ? activeQuestion.titleHu : activeQuestion.titleEn}
@@ -283,7 +283,7 @@ export function IntentOnboarding({ busy = false, onComplete }: Props) {
                 disabled={busy}
                 className="text-xs shell-muted hover:text-[var(--shell-text)] disabled:opacity-50"
               >
-                {isHu ? "Kihagyas" : "Skip"}
+                {isHu ? "Kihagyás" : "Skip"}
               </button>
 
               <div className="flex gap-2">
@@ -303,7 +303,7 @@ export function IntentOnboarding({ busy = false, onComplete }: Props) {
                     disabled={busy || !canContinue}
                     className="rounded-xl px-4 py-2 text-sm font-medium bg-[var(--shell-accent-soft)] text-[var(--shell-text)] disabled:opacity-50 inline-flex items-center gap-2"
                   >
-                    {isHu ? "Tovabb" : "Next"}
+                    {isHu ? "Tovább" : "Next"}
                     <ArrowRight className="h-4 w-4" />
                   </button>
                 ) : (
@@ -313,7 +313,7 @@ export function IntentOnboarding({ busy = false, onComplete }: Props) {
                     className="rounded-xl px-4 py-2 text-sm font-medium bg-[var(--shell-accent-soft)] text-[var(--shell-text)] disabled:opacity-50 inline-flex items-center gap-2"
                   >
                     <Sparkles className="h-4 w-4" />
-                    {busy ? (isHu ? "Epul..." : "Building...") : isHu ? "Workspace inditasa" : "Start workspace"}
+                    {busy ? (isHu ? "Épül..." : "Building...") : isHu ? "Munkatér indítása" : "Start workspace"}
                   </button>
                 )}
               </div>
