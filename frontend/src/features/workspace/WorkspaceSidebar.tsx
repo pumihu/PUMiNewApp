@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Layers, Plus } from "lucide-react";
+import { Layers, PanelLeftClose, PanelLeftOpen, Plus } from "lucide-react";
 
 import { ThemeSwitcher } from "@/features/workspace/ThemeSwitcher";
 import { useTranslation } from "@/hooks/useTranslation";
@@ -9,9 +9,11 @@ import type { Workspace } from "@/types/workspace";
 
 interface Props {
   workspaceId: string;
+  collapsed: boolean;
+  onToggleCollapsed: () => void;
 }
 
-export function WorkspaceSidebar({ workspaceId }: Props) {
+export function WorkspaceSidebar({ workspaceId, collapsed, onToggleCollapsed }: Props) {
   const navigate = useNavigate();
   const { lang } = useTranslation();
 
@@ -23,9 +25,9 @@ export function WorkspaceSidebar({ workspaceId }: Props) {
     listWorkspaces().then(setWorkspaces).catch(console.error);
   }, [workspaceId]);
 
-  const createLabel = lang === "hu" ? "Új munkatér" : "New workspace";
+  const createLabel = lang === "hu" ? "Uj munkater" : "New workspace";
   const myWorkspaces = lang === "hu" ? "Munkaterek" : "Workspaces";
-  const countLabel = lang === "hu" ? `${workspaces.length} aktív` : `${workspaces.length} active`;
+  const countLabel = lang === "hu" ? `${workspaces.length} aktiv` : `${workspaces.length} active`;
 
   const handleCreate = async () => {
     if (!title.trim()) return;
@@ -38,15 +40,38 @@ export function WorkspaceSidebar({ workspaceId }: Props) {
   };
 
   return (
-    <aside className="w-[236px] border-r border-[var(--shell-border)] bg-[var(--shell-surface)]/78 backdrop-blur-xl flex flex-col shrink-0">
+    <aside
+      className={`border-r border-[var(--shell-border)] bg-[var(--shell-surface)]/78 backdrop-blur-xl flex flex-col shrink-0 transition-[width] duration-200 ${
+        collapsed ? "w-[78px]" : "w-[236px]"
+      }`}
+    >
       <div className="px-3 py-3 border-b border-[var(--shell-border)]/70 space-y-3">
-        <div className="rounded-xl border border-[var(--shell-border)]/70 bg-[var(--shell-surface-2)]/65 px-2.5 py-2">
-          <p className="text-[10px] uppercase tracking-[0.16em] shell-muted">PUMi Studio</p>
-          <p className="text-xs mt-1 font-medium">{countLabel}</p>
+        <div className="flex items-center justify-between gap-2">
+          {!collapsed && (
+            <div className="rounded-xl border border-[var(--shell-border)]/70 bg-[var(--shell-surface-2)]/65 px-2.5 py-2 min-w-0 flex-1">
+              <p className="text-[10px] uppercase tracking-[0.16em] shell-muted">PUMi Studio</p>
+              <p className="text-xs mt-1 font-medium truncate">{countLabel}</p>
+            </div>
+          )}
+          <button
+            onClick={onToggleCollapsed}
+            className="h-8 w-8 rounded-lg border border-[var(--shell-border)] flex items-center justify-center shell-muted hover:text-[var(--shell-text)] shell-interactive shrink-0"
+            title={
+              collapsed
+                ? lang === "hu"
+                  ? "Oldalsav nyitasa"
+                  : "Expand sidebar"
+                : lang === "hu"
+                  ? "Oldalsav csukasa"
+                  : "Collapse sidebar"
+            }
+          >
+            {collapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+          </button>
         </div>
 
-        <div className="flex items-center justify-between">
-          <p className="text-[11px] uppercase tracking-[0.18em] shell-muted">{myWorkspaces}</p>
+        <div className={`flex items-center ${collapsed ? "justify-center" : "justify-between"}`}>
+          {!collapsed && <p className="text-[11px] uppercase tracking-[0.18em] shell-muted">{myWorkspaces}</p>}
           <button
             onClick={() => setShowCreate((prev) => !prev)}
             className="h-7 w-7 rounded-lg border border-[var(--shell-border)] flex items-center justify-center shell-muted hover:text-[var(--shell-text)] shell-interactive"
@@ -56,7 +81,7 @@ export function WorkspaceSidebar({ workspaceId }: Props) {
           </button>
         </div>
 
-        {showCreate && (
+        {showCreate && !collapsed && (
           <div className="space-y-2 rounded-xl border border-[var(--shell-border)]/70 bg-[var(--shell-surface-2)]/65 p-2">
             <input
               value={title}
@@ -69,7 +94,7 @@ export function WorkspaceSidebar({ workspaceId }: Props) {
                 onClick={handleCreate}
                 className="flex-1 rounded-lg bg-[var(--shell-accent-soft)] px-2 py-1.5 text-xs font-medium shell-interactive"
               >
-                {lang === "hu" ? "Létrehoz" : "Create"}
+                {lang === "hu" ? "Letrehoz" : "Create"}
               </button>
               <button
                 onClick={() => {
@@ -78,7 +103,7 @@ export function WorkspaceSidebar({ workspaceId }: Props) {
                 }}
                 className="rounded-lg border border-[var(--shell-border)] px-2 py-1.5 text-xs shell-muted shell-interactive"
               >
-                {lang === "hu" ? "Mégse" : "Cancel"}
+                {lang === "hu" ? "Megse" : "Cancel"}
               </button>
             </div>
           </div>
@@ -90,20 +115,27 @@ export function WorkspaceSidebar({ workspaceId }: Props) {
           <button
             key={workspace.id}
             onClick={() => navigate(`/workspace/${workspace.id}`)}
-            className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-xl text-sm text-left shell-interactive ${
+            title={workspace.title}
+            className={`w-full flex items-center ${collapsed ? "justify-center" : "gap-2"} px-2.5 py-2 rounded-xl text-sm text-left shell-interactive ${
               workspace.id === workspaceId
                 ? "bg-[var(--shell-accent-soft)] text-[var(--shell-text)] border border-[var(--shell-accent)]/35"
                 : "shell-muted hover:text-[var(--shell-text)] hover:bg-[var(--shell-surface-2)]"
             }`}
           >
-            <span className={`h-1.5 w-1.5 rounded-full ${workspace.id === workspaceId ? "bg-[var(--shell-accent)]" : "bg-[var(--shell-border)]"}`} />
+            {!collapsed && (
+              <span
+                className={`h-1.5 w-1.5 rounded-full ${
+                  workspace.id === workspaceId ? "bg-[var(--shell-accent)]" : "bg-[var(--shell-border)]"
+                }`}
+              />
+            )}
             <Layers className="h-3.5 w-3.5 shrink-0" />
-            <span className="truncate">{workspace.title}</span>
+            {!collapsed && <span className="truncate">{workspace.title}</span>}
           </button>
         ))}
       </nav>
 
-      <div className="px-3 py-3 border-t border-[var(--shell-border)]/70">
+      <div className={`px-3 py-3 border-t border-[var(--shell-border)]/70 ${collapsed ? "flex justify-center" : ""}`}>
         <ThemeSwitcher compact />
       </div>
     </aside>

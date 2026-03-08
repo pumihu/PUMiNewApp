@@ -92,8 +92,19 @@ def patch_block(block_id: str, data: CanvasBlockPatch, user_id: str) -> Optional
         params.append(data.title)
 
     if data.content_json is not None:
+        merged_content = data.content_json
+        existing_content = existing.get("content_json")
+        if isinstance(existing_content, str):
+            try:
+                existing_content = json.loads(existing_content)
+            except Exception:
+                existing_content = {}
+
+        if isinstance(existing_content, dict) and isinstance(data.content_json, dict):
+            merged_content = {**existing_content, **data.content_json}
+
         sets.append("content_json = %s::jsonb")
-        params.append(json.dumps(data.content_json))
+        params.append(json.dumps(merged_content))
 
     if data.position is not None:
         sets.append("position = %s")
