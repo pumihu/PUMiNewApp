@@ -23,6 +23,80 @@ interface Props {
   onCaptureMentorMessage?: (payload: MentorCanvasCapturePayload) => Promise<void> | void;
 }
 
+const MENTOR_SESSION_STORAGE_PREFIX = "pumi_mentor_session_v2";
+const MENTOR_SESSION_MAX_MESSAGES = 180;
+
+function mentorSessionStorageKey(workspaceId: string): string {
+  return `${MENTOR_SESSION_STORAGE_PREFIX}:${workspaceId}`;
+}
+
+function normalizeMentorMessage(raw: unknown): MentorMessage | null {
+  if (!raw || typeof raw !== "object") return null;
+
+  const candidate = raw as Partial<MentorMessage>;
+  if (candidate.role !== "user" && candidate.role !== "assistant") return null;
+  if (typeof candidate.id !== "string" || !candidate.id) return null;
+  if (typeof candidate.text !== "string") return null;
+
+  const timestamp =
+    typeof candidate.timestamp === "number" && Number.isFinite(candidate.timestamp)
+      ? candidate.timestamp
+      : Date.now();
+
+  const suggested_actions = Array.isArray(candidate.suggested_actions)
+    ? candidate.suggested_actions.filter(
+        (item): item is SuggestedAction =>
+          !!item &&
+          typeof item === "object" &&
+          typeof (item as SuggestedAction).label === "string" &&
+          typeof (item as SuggestedAction).action === "string",
+      )
+    : undefined;
+
+  const generated_blocks = Array.isArray(candidate.generated_blocks)
+    ? candidate.generated_blocks.filter(
+        (item): item is MentorGeneratedBlock =>
+          !!item &&
+          typeof item === "object" &&
+          typeof (item as MentorGeneratedBlock).block_type === "string",
+      )
+    : undefined;
+
+  return {
+    id: candidate.id,
+    role: candidate.role,
+    text: candidate.text,
+    timestamp,
+    suggested_actions,
+    generated_blocks,
+  };
+}
+
+function loadMentorSession(workspaceId: string): MentorMessage[] {
+  try {
+    const raw = localStorage.getItem(mentorSessionStorageKey(workspaceId));
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+
+    const normalized = parsed
+      .map(normalizeMentorMessage)
+      .filter((item): item is MentorMessage => item !== null);
+
+    const byId = new Map<string, MentorMessage>();
+    for (const message of normalized) {
+      byId.set(message.id, message);
+    }
+
+    return [...byId.values()]
+      .sort((left, right) => left.timestamp - right.timestamp)
+      .slice(-MENTOR_SESSION_MAX_MESSAGES);
+  } catch (error) {
+    console.warn("[mentor] failed to load persisted session", error);
+    return [];
+  }
+}
+
 function includesAny(input: string, terms: string[]): boolean {
   return terms.some((term) => input.includes(term));
 }
@@ -316,13 +390,31 @@ export function MentorPanel({
 
   const [messages, setMessages] = useState<MentorMessage[]>([]);
   const [thinking, setThinking] = useState(false);
+  const [sessionHydrated, setSessionHydrated] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const storageKey = useMemo(() => mentorSessionStorageKey(workspace.id), [workspace.id]);
 
   useEffect(() => {
-    setMessages([]);
+    setSessionHydrated(false);
+    const restored = loadMentorSession(workspace.id);
+    setMessages(restored);
+    setSessionHydrated(true);
   }, [workspace.id]);
 
   useEffect(() => {
+    if (!sessionHydrated) return;
+    try {
+      localStorage.setItem(
+        storageKey,
+        JSON.stringify(messages.slice(-MENTOR_SESSION_MAX_MESSAGES)),
+      );
+    } catch (error) {
+      console.warn("[mentor] failed to persist session", error);
+    }
+  }, [messages, sessionHydrated, storageKey]);
+
+  useEffect(() => {
+    if (!sessionHydrated) return;
     if (!initialWelcomeMessage) return;
     setMessages((prev) => {
       if (prev.length > 0) return prev;
@@ -336,7 +428,7 @@ export function MentorPanel({
         },
       ];
     });
-  }, [initialWelcomeActions, initialWelcomeMessage]);
+  }, [initialWelcomeActions, initialWelcomeMessage, sessionHydrated]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -377,8 +469,8 @@ export function MentorPanel({
         selectedLine:
           selectedBlockIds.length > 0
             ? `${selectedBlockIds.length} blokk van kijelölve mentor munkához.`
-            : "Válassz blokkot a kontextus alapú muveletekhez.",
-      sourceLine:
+            : "Válassz blokkot a kontextus alapú műveletekhez.",
+        sourceLine:
           sourceCount > 0
             ? `${sourceCount} forrás/összefoglaló blokk elérhető kontextusként.`
             : "Adj hozzá forrást, és objektumot készítek belőle.",

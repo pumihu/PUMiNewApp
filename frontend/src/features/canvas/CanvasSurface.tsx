@@ -541,6 +541,411 @@ function defaultInsertedTitle(type: BlockType, isHu: boolean): string | undefine
   return (isHu ? hu[type] : en[type]) ?? undefined;
 }
 
+type InspectorFieldConfig = {
+  key: string;
+  labelEn: string;
+  labelHu: string;
+  placeholderEn: string;
+  placeholderHu: string;
+  multiline?: boolean;
+  rows?: number;
+};
+
+interface BlockEditorDraft {
+  blockId: string;
+  blockType: BlockType;
+  title: string;
+  fields: Record<string, string>;
+  dirty: boolean;
+}
+
+const EDITABLE_BLOCK_TYPES = new Set<BlockType>([
+  "note",
+  "ai_sticky",
+  "image_asset",
+  "image",
+  "source",
+  "lesson",
+  "quiz",
+  "brief",
+  "storyboard",
+  "image_generation",
+]);
+
+function toTextLines(value: unknown): string {
+  if (!Array.isArray(value)) return "";
+  return value
+    .map((item) => {
+      if (typeof item === "string") return item.trim();
+      if (item && typeof item === "object") {
+        const candidate =
+          (item as { question?: unknown }).question ??
+          (item as { scene_title?: unknown }).scene_title ??
+          (item as { title?: unknown }).title ??
+          (item as { text?: unknown }).text ??
+          (item as { front?: unknown }).front;
+        return typeof candidate === "string" ? candidate.trim() : "";
+      }
+      return "";
+    })
+    .filter(Boolean)
+    .join("\n");
+}
+
+function splitLines(value: string): string[] {
+  return value
+    .split(/\r?\n/g)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function toText(value: unknown): string {
+  return typeof value === "string" ? value : "";
+}
+
+function isEditableBlockType(type: BlockType): boolean {
+  return EDITABLE_BLOCK_TYPES.has(type);
+}
+
+function createEditorDraft(block: CanvasBlock): BlockEditorDraft {
+  const content = (block.content_json ?? {}) as Record<string, unknown>;
+  const title = toText(block.title) || toText(content.title);
+
+  const fields: Record<string, string> = {};
+
+  if (block.type === "note" || block.type === "ai_sticky") {
+    fields.text = toText(content.text);
+  } else if (block.type === "image_asset" || block.type === "image") {
+    fields.url = toText(content.url) || toText(content.image_url);
+    fields.caption = toText(content.caption) || toText(content.text);
+    fields.reference = toText(content.reference_input);
+  } else if (block.type === "source") {
+    fields.name = toText(content.name) || toText(content.source_name);
+    fields.excerpt = toText(content.excerpt) || toText(content.text);
+    fields.source_url = toText(content.source_url) || toText(content.url);
+  } else if (block.type === "lesson") {
+    fields.explanation = toText(content.explanation) || toText(content.text);
+    fields.key_points = toTextLines(content.key_points);
+  } else if (block.type === "quiz") {
+    fields.intro = toText(content.text);
+    fields.questions = toTextLines(content.questions);
+  } else if (block.type === "brief") {
+    fields.objective = toText(content.objective) || toText(content.text);
+    fields.audience = toText(content.audience);
+    fields.tone = toText(content.tone);
+    fields.output = toText(content.output);
+  } else if (block.type === "storyboard") {
+    fields.summary = toText(content.text);
+    fields.scenes = toTextLines(content.scenes);
+  } else if (block.type === "image_generation") {
+    fields.prompt = toText(content.prompt) || toText(content.text);
+    fields.model = toText(content.model);
+    fields.reference_input = toText(content.reference_input);
+  }
+
+  return {
+    blockId: block.id,
+    blockType: block.type,
+    title,
+    fields,
+    dirty: false,
+  };
+}
+
+function inspectorFieldsForType(type: BlockType): InspectorFieldConfig[] {
+  if (type === "note" || type === "ai_sticky") {
+    return [
+      {
+        key: "text",
+        labelEn: "Text",
+        labelHu: "Szöveg",
+        placeholderEn: "Write the note content...",
+        placeholderHu: "Írd le a blokk tartalmát...",
+        multiline: true,
+        rows: 5,
+      },
+    ];
+  }
+
+  if (type === "image_asset" || type === "image") {
+    return [
+      {
+        key: "url",
+        labelEn: "Image URL",
+        labelHu: "Kép URL",
+        placeholderEn: "https://...",
+        placeholderHu: "https://...",
+      },
+      {
+        key: "caption",
+        labelEn: "Caption",
+        labelHu: "Felirat",
+        placeholderEn: "Context for this asset",
+        placeholderHu: "Kontexus ehhez a képi elemhez",
+        multiline: true,
+        rows: 3,
+      },
+      {
+        key: "reference",
+        labelEn: "Reference",
+        labelHu: "Referencia",
+        placeholderEn: "Optional reference link or note",
+        placeholderHu: "Opcionális referencia link vagy megjegyzés",
+      },
+    ];
+  }
+
+  if (type === "source") {
+    return [
+      {
+        key: "name",
+        labelEn: "Source title",
+        labelHu: "Forrás címe",
+        placeholderEn: "Name of the source",
+        placeholderHu: "A forrás neve",
+      },
+      {
+        key: "source_url",
+        labelEn: "Source URL",
+        labelHu: "Forrás URL",
+        placeholderEn: "https://...",
+        placeholderHu: "https://...",
+      },
+      {
+        key: "excerpt",
+        labelEn: "Source content",
+        labelHu: "Forrás tartalom",
+        placeholderEn: "Paste key source text...",
+        placeholderHu: "Illeszd be a kulcs forrásrészt...",
+        multiline: true,
+        rows: 6,
+      },
+    ];
+  }
+
+  if (type === "lesson") {
+    return [
+      {
+        key: "explanation",
+        labelEn: "Explanation",
+        labelHu: "Magyarázat",
+        placeholderEn: "Core explanation...",
+        placeholderHu: "Alapmagyarázat...",
+        multiline: true,
+        rows: 5,
+      },
+      {
+        key: "key_points",
+        labelEn: "Key points (one per line)",
+        labelHu: "Kulcspontok (soronként egy)",
+        placeholderEn: "Point 1\nPoint 2",
+        placeholderHu: "1. pont\n2. pont",
+        multiline: true,
+        rows: 5,
+      },
+    ];
+  }
+
+  if (type === "quiz") {
+    return [
+      {
+        key: "intro",
+        labelEn: "Quiz context",
+        labelHu: "Kvíz kontextus",
+        placeholderEn: "What is this quiz about?",
+        placeholderHu: "Miről szól ez a kvíz?",
+        multiline: true,
+        rows: 3,
+      },
+      {
+        key: "questions",
+        labelEn: "Questions (one per line)",
+        labelHu: "Kérdések (soronként egy)",
+        placeholderEn: "Question 1\nQuestion 2",
+        placeholderHu: "1. kérdés\n2. kérdés",
+        multiline: true,
+        rows: 6,
+      },
+    ];
+  }
+
+  if (type === "brief") {
+    return [
+      {
+        key: "objective",
+        labelEn: "Objective",
+        labelHu: "Cél",
+        placeholderEn: "What should this achieve?",
+        placeholderHu: "Mit kell elérni?",
+        multiline: true,
+        rows: 3,
+      },
+      {
+        key: "audience",
+        labelEn: "Audience",
+        labelHu: "Közönség",
+        placeholderEn: "Primary audience",
+        placeholderHu: "Elsődleges célcsoport",
+      },
+      {
+        key: "tone",
+        labelEn: "Tone",
+        labelHu: "Hangnem",
+        placeholderEn: "Tone and style",
+        placeholderHu: "Hangnem és stílus",
+      },
+      {
+        key: "output",
+        labelEn: "Output",
+        labelHu: "Kimenet",
+        placeholderEn: "Desired output format",
+        placeholderHu: "Elvárt kimeneti formátum",
+      },
+    ];
+  }
+
+  if (type === "storyboard") {
+    return [
+      {
+        key: "summary",
+        labelEn: "Summary",
+        labelHu: "Összegzés",
+        placeholderEn: "Narrative summary...",
+        placeholderHu: "Narratív összegzés...",
+        multiline: true,
+        rows: 3,
+      },
+      {
+        key: "scenes",
+        labelEn: "Scenes (one per line)",
+        labelHu: "Jelenetek (soronként egy)",
+        placeholderEn: "Opening shot\nConflict\nResolution",
+        placeholderHu: "Nyitó jelenet\nKonfliktus\nFeloldás",
+        multiline: true,
+        rows: 6,
+      },
+    ];
+  }
+
+  if (type === "image_generation") {
+    return [
+      {
+        key: "prompt",
+        labelEn: "Prompt",
+        labelHu: "Prompt",
+        placeholderEn: "Describe the desired visual output...",
+        placeholderHu: "Írd le a kívánt vizuális kimenetet...",
+        multiline: true,
+        rows: 4,
+      },
+      {
+        key: "model",
+        labelEn: "Model",
+        labelHu: "Modell",
+        placeholderEn: "Model identifier (optional)",
+        placeholderHu: "Modell azonosító (opcionális)",
+      },
+      {
+        key: "reference_input",
+        labelEn: "Reference input",
+        labelHu: "Referencia input",
+        placeholderEn: "Optional references, URLs, visual cues",
+        placeholderHu: "Opcionális referenciák, URL-ek, vizuális jelek",
+        multiline: true,
+        rows: 3,
+      },
+    ];
+  }
+
+  return [];
+}
+
+function buildContentFromDraft(
+  block: CanvasBlock,
+  draft: BlockEditorDraft,
+): Record<string, unknown> {
+  const content = { ...((block.content_json ?? {}) as Record<string, unknown>) };
+  const fields = draft.fields;
+
+  if (block.type === "note" || block.type === "ai_sticky") {
+    content.text = fields.text ?? "";
+    return content;
+  }
+
+  if (block.type === "image_asset" || block.type === "image") {
+    content.url = fields.url ?? "";
+    content.image_url = fields.url ?? "";
+    content.caption = fields.caption ?? "";
+    content.text = fields.caption ?? "";
+    content.reference_input = fields.reference ?? "";
+    return content;
+  }
+
+  if (block.type === "source") {
+    content.name = fields.name ?? "";
+    content.source_name = fields.name ?? "";
+    content.excerpt = fields.excerpt ?? "";
+    content.text = fields.excerpt ?? "";
+    content.source_url = fields.source_url ?? "";
+    content.url = fields.source_url ?? "";
+    return content;
+  }
+
+  if (block.type === "lesson") {
+    content.explanation = fields.explanation ?? "";
+    content.text = fields.explanation ?? "";
+    content.key_points = splitLines(fields.key_points ?? "");
+    return content;
+  }
+
+  if (block.type === "quiz") {
+    const currentQuestions = Array.isArray(content.questions) ? content.questions : [];
+    const questionLines = splitLines(fields.questions ?? "");
+    content.text = fields.intro ?? "";
+    content.questions = questionLines.map((question, index) => {
+      const previous = currentQuestions[index];
+      if (previous && typeof previous === "object") {
+        return { ...(previous as Record<string, unknown>), question };
+      }
+      return { id: crypto.randomUUID(), question, options: [], correct_answer: 0 };
+    });
+    return content;
+  }
+
+  if (block.type === "brief") {
+    content.objective = fields.objective ?? "";
+    content.text = fields.objective ?? "";
+    content.audience = fields.audience ?? "";
+    content.tone = fields.tone ?? "";
+    content.output = fields.output ?? "";
+    return content;
+  }
+
+  if (block.type === "storyboard") {
+    const currentScenes = Array.isArray(content.scenes) ? content.scenes : [];
+    const sceneLines = splitLines(fields.scenes ?? "");
+    content.text = fields.summary ?? "";
+    content.scenes = sceneLines.map((sceneTitle, index) => {
+      const previous = currentScenes[index];
+      if (previous && typeof previous === "object") {
+        return { ...(previous as Record<string, unknown>), scene_title: sceneTitle };
+      }
+      return { id: crypto.randomUUID(), scene_title: sceneTitle };
+    });
+    return content;
+  }
+
+  if (block.type === "image_generation") {
+    content.prompt = fields.prompt ?? "";
+    content.text = fields.prompt ?? "";
+    content.model = fields.model ?? "";
+    content.reference_input = fields.reference_input ?? "";
+    return content;
+  }
+
+  return content;
+}
+
 export function CanvasSurface({
   workspace,
   blocks,
@@ -577,6 +982,9 @@ export function CanvasSurface({
   const [mentorDropActive, setMentorDropActive] = useState(false);
   const [adding, setAdding] = useState(false);
   const [canvasRuntimeError, setCanvasRuntimeError] = useState<string | null>(null);
+  const [editorDraft, setEditorDraft] = useState<BlockEditorDraft | null>(null);
+  const [editorSaving, setEditorSaving] = useState(false);
+  const [editorError, setEditorError] = useState<string | null>(null);
 
   const editorRef = useRef<Editor | null>(null);
   const editorCleanupRef = useRef<(() => void) | null>(null);
@@ -589,6 +997,21 @@ export function CanvasSurface({
   const insertPanelRef = useRef<HTMLDivElement | null>(null);
   const missingProductionLicense = REQUIRE_TLDRAW_LICENSE && TLDRAW_LICENSE_KEY.length === 0;
   const canvasUnavailable = missingProductionLicense || Boolean(canvasRuntimeError);
+  const selectedPrimaryBlock = useMemo(
+    () =>
+      selectedBlockIds
+        .map((id) => blocks.find((block) => block.id === id))
+        .find((block): block is CanvasBlock => !!block),
+    [blocks, selectedBlockIds],
+  );
+  const editableSelectedBlock =
+    selectedPrimaryBlock && isEditableBlockType(selectedPrimaryBlock.type)
+      ? selectedPrimaryBlock
+      : null;
+  const inspectorFields = useMemo(
+    () => (editorDraft ? inspectorFieldsForType(editorDraft.blockType) : []),
+    [editorDraft],
+  );
 
   useEffect(() => {
     blocksRef.current = blocks;
@@ -624,6 +1047,16 @@ export function CanvasSurface({
   }, [workspace.id]);
 
   useEffect(() => {
+    if (!editableSelectedBlock) {
+      setEditorDraft(null);
+      setEditorError(null);
+      return;
+    }
+    setEditorDraft(createEditorDraft(editableSelectedBlock));
+    setEditorError(null);
+  }, [editableSelectedBlock?.id]);
+
+  useEffect(() => {
     if (!missingProductionLicense) return;
     console.error(
       "[canvas] Missing VITE_TLDRAW_LICENSE_KEY in production build. Canvas rendering is disabled to avoid blank runtime failure.",
@@ -638,6 +1071,61 @@ export function CanvasSurface({
     const next = sortBlocks([...byId.values()]);
     blocksRef.current = next;
     onBlocksChange(next);
+  };
+
+  const updateDraftTitle = (value: string) => {
+    setEditorDraft((previous) => {
+      if (!previous) return previous;
+      return { ...previous, title: value, dirty: true };
+    });
+  };
+
+  const updateDraftField = (key: string, value: string) => {
+    setEditorDraft((previous) => {
+      if (!previous) return previous;
+      return {
+        ...previous,
+        fields: {
+          ...previous.fields,
+          [key]: value,
+        },
+        dirty: true,
+      };
+    });
+  };
+
+  const resetEditorDraft = () => {
+    if (!editableSelectedBlock) return;
+    setEditorDraft(createEditorDraft(editableSelectedBlock));
+    setEditorError(null);
+  };
+
+  const saveEditorDraft = async () => {
+    if (!editorDraft || !editorDraft.dirty) return;
+    const block = blocksRef.current.find((item) => item.id === editorDraft.blockId);
+    if (!block) return;
+
+    setEditorSaving(true);
+    setEditorError(null);
+
+    try {
+      const updated = await patchBlock(block.id, {
+        title: editorDraft.title.trim() ? editorDraft.title.trim() : undefined,
+        content_json: buildContentFromDraft(block, editorDraft),
+      });
+
+      upsertBlocks([updated]);
+      setEditorDraft(createEditorDraft(updated));
+    } catch (error) {
+      console.error("[canvas] failed to save block edits", error);
+      setEditorError(
+        isHu
+          ? "Nem sikerült menteni a blokk szerkesztését."
+          : "Could not save block edits.",
+      );
+    } finally {
+      setEditorSaving(false);
+    }
   };
 
   const syncShapesFromBlocks = () => {
@@ -863,6 +1351,10 @@ export function CanvasSurface({
       });
 
       upsertBlocks([block]);
+      onSelectionChange([block.id]);
+      if (isEditableBlockType(block.type)) {
+        setEditorDraft(createEditorDraft(block));
+      }
     } catch (error) {
       console.error("[canvas] failed to create block", error);
     } finally {
@@ -1058,9 +1550,97 @@ export function CanvasSurface({
           </div>
         )}
 
-        {!canvasUnavailable && selectedBlockIds.length > 0 && (
+        {!canvasUnavailable && !editorDraft && selectedBlockIds.length > 0 && (
           <div className="absolute z-30 top-4 right-4 rounded-xl border border-[var(--shell-border)] bg-[var(--shell-surface)]/90 px-2.5 py-1.5 text-[11px] shell-muted">
             {selectedBlockIds.length} {selectedLabel}
+          </div>
+        )}
+
+        {!canvasUnavailable && editorDraft && (
+          <div className="absolute z-30 top-4 right-4 w-[330px] rounded-2xl border border-[var(--shell-border)] bg-[var(--shell-surface)]/94 shadow-xl backdrop-blur-md p-3 space-y-2.5">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-[11px] uppercase tracking-[0.14em] shell-muted">
+                {isHu ? "Objektum szerkesztése" : "Edit object"}
+              </p>
+              <span className="rounded-md border border-[var(--shell-border)]/70 bg-[var(--shell-surface-2)]/65 px-2 py-0.5 text-[10px] uppercase tracking-[0.08em] shell-muted">
+                {editorDraft.blockType}
+              </span>
+            </div>
+
+            <div className="space-y-1.5">
+              <p className="text-[11px] shell-muted">{isHu ? "Cím" : "Title"}</p>
+              <input
+                value={editorDraft.title}
+                onChange={(event) => updateDraftTitle(event.target.value)}
+                className="w-full rounded-lg border border-[var(--shell-border)] bg-[var(--shell-surface-2)]/70 px-2.5 py-1.5 text-xs text-[var(--shell-text)] outline-none"
+                placeholder={isHu ? "Adj címet..." : "Add title..."}
+              />
+            </div>
+
+            <div className="max-h-[320px] overflow-y-auto space-y-2 pr-1">
+              {inspectorFields.map((field) => {
+                const label = isHu ? field.labelHu : field.labelEn;
+                const placeholder = isHu ? field.placeholderHu : field.placeholderEn;
+                const value = editorDraft.fields[field.key] ?? "";
+                return (
+                  <div key={field.key} className="space-y-1.5">
+                    <p className="text-[11px] shell-muted">{label}</p>
+                    {field.multiline ? (
+                      <textarea
+                        value={value}
+                        rows={field.rows ?? 4}
+                        onChange={(event) => updateDraftField(field.key, event.target.value)}
+                        className="w-full rounded-lg border border-[var(--shell-border)] bg-[var(--shell-surface-2)]/70 px-2.5 py-1.5 text-xs text-[var(--shell-text)] outline-none resize-y min-h-[72px]"
+                        placeholder={placeholder}
+                      />
+                    ) : (
+                      <input
+                        value={value}
+                        onChange={(event) => updateDraftField(field.key, event.target.value)}
+                        className="w-full rounded-lg border border-[var(--shell-border)] bg-[var(--shell-surface-2)]/70 px-2.5 py-1.5 text-xs text-[var(--shell-text)] outline-none"
+                        placeholder={placeholder}
+                      />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {editorError && <p className="text-[11px] text-rose-400">{editorError}</p>}
+
+            <div className="flex items-center justify-between gap-2 pt-1">
+              <p className="text-[11px] shell-muted">
+                {editorDraft.dirty
+                  ? isHu
+                    ? "Nem mentett változtatások"
+                    : "Unsaved changes"
+                  : isHu
+                    ? "Minden változtatás mentve"
+                    : "All changes saved"}
+              </p>
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={resetEditorDraft}
+                  disabled={!editorDraft.dirty || editorSaving}
+                  className="rounded-md border border-[var(--shell-border)]/70 bg-[var(--shell-surface-2)]/65 px-2 py-1 text-[11px] shell-muted hover:text-[var(--shell-text)] shell-interactive disabled:opacity-50"
+                >
+                  {isHu ? "Visszaállítás" : "Reset"}
+                </button>
+                <button
+                  onClick={() => void saveEditorDraft()}
+                  disabled={!editorDraft.dirty || editorSaving}
+                  className="rounded-md border border-[var(--shell-border)]/70 bg-[var(--shell-accent-soft)] px-2 py-1 text-[11px] text-[var(--shell-text)] shell-interactive disabled:opacity-50"
+                >
+                  {editorSaving
+                    ? isHu
+                      ? "Mentés..."
+                      : "Saving..."
+                    : isHu
+                      ? "Mentés"
+                      : "Save"}
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
