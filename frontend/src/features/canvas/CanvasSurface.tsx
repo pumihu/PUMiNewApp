@@ -1,4 +1,13 @@
-﻿import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
+﻿import {
+  Component,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type DragEvent,
+  type ErrorInfo,
+  type ReactNode,
+} from "react";
 import {
   BookOpen,
   ClipboardList,
@@ -40,6 +49,28 @@ interface CanvasLayout {
 }
 
 const DEV_DIAGNOSTICS = import.meta.env.DEV;
+const TLDRAW_LICENSE_KEY = String(import.meta.env.VITE_TLDRAW_LICENSE_KEY ?? "").trim();
+const REQUIRE_TLDRAW_LICENSE = import.meta.env.PROD;
+
+class CanvasRuntimeErrorBoundary extends Component<
+  { onError: (error: Error, info: ErrorInfo) => void; children: ReactNode },
+  { hasError: boolean }
+> {
+  state = { hasError: false };
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    this.props.onError(error, info);
+  }
+
+  render() {
+    if (this.state.hasError) return null;
+    return this.props.children;
+  }
+}
 
 interface Props {
   workspace: Workspace;
@@ -53,8 +84,8 @@ interface Props {
 const COMMON_INSERT: Array<{ type: BlockType; labelEn: string; labelHu: string }> = [
   { type: "note", labelEn: "Note", labelHu: "Jegyzet" },
   { type: "ai_sticky", labelEn: "AI Sticky", labelHu: "AI Sticky" },
-  { type: "source", labelEn: "Source", labelHu: "Forras" },
-  { type: "image_asset", labelEn: "Image", labelHu: "Kep" },
+  { type: "source", labelEn: "Source", labelHu: "Forrás" },
+  { type: "image_asset", labelEn: "Image", labelHu: "Kép" },
 ];
 
 const MODE_INSERT: Record<Workspace["mode"], Array<{ type: BlockType; labelEn: string; labelHu: string }>> = {
@@ -65,13 +96,13 @@ const MODE_INSERT: Record<Workspace["mode"], Array<{ type: BlockType; labelEn: s
   ],
   learn: [
     { type: "lesson", labelEn: "Lesson", labelHu: "Lecke" },
-    { type: "quiz", labelEn: "Quiz", labelHu: "Kviz" },
+    { type: "quiz", labelEn: "Quiz", labelHu: "Kvíz" },
     { type: "flashcard", labelEn: "Flashcards", labelHu: "Flashcardok" },
   ],
   creative: [
     { type: "brief", labelEn: "Brief", labelHu: "Brief" },
     { type: "storyboard", labelEn: "Storyboard", labelHu: "Storyboard" },
-    { type: "image_generation", labelEn: "Image Generation", labelHu: "Kep generalas" },
+    { type: "image_generation", labelEn: "Image Generation", labelHu: "Kép generálás" },
   ],
 };
 
@@ -453,9 +484,9 @@ function createInitialContent(type: BlockType, isHu: boolean, section: "ideas" |
     layout,
   };
 
-  if (type === "note") return { ...base, text: isHu ? "Rogzitsd itt a kovetkezo fontos gondolatot." : "Capture the next important thought here." };
+  if (type === "note") return { ...base, text: isHu ? "Rögzítsd itt a következő fontos gondolatot." : "Capture the next important thought here." };
   if (type === "ai_sticky") return { ...base, text: "AI insight", created_from: "mentor" };
-  if (type === "source") return { ...base, name: isHu ? "Forras" : "Source", excerpt: "", source_type: "text" };
+  if (type === "source") return { ...base, name: isHu ? "Forrás" : "Source", excerpt: "", source_type: "text" };
   if (type === "image_asset") return { ...base, url: "", caption: "" };
   if (type === "lesson") return { ...base, explanation: "", key_points: [] };
   if (type === "quiz") return { ...base, questions: [] };
@@ -495,16 +526,16 @@ function defaultInsertedTitle(type: BlockType, isHu: boolean): string | undefine
 
   const hu: Partial<Record<BlockType, string>> = {
     ai_sticky: "AI Insight",
-    source: "Forras",
+    source: "Forrás",
     lesson: "Lecke",
-    quiz: "Kviz",
+    quiz: "Kvíz",
     flashcard: "Flashcardok",
     task_list: "Feladatlista",
     roadmap: "Roadmap",
     critique: "Kritika",
     brief: "Brief",
     storyboard: "Storyboard",
-    image_generation: "Kep generalas",
+    image_generation: "Kép generálás",
   };
 
   return (isHu ? hu[type] : en[type]) ?? undefined;
@@ -545,6 +576,7 @@ export function CanvasSurface({
   const [showSourceDialog, setShowSourceDialog] = useState(false);
   const [mentorDropActive, setMentorDropActive] = useState(false);
   const [adding, setAdding] = useState(false);
+  const [canvasRuntimeError, setCanvasRuntimeError] = useState<string | null>(null);
 
   const editorRef = useRef<Editor | null>(null);
   const editorCleanupRef = useRef<(() => void) | null>(null);
@@ -555,6 +587,8 @@ export function CanvasSurface({
   const persistRevisionRef = useRef<Map<string, number>>(new Map());
   const layoutOverridesRef = useRef<Map<string, CanvasLayout>>(new Map());
   const insertPanelRef = useRef<HTMLDivElement | null>(null);
+  const missingProductionLicense = REQUIRE_TLDRAW_LICENSE && TLDRAW_LICENSE_KEY.length === 0;
+  const canvasUnavailable = missingProductionLicense || Boolean(canvasRuntimeError);
 
   useEffect(() => {
     blocksRef.current = blocks;
@@ -584,6 +618,17 @@ export function CanvasSurface({
     window.addEventListener("pointerdown", handlePointerDown);
     return () => window.removeEventListener("pointerdown", handlePointerDown);
   }, [showInsert]);
+
+  useEffect(() => {
+    setCanvasRuntimeError(null);
+  }, [workspace.id]);
+
+  useEffect(() => {
+    if (!missingProductionLicense) return;
+    console.error(
+      "[canvas] Missing VITE_TLDRAW_LICENSE_KEY in production build. Canvas rendering is disabled to avoid blank runtime failure.",
+    );
+  }, [missingProductionLicense]);
 
   const upsertBlocks = (incoming: CanvasBlock[]) => {
     const byId = new Map<string, CanvasBlock>();
@@ -949,23 +994,42 @@ export function CanvasSurface({
   };
 
   const dropHint = isHu
-    ? "Dobd ide, es a mentor output valodi canvas objektum lesz."
+    ? "Dobd ide, és a mentor output valódi canvas objektum lesz."
     : "Drop here and the mentor output becomes a real canvas object.";
-  const selectedLabel = isHu ? "kijelolt" : "selected";
-  const insertLabel = isHu ? "Beszuras" : "Insert";
-  const insertMoreLabel = isHu ? "Tovabbi blokkok" : "More blocks";
+  const selectedLabel = isHu ? "kijelölt" : "selected";
+  const insertLabel = isHu ? "Beszúrás" : "Insert";
+  const insertMoreLabel = isHu ? "További blokkok" : "More blocks";
   const modeSectionLabel =
     workspace.mode === "learn"
       ? isHu
-        ? "Tanulas mod"
+        ? "Tanulás mód"
         : "Learn mode"
       : workspace.mode === "creative"
         ? isHu
-          ? "Kreativ mod"
+          ? "Kreatív mód"
           : "Creative mode"
         : isHu
-          ? "Build mod"
+          ? "Build mód"
           : "Build mode";
+  const unavailableTitle = missingProductionLicense
+    ? isHu
+      ? "Canvas licence kulcs hiányzik"
+      : "Canvas license key missing"
+    : isHu
+      ? "Canvas jelenleg nem elérhető"
+      : "Canvas is currently unavailable";
+  const unavailableBody = missingProductionLicense
+    ? isHu
+      ? "Állítsd be a VITE_TLDRAW_LICENSE_KEY környezeti változót a production/preview deployban."
+      : "Set VITE_TLDRAW_LICENSE_KEY in the production/preview environment variables."
+    : isHu
+      ? "A canvas futása közben hiba történt. Ellenőrizd a konzolt, majd frissítsd az oldalt."
+      : "The canvas crashed at runtime. Check the browser console and refresh the page.";
+  const unavailableMeta = canvasRuntimeError
+    ? canvasRuntimeError
+    : missingProductionLicense
+      ? "Missing environment variable: VITE_TLDRAW_LICENSE_KEY"
+      : null;
 
   return (
     <div className="relative h-full min-h-[680px] p-2 md:p-3">
@@ -987,112 +1051,141 @@ export function CanvasSurface({
         onDragLeave={handleMentorDragLeave}
         onDrop={handleMentorDrop}
       >
-        {mentorDropActive && (
+        {!canvasUnavailable && mentorDropActive && (
           <div className="pointer-events-none absolute z-30 top-4 left-4 rounded-xl border border-dashed border-[var(--shell-accent)] bg-[var(--shell-accent-soft)] px-3 py-2 text-xs inline-flex items-center gap-2">
             <Sparkles className="h-3.5 w-3.5" />
             {dropHint}
           </div>
         )}
 
-        {selectedBlockIds.length > 0 && (
+        {!canvasUnavailable && selectedBlockIds.length > 0 && (
           <div className="absolute z-30 top-4 right-4 rounded-xl border border-[var(--shell-border)] bg-[var(--shell-surface)]/90 px-2.5 py-1.5 text-[11px] shell-muted">
             {selectedBlockIds.length} {selectedLabel}
           </div>
         )}
 
-        <div ref={insertPanelRef} className="absolute z-30 left-4 bottom-4 flex items-end gap-2">
-          <div className="rounded-2xl border border-[var(--shell-border)] bg-[var(--shell-surface)]/92 p-2.5 shadow-xl backdrop-blur-lg">
-            <div className="flex items-center gap-1.5">
-              <button
-                onClick={() => setShowInsert((value) => !value)}
-                className={`h-10 w-10 inline-flex items-center justify-center rounded-xl border border-[var(--shell-border)] shell-interactive ${
-                  showInsert ? "bg-[var(--shell-accent-soft)] text-[var(--shell-text)]" : "shell-muted"
-                }`}
-                title={insertLabel}
-                aria-label={insertLabel}
-              >
-                <Plus className="h-4 w-4" />
-              </button>
+        {!canvasUnavailable && (
+          <div ref={insertPanelRef} className="absolute z-30 left-4 bottom-4 flex items-end gap-2">
+            <div className="rounded-2xl border border-[var(--shell-border)] bg-[var(--shell-surface)]/92 p-2.5 shadow-xl backdrop-blur-lg">
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => setShowInsert((value) => !value)}
+                  className={`h-10 w-10 inline-flex items-center justify-center rounded-xl border border-[var(--shell-border)] shell-interactive ${
+                    showInsert ? "bg-[var(--shell-accent-soft)] text-[var(--shell-text)]" : "shell-muted"
+                  }`}
+                  title={insertLabel}
+                  aria-label={insertLabel}
+                >
+                  <Plus className="h-4 w-4" />
+                </button>
 
-              {floatingQuickTypes.map((type) => {
-                const labels = quickInsertMap.get(type);
-                const label = labels ? (isHu ? labels.labelHu : labels.labelEn) : type;
-                return (
-                  <button
-                    key={type}
-                    onClick={() => void createCanvasBlock(type)}
-                    disabled={adding}
-                    className="h-10 w-10 inline-flex items-center justify-center rounded-xl border border-[var(--shell-border)] bg-[var(--shell-surface-2)]/65 shell-muted hover:text-[var(--shell-text)] shell-interactive disabled:opacity-60"
-                    title={label}
-                    aria-label={label}
-                  >
-                    {blockIcon(type)}
-                  </button>
-                );
-              })}
+                {floatingQuickTypes.map((type) => {
+                  const labels = quickInsertMap.get(type);
+                  const label = labels ? (isHu ? labels.labelHu : labels.labelEn) : type;
+                  return (
+                    <button
+                      key={type}
+                      onClick={() => void createCanvasBlock(type)}
+                      disabled={adding}
+                      className="h-10 w-10 inline-flex items-center justify-center rounded-xl border border-[var(--shell-border)] bg-[var(--shell-surface-2)]/65 shell-muted hover:text-[var(--shell-text)] shell-interactive disabled:opacity-60"
+                      title={label}
+                      aria-label={label}
+                    >
+                      {blockIcon(type)}
+                    </button>
+                  );
+                })}
 
-              <button
-                onClick={() => setShowSourceDialog(true)}
-                className="h-10 w-10 inline-flex items-center justify-center rounded-xl border border-[var(--shell-border)] bg-[var(--shell-surface-2)]/65 shell-muted hover:text-[var(--shell-text)] shell-interactive"
-                title={t("uploadSource")}
-                aria-label={t("uploadSource")}
-              >
-                <FilePlus2 className="h-4 w-4" />
-              </button>
+                <button
+                  onClick={() => setShowSourceDialog(true)}
+                  className="h-10 w-10 inline-flex items-center justify-center rounded-xl border border-[var(--shell-border)] bg-[var(--shell-surface-2)]/65 shell-muted hover:text-[var(--shell-text)] shell-interactive"
+                  title={t("uploadSource")}
+                  aria-label={t("uploadSource")}
+                >
+                  <FilePlus2 className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+            {showInsert && (
+              <div className="absolute bottom-[calc(100%+10px)] left-0 w-[300px] rounded-2xl border border-[var(--shell-border)] bg-[var(--shell-surface)]/96 backdrop-blur-md p-3 shadow-2xl max-h-[68vh] overflow-y-auto space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-[11px] uppercase tracking-[0.14em] shell-muted">{insertMoreLabel}</p>
+                  <span className="text-[11px] shell-muted">{adding ? (isHu ? "Hozzáadás..." : "Adding...") : ""}</span>
+                </div>
+
+                <div className="space-y-1.5">
+                  {COMMON_INSERT.map((item) => (
+                    <button
+                      key={item.type}
+                      onClick={() => void createCanvasBlock(item.type)}
+                      className="w-full rounded-xl border border-[var(--shell-border)]/65 bg-[var(--shell-surface-2)]/55 px-3 py-2 text-left shell-interactive"
+                    >
+                      <span className="inline-flex items-center gap-2 text-xs text-[var(--shell-text)]">
+                        {blockIcon(item.type)}
+                        {isHu ? item.labelHu : item.labelEn}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+
+                <div className="space-y-1.5">
+                  <p className="text-[11px] uppercase tracking-[0.14em] shell-muted">{modeSectionLabel}</p>
+                  {MODE_INSERT[workspace.mode].map((item) => (
+                    <button
+                      key={item.type}
+                      onClick={() => void createCanvasBlock(item.type)}
+                      className="w-full rounded-xl border border-[var(--shell-border)]/65 bg-[var(--shell-surface-2)]/55 px-3 py-2 text-left shell-interactive"
+                    >
+                      <span className="inline-flex items-center gap-2 text-xs text-[var(--shell-text)]">
+                        {blockIcon(item.type)}
+                        {isHu ? item.labelHu : item.labelEn}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {canvasUnavailable ? (
+          <div className="absolute inset-0 z-20 flex items-center justify-center p-6">
+            <div className="w-full max-w-lg rounded-2xl border border-[var(--shell-border)] bg-[var(--shell-surface)]/90 p-5 shadow-xl">
+              <p className="text-[11px] uppercase tracking-[0.16em] shell-muted">
+                {isHu ? "Fejlesztői jelzés" : "Developer notice"}
+              </p>
+              <h3 className="mt-2 text-lg font-semibold text-[var(--shell-text)]">{unavailableTitle}</h3>
+              <p className="mt-2 text-sm shell-muted">{unavailableBody}</p>
+              {unavailableMeta && (
+                <pre className="mt-3 overflow-x-auto rounded-xl border border-[var(--shell-border)] bg-[var(--shell-surface-2)]/70 p-3 text-xs shell-muted">
+                  {unavailableMeta}
+                </pre>
+              )}
             </div>
           </div>
-
-          {showInsert && (
-            <div className="absolute bottom-[calc(100%+10px)] left-0 w-[300px] rounded-2xl border border-[var(--shell-border)] bg-[var(--shell-surface)]/96 backdrop-blur-md p-3 shadow-2xl max-h-[68vh] overflow-y-auto space-y-3">
-              <div className="flex items-center justify-between">
-                <p className="text-[11px] uppercase tracking-[0.14em] shell-muted">{insertMoreLabel}</p>
-                <span className="text-[11px] shell-muted">{adding ? (isHu ? "Hozzaadas..." : "Adding...") : ""}</span>
-              </div>
-
-              <div className="space-y-1.5">
-                {COMMON_INSERT.map((item) => (
-                  <button
-                    key={item.type}
-                    onClick={() => void createCanvasBlock(item.type)}
-                    className="w-full rounded-xl border border-[var(--shell-border)]/65 bg-[var(--shell-surface-2)]/55 px-3 py-2 text-left shell-interactive"
-                  >
-                    <span className="inline-flex items-center gap-2 text-xs text-[var(--shell-text)]">
-                      {blockIcon(item.type)}
-                      {isHu ? item.labelHu : item.labelEn}
-                    </span>
-                  </button>
-                ))}
-              </div>
-
-              <div className="space-y-1.5">
-                <p className="text-[11px] uppercase tracking-[0.14em] shell-muted">{modeSectionLabel}</p>
-                {MODE_INSERT[workspace.mode].map((item) => (
-                  <button
-                    key={item.type}
-                    onClick={() => void createCanvasBlock(item.type)}
-                    className="w-full rounded-xl border border-[var(--shell-border)]/65 bg-[var(--shell-surface-2)]/55 px-3 py-2 text-left shell-interactive"
-                  >
-                    <span className="inline-flex items-center gap-2 text-xs text-[var(--shell-text)]">
-                      {blockIcon(item.type)}
-                      {isHu ? item.labelHu : item.labelEn}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        <Tldraw
-          shapeUtils={pumiShapeUtils}
-          hideUi
-          inferDarkMode={false}
-          options={{ maxPages: 1 }}
-          onMount={handleEditorMount}
-        />
+        ) : (
+          <CanvasRuntimeErrorBoundary
+            onError={(error, info) => {
+              setCanvasRuntimeError(error.message || "Unknown canvas runtime error");
+              console.error("[canvas] tldraw runtime error", error, info);
+            }}
+          >
+            <Tldraw
+              licenseKey={TLDRAW_LICENSE_KEY || undefined}
+              shapeUtils={pumiShapeUtils}
+              hideUi
+              inferDarkMode={false}
+              options={{ maxPages: 1 }}
+              onMount={handleEditorMount}
+            />
+          </CanvasRuntimeErrorBoundary>
+        )}
       </div>
     </div>
   );
 }
+
+
+
 
 

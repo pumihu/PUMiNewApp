@@ -33,12 +33,12 @@ const MODE_COLOR: Record<WorkspaceMode, string> = {
 function onboardingWelcome(isHu: boolean, mode: WorkspaceMode): string {
   if (isHu) {
     if (mode === "learn") {
-      return "LEARN mod aktiv. Eloallitottam egy tanulasi kezdo boardot. Menjunk vegig rajta lepesrol lepesre.";
+      return "LEARN mód aktív. Előállítottam egy tanulási kezdő boardot. Menjünk végig rajta lépésről lépésre.";
     }
     if (mode === "creative") {
-      return "CREATIVE mod aktiv. Letrehoztam egy kreativ kezdo strukturat. Finomitsuk brieffe es outputta.";
+      return "CREATIVE mód aktív. Létrehoztam egy kreatív kezdő struktúrát. Finomítsuk brieffé és outputtá.";
     }
-    return "BUILD mod aktiv. Letrehoztam egy vegrehajthato kezdo strukturat. Tisztazzuk a celt es a kovetkezo lepeseket.";
+    return "BUILD mód aktív. Létrehoztam egy végrehajtható kezdő struktúrát. Tisztázzuk a célt és a következő lépéseket.";
   }
 
   if (mode === "learn") {
@@ -54,11 +54,11 @@ function onboardingActions(isHu: boolean, mode: WorkspaceMode): SuggestedAction[
   if (mode === "learn") {
     return isHu
       ? [
-          { label: "Magyarazd el egyszeruen", action: "Magyarazd el egyszeruen a tema lenyeget." },
-          { label: "Keszits leckeblokkot", action: "Keszits lesson blokkot ebbol." },
-          { label: "Quiz me", action: "Keszits 3 kerdeses quiz blokkot." },
-          { label: "Keszits flashcardokat", action: "Keszits flashcard blokkot ebbol." },
-          { label: "Keszits timeline osszegzest", action: "Keszits tanulasi timeline osszegzest errol." },
+          { label: "Magyarázd el egyszerűen", action: "Magyarázd el egyszerűen a téma lényegét." },
+          { label: "Készíts leckeblokkot", action: "Készíts lesson blokkot ebből." },
+          { label: "Quiz me", action: "Készíts 3 kérdéses quiz blokkot." },
+          { label: "Készíts flashcardokat", action: "Készíts flashcard blokkot ebből." },
+          { label: "Készíts timeline összegzést", action: "Készíts tanulási timeline összegzést erről." },
         ]
       : [
           { label: "Explain simply", action: "Explain this topic in a simple way." },
@@ -72,11 +72,11 @@ function onboardingActions(isHu: boolean, mode: WorkspaceMode): SuggestedAction[
   if (mode === "creative") {
     return isHu
       ? [
-          { label: "Keszits briefet", action: "Keszits brief blokkot ebbol." },
-          { label: "Generalj kreativ iranyokat", action: "Generalj 3 kreativ iranyt." },
-          { label: "Keszits moodboardot", action: "Keszits moodboard blokkot." },
-          { label: "Indits storyboardot", action: "Keszits storyboard blokkot." },
-          { label: "Keszits image generation blokkot", action: "Keszits image_generation blokkot prompttal." },
+          { label: "Készíts briefet", action: "Készíts brief blokkot ebből." },
+          { label: "Generálj kreatív irányokat", action: "Generálj 3 kreatív irányt." },
+          { label: "Készíts moodboardot", action: "Készíts moodboard blokkot." },
+          { label: "Indíts storyboardot", action: "Készíts storyboard blokkot." },
+          { label: "Készíts image generation blokkot", action: "Készíts image_generation blokkot prompttal." },
         ]
       : [
           { label: "Create brief", action: "Create a brief block from this." },
@@ -89,11 +89,11 @@ function onboardingActions(isHu: boolean, mode: WorkspaceMode): SuggestedAction[
 
   return isHu
     ? [
-        { label: "Finomitsd a celt", action: "Finomitsd a celt konkret es merheto formara." },
-        { label: "Bontsd lepesekre", action: "Bontsd ezt vegrehajthato task listara." },
-        { label: "Keszits roadmapet", action: "Keszits 3 fazisos roadmap blokkot." },
-        { label: "Kritikald a tervet", action: "Keszits critique blokkot a terv gyenge pontjairol." },
-        { label: "Szervezd boardba", action: "Rendezd ezt strukturalt build boardda." },
+        { label: "Finomítsd a célt", action: "Finomítsd a célt konkrét és mérhető formára." },
+        { label: "Bontsd lépésekre", action: "Bontsd ezt végrehajtható task listára." },
+        { label: "Készíts roadmapet", action: "Készíts 3 fázisos roadmap blokkot." },
+        { label: "Kritikáld a tervet", action: "Készíts critique blokkot a terv gyenge pontjairól." },
+        { label: "Szervezd boardba", action: "Rendezd ezt strukturált build boarddá." },
       ]
     : [
         { label: "Refine goal", action: "Refine the goal into specific measurable criteria." },
@@ -133,7 +133,7 @@ export default function DashboardPage() {
   );
 
   const isHu = lang === "hu";
-  const creatingLabel = isHu ? "Letrehozas..." : "Creating...";
+  const creatingLabel = isHu ? "Létrehozás..." : "Creating...";
 
   const handleCreate = async () => {
     if (!newTitle.trim()) return;
@@ -217,7 +217,7 @@ export default function DashboardPage() {
             <p className="shell-muted text-sm md:text-base">
               {user?.email ??
                 (isHu
-                  ? "Valassz munkateret vagy indits egy uj iranyt."
+                  ? "Válassz munkateret vagy indíts egy új irányt."
                   : "Pick a workspace or start a new guided direction.")}
             </p>
           </div>

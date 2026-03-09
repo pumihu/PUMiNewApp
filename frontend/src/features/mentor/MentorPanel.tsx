@@ -45,7 +45,7 @@ function inferFallbackGeneratedBlocks(
     "4-section",
     "organize this into",
     "tabla",
-    "tÃ¡bla",
+    "tábla",
   ]);
   const boardSpecificBlockRequest = includesAny(normalized, [
     "moodboard",
@@ -61,29 +61,29 @@ function inferFallbackGeneratedBlocks(
     const sections =
       mode === "learn"
         ? [
-            { key: "overview", titleEn: "Overview", titleHu: "Attekintes", subtitleEn: "Topic and understanding", subtitleHu: "Tema es megertes", defaultType: "lesson", colorTheme: "violet" },
-            { key: "practice", titleEn: "Practice", titleHu: "Gyakorlas", subtitleEn: "Quiz and recall", subtitleHu: "Quiz es visszahivas", defaultType: "quiz", colorTheme: "olive" },
-            { key: "sources", titleEn: "Sources", titleHu: "Forrasok", subtitleEn: "Learning materials", subtitleHu: "Tanulasi anyagok", defaultType: "source", colorTheme: "sky" },
-            { key: "output", titleEn: "Output", titleHu: "Output", subtitleEn: "Summary and key concepts", subtitleHu: "Osszegzes es kulcsfogalmak", defaultType: "summary", colorTheme: "rose" },
+            { key: "overview", titleEn: "Overview", titleHu: "Áttekintés", subtitleEn: "Topic and understanding", subtitleHu: "Téma és megértés", defaultType: "lesson", colorTheme: "violet" },
+            { key: "practice", titleEn: "Practice", titleHu: "Gyakorlás", subtitleEn: "Quiz and recall", subtitleHu: "Kvíz és visszahívás", defaultType: "quiz", colorTheme: "olive" },
+            { key: "sources", titleEn: "Sources", titleHu: "Források", subtitleEn: "Learning materials", subtitleHu: "Tanulási anyagok", defaultType: "source", colorTheme: "sky" },
+            { key: "output", titleEn: "Output", titleHu: "Output", subtitleEn: "Summary and key concepts", subtitleHu: "Összegzés és kulcsfogalmak", defaultType: "summary", colorTheme: "rose" },
           ]
         : mode === "creative"
           ? [
-              { key: "brief", titleEn: "Brief", titleHu: "Brief", subtitleEn: "Objective and audience", subtitleHu: "Cel es kozonseg", defaultType: "brief", colorTheme: "violet" },
-              { key: "references", titleEn: "References", titleHu: "Referenciak", subtitleEn: "Reference board", subtitleHu: "Referencia board", defaultType: "reference_board", colorTheme: "olive" },
-              { key: "mood", titleEn: "Concepts", titleHu: "Koncepciok", subtitleEn: "Mood and direction", subtitleHu: "Hangulat es irany", defaultType: "moodboard", colorTheme: "sky" },
-              { key: "output", titleEn: "Output", titleHu: "Output", subtitleEn: "Storyboard and media", subtitleHu: "Storyboard es media", defaultType: "storyboard", colorTheme: "rose" },
+              { key: "brief", titleEn: "Brief", titleHu: "Brief", subtitleEn: "Objective and audience", subtitleHu: "Cél és közönség", defaultType: "brief", colorTheme: "violet" },
+              { key: "references", titleEn: "References", titleHu: "Referenciák", subtitleEn: "Reference board", subtitleHu: "Referencia board", defaultType: "reference_board", colorTheme: "olive" },
+              { key: "mood", titleEn: "Concepts", titleHu: "Koncepciók", subtitleEn: "Mood and direction", subtitleHu: "Hangulat és irány", defaultType: "moodboard", colorTheme: "sky" },
+              { key: "output", titleEn: "Output", titleHu: "Output", subtitleEn: "Storyboard and media", subtitleHu: "Storyboard és média", defaultType: "storyboard", colorTheme: "rose" },
             ]
           : [
-              { key: "goal", titleEn: "Goal", titleHu: "Cel", subtitleEn: "Outcome and constraints", subtitleHu: "Eredmeny es korlatok", defaultType: "goal", colorTheme: "violet" },
-              { key: "plan", titleEn: "Plan", titleHu: "Terv", subtitleEn: "Steps and execution", subtitleHu: "Lepesek es vegrehajtas", defaultType: "task_list", colorTheme: "olive" },
-              { key: "sources", titleEn: "Resources", titleHu: "Eroforrasok", subtitleEn: "Links and references", subtitleHu: "Linkek es referenciak", defaultType: "link", colorTheme: "sky" },
-              { key: "output", titleEn: "Output", titleHu: "Output", subtitleEn: "Review and critique", subtitleHu: "Review es kritika", defaultType: "critique", colorTheme: "rose" },
+              { key: "goal", titleEn: "Goal", titleHu: "Cél", subtitleEn: "Outcome and constraints", subtitleHu: "Eredmény és korlátok", defaultType: "goal", colorTheme: "violet" },
+              { key: "plan", titleEn: "Plan", titleHu: "Terv", subtitleEn: "Steps and execution", subtitleHu: "Lépések és végrehajtás", defaultType: "task_list", colorTheme: "olive" },
+              { key: "sources", titleEn: "Resources", titleHu: "Erőforrások", subtitleEn: "Links and references", subtitleHu: "Linkek és referenciák", defaultType: "link", colorTheme: "sky" },
+              { key: "output", titleEn: "Output", titleHu: "Output", subtitleEn: "Review and critique", subtitleHu: "Review és kritika", defaultType: "critique", colorTheme: "rose" },
             ];
 
     return sections.map((section) => ({
       block_type: "board_section",
       title: isHu ? section.titleHu : section.titleEn,
-      reason: isHu ? "Mentor altal elokeszitett board szekcio." : "Mentor-prepared board section.",
+      reason: isHu ? "Mentor által előkészített board szekció." : "Mentor-prepared board section.",
       content_json: {
         key: section.key,
         subtitle: isHu ? section.subtitleHu : section.subtitleEn,
@@ -104,17 +104,17 @@ function inferFallbackGeneratedBlocks(
   else if (includesAny(normalized, ["link block", "resource link", "insert link", "add link"])) blockType = "link";
   else if (includesAny(normalized, ["pdf reference", "pdf block", "document reference", "citation block"])) blockType = "pdf_reference";
   else if (includesAny(normalized, ["source block", "source material", "forras blokk"])) blockType = "source";
-  else if (includesAny(normalized, ["quiz", "kvÃ­z", "kviz", "teszt"])) blockType = "quiz";
-  else if (includesAny(normalized, ["flashcard", "kÃ¡rtya", "kartya"])) blockType = "flashcard";
-  else if (includesAny(normalized, ["lesson", "explain", "simplify", "magyarÃ¡", "magyaraz", "tanÃ­ts", "tanits"])) blockType = "lesson";
-  else if (includesAny(normalized, ["summary", "summarize", "key concept", "Ã¶sszefoglal", "osszefoglal"])) blockType = "summary";
+  else if (includesAny(normalized, ["quiz", "kvíz", "kviz", "teszt"])) blockType = "quiz";
+  else if (includesAny(normalized, ["flashcard", "kártya", "kartya"])) blockType = "flashcard";
+  else if (includesAny(normalized, ["lesson", "explain", "simplify", "magyará", "magyaraz", "taníts", "tanits"])) blockType = "lesson";
+  else if (includesAny(normalized, ["summary", "summarize", "key concept", "összefoglal", "osszefoglal"])) blockType = "summary";
   else if (includesAny(normalized, ["task", "todo", "to-do", "feladat", "teend"])) blockType = "task_list";
-  else if (includesAny(normalized, ["roadmap", "milestone", "Ã¼temterv", "utemterv"])) blockType = "roadmap";
-  else if (includesAny(normalized, ["goal", "objective", "cÃ©l", "cel"])) blockType = "goal";
+  else if (includesAny(normalized, ["roadmap", "milestone", "ütemterv", "utemterv"])) blockType = "roadmap";
+  else if (includesAny(normalized, ["goal", "objective", "cél", "cel"])) blockType = "goal";
   else if (includesAny(normalized, ["critique", "feedback", "review", "kritika"])) blockType = "critique";
   else if (includesAny(normalized, ["storyboard", "scene", "jelenet"])) blockType = "storyboard";
-  else if (includesAny(normalized, ["image generation", "generate image", "text-to-image", "kÃ©p", "kep"])) blockType = "image_generation";
-  else if (includesAny(normalized, ["copy", "headline", "caption", "tagline", "szÃ¶veg", "szoveg"])) blockType = "copy";
+  else if (includesAny(normalized, ["image generation", "generate image", "text-to-image", "kép", "kep"])) blockType = "image_generation";
+  else if (includesAny(normalized, ["copy", "headline", "caption", "tagline", "szöveg", "szoveg"])) blockType = "copy";
   else if (includesAny(normalized, ["brief", "creative direction"])) blockType = "brief";
 
   if (!blockType) {
@@ -124,9 +124,9 @@ function inferFallbackGeneratedBlocks(
       "generate",
       "build",
       "turn this into",
-      "kÃ©szÃ­ts",
+      "készíts",
       "keszits",
-      "alakÃ­tsd",
+      "alakítsd",
       "alakitsd",
     ]);
     if (!hasCreateIntent) return [];
@@ -228,7 +228,7 @@ function inferFallbackGeneratedBlocks(
 
 function conciseGeneratedMessage(generatedBlocks: MentorGeneratedBlock[], locale: "en" | "hu"): string {
   if (generatedBlocks.length === 0) {
-    return locale === "hu" ? "Készen állok a következo blokkra." : "Ready for the next block.";
+    return locale === "hu" ? "Készen állok a következő blokkra." : "Ready for the next block.";
   }
   if (generatedBlocks.length === 1) {
     const block = generatedBlocks[0];
@@ -237,7 +237,7 @@ function conciseGeneratedMessage(generatedBlocks: MentorGeneratedBlock[], locale
       : `Ready: ${block.title || block.block_type}. Place it on canvas.`;
   }
   return locale === "hu"
-    ? `Kész: ${generatedBlocks.length} blokk jelölt. Válassz és helyezd oket a vászonra.`
+    ? `Kész: ${generatedBlocks.length} blokk jelölt. Válassz és helyezd őket a vászonra.`
     : `Ready: ${generatedBlocks.length} block candidates. Select and place them on canvas.`;
 }
 
@@ -260,7 +260,7 @@ function contextualActions(
   if (mode === "learn") {
     if (selected === "lesson") {
       return locale === "hu"
-        ? ["Quiz me on this", "Készíts flashcardokat", "Egyszerusítsd ezt", "Emeld ki a kulcsfogalmakat"]
+        ? ["Quiz me on this", "Készíts flashcardokat", "Egyszerűsítsd ezt", "Emeld ki a kulcsfogalmakat"]
         : ["Quiz me on this", "Make flashcards", "Simplify this", "Extract key concepts"];
     }
     if (selected === "summary" || selected === "source") {
@@ -269,7 +269,7 @@ function contextualActions(
         : ["Create lesson block", "Make a 3-question quiz", "Create flashcards", "Give me a practice task"];
     }
     return locale === "hu"
-      ? ["Magyarázd el egyszeruen", "Készíts lesson blokkot", "Quiz me", "Készíts flashcardokat"]
+      ? ["Magyarázd el egyszerűen", "Készíts lesson blokkot", "Quiz me", "Készíts flashcardokat"]
       : ["Explain simply", "Create lesson block", "Quiz me", "Make flashcards"];
   }
 
@@ -291,7 +291,7 @@ function contextualActions(
 
   if (selected === "roadmap") {
     return locale === "hu"
-      ? ["Bontsd feladatokra", "Kritikáld ezt a tervet", "Finomítsd a következo lépéseket", "Adj kockázatkezelést"]
+      ? ["Bontsd feladatokra", "Kritikáld ezt a tervet", "Finomítsd a következő lépéseket", "Adj kockázatkezelést"]
       : ["Turn into tasks", "Critique this plan", "Refine next steps", "Add risk mitigation"];
   }
   if (selected === "critique") {
@@ -378,10 +378,10 @@ export function MentorPanel({
           selectedBlockIds.length > 0
             ? `${selectedBlockIds.length} blokk van kijelölve mentor munkához.`
             : "Válassz blokkot a kontextus alapú muveletekhez.",
-        sourceLine:
+      sourceLine:
           sourceCount > 0
-            ? `${sourceCount} forrás/összefoglaló blokk elérheto kontextusként.`
-            : "Adj hozzá forrást, és objektumot készítek belole.",
+            ? `${sourceCount} forrás/összefoglaló blokk elérhető kontextusként.`
+            : "Adj hozzá forrást, és objektumot készítek belőle.",
         capabilityLine,
         actions,
       };
@@ -430,26 +430,26 @@ export function MentorPanel({
         return [
           {
             id: "select",
-            title: "VÃ¡lassz blokkot",
-            prompt: "SegÃ­ts kivÃ¡lasztani a fÃ³kusz blokkot.",
+            title: "Válassz blokkot",
+            prompt: "Segíts kiválasztani a fókusz blokkot.",
             done: selectedBlockIds.length > 0,
           },
           {
             id: "lesson",
-            title: "KÃ©szÃ­ts leckÃ©t",
-            prompt: "KÃ©szÃ­ts lesson blokkot ebbÅ‘l.",
+            title: "Készíts leckét",
+            prompt: "Készíts lesson blokkot ebből.",
             done: hasLearnBlocks,
           },
           {
             id: "board",
-            title: "KÃ©szÃ­ts lesson boardot",
-            prompt: "KÃ©szÃ­ts 4 szekciÃ³s visual lesson boardot.",
+            title: "Készíts lesson boardot",
+            prompt: "Készíts 4 szekciós visual lesson boardot.",
             done: hasBoardSections,
           },
           {
             id: "source",
-            title: "Adj hozzÃ¡ forrÃ¡st",
-            prompt: "Mutasd meg, milyen forrÃ¡st adjak hozzÃ¡.",
+            title: "Adj hozzá forrást",
+            prompt: "Mutasd meg, milyen forrást adjak hozzá.",
             done: hasSourceContext,
           },
         ] as const;
@@ -488,26 +488,26 @@ export function MentorPanel({
         return [
           {
             id: "select",
-            title: "VÃ¡lassz blokkot",
-            prompt: "SegÃ­ts kivÃ¡lasztani a fÃ³kusz blokkot.",
+            title: "Válassz blokkot",
+            prompt: "Segíts kiválasztani a fókusz blokkot.",
             done: selectedBlockIds.length > 0,
           },
           {
             id: "brief",
-            title: "KÃ©szÃ­ts briefet",
-            prompt: "KÃ©szÃ­ts brief blokkot.",
+            title: "Készíts briefet",
+            prompt: "Készíts brief blokkot.",
             done: blocks.some((b) => b.type === "brief" || b.type === "creative_brief"),
           },
           {
             id: "board",
-            title: "KÃ©szÃ­ts creative boardot",
-            prompt: "Rendezd ezt 4 szekciÃ³s creative boarddÃ¡.",
+            title: "Készíts creative boardot",
+            prompt: "Rendezd ezt 4 szekciós creative boarddá.",
             done: hasBoardSections,
           },
           {
             id: "media",
-            title: "Adj mÃ©dia promptot",
-            prompt: "KÃ©szÃ­ts image_generation blokkot.",
+            title: "Adj média promptot",
+            prompt: "Készíts image_generation blokkot.",
             done: blocks.some((b) => b.type === "image_generation") || hasCreativeBlocks,
           },
         ] as const;
@@ -545,26 +545,26 @@ export function MentorPanel({
       return [
         {
           id: "select",
-          title: "VÃ¡lassz blokkot",
-          prompt: "SegÃ­ts kivÃ¡lasztani a fÃ³kusz blokkot.",
+          title: "Válassz blokkot",
+          prompt: "Segíts kiválasztani a fókusz blokkot.",
           done: selectedBlockIds.length > 0,
         },
         {
           id: "goal",
-          title: "KÃ©szÃ­ts cÃ©lblokkot",
-          prompt: "KÃ©szÃ­ts goal blokkot ebbÅ‘l.",
+          title: "Készíts célblokkot",
+          prompt: "Készíts goal blokkot ebből.",
           done: blocks.some((b) => b.type === "goal") || hasBuildBlocks,
         },
         {
           id: "board",
-          title: "KÃ©szÃ­ts build boardot",
-          prompt: "Rendezd ezt 4 szekciÃ³s build boarddÃ¡.",
+          title: "Készíts build boardot",
+          prompt: "Rendezd ezt 4 szekciós build boarddá.",
           done: hasBoardSections,
         },
         {
           id: "pin",
           title: "Pinelj mentor insightot",
-          prompt: "Adj rÃ¶vid insightot, amit pinelni tudok.",
+          prompt: "Adj rövid insightot, amit pinelni tudok.",
           done: hasSticky,
         },
       ] as const;
@@ -637,7 +637,7 @@ export function MentorPanel({
     } catch {
       const fallbackText =
         lang === "hu"
-          ? "Nem sikerÃ¼lt kapcsolÃ³dni a mentorhoz. PrÃ³bÃ¡ld Ãºjra."
+          ? "Nem sikerült kapcsolódni a mentorhoz. Próbáld újra."
           : "Sorry, I could not connect to the mentor. Please try again.";
 
       const errMsg: MentorMessage = {

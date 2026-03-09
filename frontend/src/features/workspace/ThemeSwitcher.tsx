@@ -1,4 +1,4 @@
-import { useShellTheme, type ShellTheme } from "@/context/ShellThemeContext";
+﻿import { useShellTheme, type ShellTheme } from "@/context/ShellThemeContext";
 import { useTranslation } from "@/hooks/useTranslation";
 
 const THEMES: { id: ShellTheme; labelEn: string; labelHu: string; swatch: string }[] = [
@@ -40,3 +40,4 @@ export function ThemeSwitcher({ compact = false }: Props) {
     </div>
   );
 }
+

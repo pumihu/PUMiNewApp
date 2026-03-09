@@ -19,9 +19,9 @@ export function UploadSourceDialog({ workspaceId, locale = "en", onCompleted, on
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
 
-  const processingText = lang === "hu" ? "FeldolgozÃ¡s..." : "Processing...";
-  const processingState = lang === "hu" ? "ForrÃ¡s feldolgozÃ¡sa..." : "Processing source...";
-  const errorState = lang === "hu" ? "Hiba tÃ¶rtÃ©nt, prÃ³bÃ¡ld Ãºjra." : "Something went wrong. Please try again.";
+  const processingText = lang === "hu" ? "Feldolgozás..." : "Processing...";
+  const processingState = lang === "hu" ? "Forrás feldolgozása..." : "Processing source...";
+  const errorState = lang === "hu" ? "Hiba történt, próbáld újra." : "Something went wrong. Please try again.";
 
   const handleUpload = async () => {
     if (!name.trim() || !content.trim()) return;
@@ -38,7 +38,7 @@ export function UploadSourceDialog({ workspaceId, locale = "en", onCompleted, on
         locale,
       });
 
-      setStatus(lang === "hu" ? "KÃ©sz." : "Done.");
+      setStatus(lang === "hu" ? "Kész." : "Done.");
       onCompleted?.(result);
       setTimeout(onClose, 450);
     } catch {
@@ -56,7 +56,7 @@ export function UploadSourceDialog({ workspaceId, locale = "en", onCompleted, on
             <h2 className="text-lg font-semibold">{t("uploadSource")}</h2>
             <p className="text-xs shell-muted mt-1">
               {lang === "hu"
-                ? "Illessz be forrasanyagot, es a PUMi source + summary blokkot keszit."
+                ? "Illessz be forrásanyagot, és a PUMi source + summary blokkot készít."
                 : "Paste source material and PUMi will create source + summary blocks."}
             </p>
           </div>
@@ -98,4 +98,6 @@ export function UploadSourceDialog({ workspaceId, locale = "en", onCompleted, on
     </div>
   );
 }
+
+
 

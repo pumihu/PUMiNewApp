@@ -5,17 +5,17 @@ export const translations = {
   hu: {
     // Sidebar
     chat: "Chat",
-    focus: "FÃ³kusz",
-    files: "FÃ¡jlok",
+    focus: "Fókusz",
+    files: "Fájlok",
     profile: "Profil",
-    settings: "BeÃ¡llÃ­tÃ¡sok",
-    history: "ElÅ‘zmÃ©nyek",
+    settings: "Beállítások",
+    history: "Előzmények",
     
     // Companion Bar
-    focusModeLabel: "FÃ³kusz mÃ³d",
-    progress: "HaladÃ¡s",
-    vault: "TÃ¡r",
-    voiceModeSoon: "A voice mÃ³d hamarosan jÃ¶n.",
+    focusModeLabel: "Fókusz mód",
+    progress: "Haladás",
+    vault: "Tár",
+    voiceModeSoon: "A voice mód hamarosan jön.",
 
     // Focus page
     startFocus: "FÃ³kusz indÃ­tÃ¡sa",
@@ -115,7 +115,7 @@ export const translations = {
     tabChat: "Chat",
     tabStart: "IndÃ­tÃ¡s",
     tabDays: "Napok",
-    loading: "BetÃ¶ltÃ©s...",
+    loading: "Betöltés...",
     errorStartingFocus: "Hiba a fÃ³kusz indÃ­tÃ¡sakor",
     errorConnecting: "KapcsolÃ³dÃ¡si hiba",
     looksGood: "JÃ³l nÃ©z ki",
@@ -151,7 +151,7 @@ export const translations = {
     selectFileToPreview: "VÃ¡lassz egy fÃ¡jlt az elÅ‘nÃ©zethez",
     fileName: "FÃ¡jlnÃ©v",
     pasteContentHere: "Tartalom beillesztÃ©se...",
-    cancel: "MÃ©gse",
+    cancel: "Mégse",
     fileSaved: "FÃ¡jl mentve.",
     copiedToClipboard: "VÃ¡gÃ³lapra mÃ¡solva.",
     fileDeleted: "FÃ¡jl tÃ¶rÃ¶lve.",
