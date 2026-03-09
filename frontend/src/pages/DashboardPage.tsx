@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { BookOpen, Layers, Plus, Sparkles } from "lucide-react";
 
@@ -30,6 +30,80 @@ const MODE_COLOR: Record<WorkspaceMode, string> = {
   creative: "bg-[var(--shell-accent-soft)] text-[var(--shell-text)] border-[var(--shell-border)]",
 };
 
+function onboardingWelcome(isHu: boolean, mode: WorkspaceMode): string {
+  if (isHu) {
+    if (mode === "learn") {
+      return "LEARN mod aktiv. Eloallitottam egy tanulasi kezdo boardot. Menjunk vegig rajta lepesrol lepesre.";
+    }
+    if (mode === "creative") {
+      return "CREATIVE mod aktiv. Letrehoztam egy kreativ kezdo strukturat. Finomitsuk brieffe es outputta.";
+    }
+    return "BUILD mod aktiv. Letrehoztam egy vegrehajthato kezdo strukturat. Tisztazzuk a celt es a kovetkezo lepeseket.";
+  }
+
+  if (mode === "learn") {
+    return "LEARN mode is active. I set up a study-ready starting board. Let's refine it step by step.";
+  }
+  if (mode === "creative") {
+    return "CREATIVE mode is active. I prepared a creative starting structure. Let's refine it into strong output.";
+  }
+  return "BUILD mode is active. I prepared an execution-ready starting structure. Let's sharpen goals and next steps.";
+}
+
+function onboardingActions(isHu: boolean, mode: WorkspaceMode): SuggestedAction[] {
+  if (mode === "learn") {
+    return isHu
+      ? [
+          { label: "Magyarazd el egyszeruen", action: "Magyarazd el egyszeruen a tema lenyeget." },
+          { label: "Keszits leckeblokkot", action: "Keszits lesson blokkot ebbol." },
+          { label: "Quiz me", action: "Keszits 3 kerdeses quiz blokkot." },
+          { label: "Keszits flashcardokat", action: "Keszits flashcard blokkot ebbol." },
+          { label: "Keszits timeline osszegzest", action: "Keszits tanulasi timeline osszegzest errol." },
+        ]
+      : [
+          { label: "Explain simply", action: "Explain this topic in a simple way." },
+          { label: "Create lesson block", action: "Create a lesson block from this." },
+          { label: "Quiz me", action: "Create a 3-question quiz block." },
+          { label: "Make flashcards", action: "Create a flashcard block from this." },
+          { label: "Create timeline summary", action: "Create a study timeline summary for this topic." },
+        ];
+  }
+
+  if (mode === "creative") {
+    return isHu
+      ? [
+          { label: "Keszits briefet", action: "Keszits brief blokkot ebbol." },
+          { label: "Generalj kreativ iranyokat", action: "Generalj 3 kreativ iranyt." },
+          { label: "Keszits moodboardot", action: "Keszits moodboard blokkot." },
+          { label: "Indits storyboardot", action: "Keszits storyboard blokkot." },
+          { label: "Keszits image generation blokkot", action: "Keszits image_generation blokkot prompttal." },
+        ]
+      : [
+          { label: "Create brief", action: "Create a brief block from this." },
+          { label: "Generate directions", action: "Generate three creative directions." },
+          { label: "Create moodboard", action: "Create a moodboard block." },
+          { label: "Start storyboard", action: "Create a storyboard block." },
+          { label: "Create image generation block", action: "Create an image generation block with prompt." },
+        ];
+  }
+
+  return isHu
+    ? [
+        { label: "Finomitsd a celt", action: "Finomitsd a celt konkret es merheto formara." },
+        { label: "Bontsd lepesekre", action: "Bontsd ezt vegrehajthato task listara." },
+        { label: "Keszits roadmapet", action: "Keszits 3 fazisos roadmap blokkot." },
+        { label: "Kritikald a tervet", action: "Keszits critique blokkot a terv gyenge pontjairol." },
+        { label: "Szervezd boardba", action: "Rendezd ezt strukturalt build boardda." },
+      ]
+    : [
+        { label: "Refine goal", action: "Refine the goal into specific measurable criteria." },
+        { label: "Break into steps", action: "Break this into an executable task list." },
+        { label: "Create roadmap", action: "Create a 3-phase roadmap block." },
+        { label: "Critique the plan", action: "Create a critique block for plan risks and improvements." },
+        { label: "Organize into board", action: "Organize this into a structured build board." },
+      ];
+}
+
 export default function DashboardPage() {
   const { user } = useAuth();
   const { t, lang } = useTranslation();
@@ -59,8 +133,7 @@ export default function DashboardPage() {
   );
 
   const isHu = lang === "hu";
-
-  const creatingLabel = isHu ? "Létrehozás..." : "Creating...";
+  const creatingLabel = isHu ? "Letrehozas..." : "Creating...";
 
   const handleCreate = async () => {
     if (!newTitle.trim()) return;
@@ -91,6 +164,7 @@ export default function DashboardPage() {
         payload.answers.why ||
         payload.answers.format ||
         undefined;
+
       const ws = await createWorkspace({
         title,
         mode: payload.intent,
@@ -108,36 +182,11 @@ export default function DashboardPage() {
         });
       }
 
-      const welcome = isHu
-        ? payload.intent === "learn"
-          ? "Előkészítettem egy induló struktúrát a tanulási célodhoz. Finomítsuk együtt."
-          : payload.intent === "creative"
-            ? "Előkészítettem egy induló struktúrát a kreatív munkádhoz. Finomítsuk együtt."
-            : "Előkészítettem egy induló struktúrát a projektedhez. Finomítsuk együtt."
-        : payload.intent === "learn"
-          ? "I set up an initial workspace based on what you want to learn. We can refine it together."
-          : payload.intent === "creative"
-            ? "I set up an initial workspace for your creative direction. We can refine it together."
-            : "I created a starting structure for your project. Let's refine it together.";
-
-      const mentorWelcomeActions: SuggestedAction[] = isHu
-        ? [
-            { label: "Cél finomítása", action: "Finomítsuk a célblokkot." },
-            { label: "Ötletek bővítése", action: "Bővítsük az ötleteket 5 erős iránnyal." },
-            { label: "Feladatlista", action: "Fordítsuk ezt végrehajtható feladatokká." },
-            { label: "Brief készítés", action: "Készíts rövid briefet a jelenlegi blokkok alapján." },
-            { label: "Forrás hozzáadása", action: "Mutasd meg, milyen forrást érdemes először betölteni." },
-          ]
-        : [
-            { label: "Refine the goal", action: "Refine the goal block to be specific and testable." },
-            { label: "Expand ideas", action: "Expand ideas into five strong directions." },
-            { label: "Turn into tasks", action: "Turn this structure into executable tasks." },
-            { label: "Create a brief", action: "Create a concise brief from the current blocks." },
-            { label: "Add source material", action: "Show me the best first source material to add." },
-          ];
-
       navigate(`/workspace/${ws.id}`, {
-        state: { mentorWelcome: welcome, mentorWelcomeActions },
+        state: {
+          mentorWelcome: onboardingWelcome(isHu, payload.intent),
+          mentorWelcomeActions: onboardingActions(isHu, payload.intent),
+        },
       });
     } catch (error) {
       console.error(error);
@@ -147,7 +196,11 @@ export default function DashboardPage() {
   };
 
   if (loading) {
-    return <div className="min-h-screen shell-app-bg text-[var(--shell-text)] flex items-center justify-center">{t("loading")}</div>;
+    return (
+      <div className="min-h-screen shell-app-bg text-[var(--shell-text)] flex items-center justify-center">
+        {t("loading")}
+      </div>
+    );
   }
 
   if (workspaces.length === 0) {
@@ -160,11 +213,12 @@ export default function DashboardPage() {
         <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
           <div className="space-y-2">
             <p className="text-[11px] uppercase tracking-[0.2em] shell-muted">PUMi Studio</p>
-            <h1 className="text-3xl md:text-4xl font-semibold tracking-tight">
-              {isHu ? "AI Mentor Workspace" : "AI Mentor Workspace"}
-            </h1>
+            <h1 className="text-3xl md:text-4xl font-semibold tracking-tight">AI Mentor Workspace</h1>
             <p className="shell-muted text-sm md:text-base">
-              {user?.email ?? (isHu ? "Válassz munkateret vagy indíts egy új irányt." : "Pick a workspace or start a new guided direction.")}
+              {user?.email ??
+                (isHu
+                  ? "Valassz munkateret vagy indits egy uj iranyt."
+                  : "Pick a workspace or start a new guided direction.")}
             </p>
           </div>
 
@@ -237,7 +291,9 @@ export default function DashboardPage() {
             >
               <CardHeader className="pb-2">
                 <div className="flex items-start justify-between gap-2">
-                  <CardTitle className="text-base font-medium line-clamp-2 text-[var(--shell-text)]">{workspace.title}</CardTitle>
+                  <CardTitle className="text-base font-medium line-clamp-2 text-[var(--shell-text)]">
+                    {workspace.title}
+                  </CardTitle>
                   <Badge className={`text-xs border ${MODE_COLOR[workspace.mode as WorkspaceMode]}`}>
                     {modeLabels[workspace.mode as WorkspaceMode]}
                   </Badge>
@@ -245,7 +301,10 @@ export default function DashboardPage() {
               </CardHeader>
               <CardContent>
                 <p className="text-xs shell-muted line-clamp-3">
-                  {workspace.description || (isHu ? "Nyisd meg, és folytasd ott, ahol abbahagytad." : "Open and continue where you left off.")}
+                  {workspace.description ||
+                    (isHu
+                      ? "Nyisd meg, es folytasd ott, ahol abbahagytad."
+                      : "Open and continue where you left off.")}
                 </p>
               </CardContent>
             </Card>

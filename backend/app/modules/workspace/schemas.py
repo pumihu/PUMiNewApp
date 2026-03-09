@@ -15,6 +15,12 @@ class WorkspaceCreate(BaseModel):
     mode: str = "build"
 
 
+class WorkspaceUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    mode: Optional[str] = None
+
+
 class Workspace(BaseModel):
     id: str
     user_id: str

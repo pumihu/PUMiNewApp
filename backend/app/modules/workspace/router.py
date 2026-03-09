@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List
 
 from app.core.deps import get_current_user_id
-from app.modules.workspace.schemas import Workspace, WorkspaceCreate
+from app.modules.workspace.schemas import Workspace, WorkspaceCreate, WorkspaceUpdate
 from app.modules.workspace import service
 
 router = APIRouter(prefix="/workspace", tags=["workspace"])
@@ -21,6 +21,18 @@ def list_workspaces(user_id: str = Depends(get_current_user_id)):
 @router.get("/{workspace_id}", response_model=Workspace)
 def get_workspace(workspace_id: str, user_id: str = Depends(get_current_user_id)):
     ws = service.get_workspace(workspace_id, user_id)
+    if not ws:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")
+    return ws
+
+
+@router.post("/{workspace_id}/update", response_model=Workspace)
+def update_workspace(
+    workspace_id: str,
+    body: WorkspaceUpdate,
+    user_id: str = Depends(get_current_user_id),
+):
+    ws = service.update_workspace(workspace_id, user_id, body)
     if not ws:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")
     return ws

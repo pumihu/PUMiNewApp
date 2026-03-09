@@ -16,8 +16,16 @@ class SuggestedAction(BaseModel):
     payload: Optional[dict] = None
 
 
+class MentorGeneratedBlock(BaseModel):
+    block_type: str
+    title: Optional[str] = None
+    content_json: Optional[dict] = None
+    reason: Optional[str] = None
+
+
 class MentorChatResponse(BaseModel):
     text: str
     suggested_actions: List[SuggestedAction] = []
+    generated_blocks: List[MentorGeneratedBlock] = []
     tool_results: List[dict] = []
     language: str

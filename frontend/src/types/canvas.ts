@@ -1,13 +1,30 @@
 export type BlockType =
   | "note"
   | "task_list"
+  | "link"
   | "source"
+  | "pdf_reference"
   | "summary"
   | "idea"
   | "ai_sticky"
   | "creative_brief"
   | "image_asset"
-  | "storyboard";
+  | "image"
+  | "gif"
+  | "sticker"
+  | "moodboard"
+  | "reference_board"
+  | "storyboard"
+  | "lesson"
+  | "quiz"
+  | "flashcard"
+  | "goal"
+  | "roadmap"
+  | "critique"
+  | "brief"
+  | "image_generation"
+  | "copy"
+  | "board_section";
 
 export interface CanvasBlock {
   id: string;

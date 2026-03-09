@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
 from typing import List, Optional
@@ -22,16 +22,34 @@ SYSTEM_BASE = {
 
 MODE_HINTS = {
     "build": {
-        "en": "Workspace mode is BUILD. Prioritize structure, execution, and progress.",
-        "hu": "A munkater BUILD modban van. Fokusz: struktura, vegrehajtas, haladas.",
+        "en": (
+            "Workspace mode is BUILD. Prioritize planning, structure, execution, and practical critique. "
+            "Favor goal, task_list, roadmap, critique, and resource/link blocks."
+        ),
+        "hu": (
+            "A munkater BUILD modban van. Fokusz: cel, lepesek, roadmap, vegrehajtas, kritika. "
+            "Elsodlegesen goal, task_list, roadmap, critique es resource/link blokkokat javasolj."
+        ),
     },
     "learn": {
-        "en": "Workspace mode is LEARN. Prioritize understanding, gaps, and mastery.",
-        "hu": "A munkater LEARN modban van. Fokusz: megertes, hianyok, elmejyules.",
+        "en": (
+            "Workspace mode is LEARN. Prioritize explanation, simplification, understanding gaps, and practice. "
+            "Favor lesson, summary, quiz, flashcard, timeline/comparison summaries, and source context."
+        ),
+        "hu": (
+            "A munkater LEARN modban van. Fokusz: magyarazat, egyszerusites, hianyok, gyakorlas. "
+            "Elsodlegesen lesson, summary, quiz, flashcard, idovonal/osszehasonlito osszegzes es source blokkokat javasolj."
+        ),
     },
     "creative": {
-        "en": "Workspace mode is CREATIVE. Prioritize originality, direction, and output quality.",
-        "hu": "A munkater CREATIVE modban van. Fokusz: eredetiseg, irany, minosegi kimenet.",
+        "en": (
+            "Workspace mode is CREATIVE. Prioritize concepts, direction, storytelling, and creative outputs. "
+            "Favor brief, moodboard, storyboard, copy, image_generation, and reference_board blocks."
+        ),
+        "hu": (
+            "A munkater CREATIVE modban van. Fokusz: koncepciok, kreativ iranyok, storytelling, kimenet. "
+            "Elsodlegesen brief, moodboard, storyboard, copy, image_generation es reference_board blokkokat javasolj."
+        ),
     },
 }
 

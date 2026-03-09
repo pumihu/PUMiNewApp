@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from typing import List, Optional
 
 from app.core import db
-from app.modules.workspace.schemas import Workspace, WorkspaceCreate
+from app.modules.workspace.schemas import Workspace, WorkspaceCreate, WorkspaceUpdate
 
 
 def _row_to_workspace(row: dict) -> Workspace:
@@ -43,6 +43,49 @@ def list_workspaces(user_id: str) -> List[Workspace]:
 
 
 def get_workspace(workspace_id: str, user_id: str) -> Optional[Workspace]:
+    row = db.fetch_one(
+        "SELECT * FROM workspaces WHERE id = %s AND user_id = %s",
+        (workspace_id, user_id),
+    )
+    return _row_to_workspace(row) if row else None
+
+
+def update_workspace(workspace_id: str, user_id: str, data: WorkspaceUpdate) -> Optional[Workspace]:
+    existing = db.fetch_one(
+        "SELECT * FROM workspaces WHERE id = %s AND user_id = %s",
+        (workspace_id, user_id),
+    )
+    if not existing:
+        return None
+
+    sets: list[str] = []
+    params: list[object] = []
+
+    if data.title is not None:
+        sets.append("title = %s")
+        params.append(data.title)
+
+    if data.description is not None:
+        sets.append("description = %s")
+        params.append(data.description)
+
+    if data.mode is not None:
+        mode = data.mode if data.mode in ("build", "learn", "creative") else "build"
+        sets.append("mode = %s")
+        params.append(mode)
+
+    if not sets:
+        return _row_to_workspace(existing)
+
+    sets.append("updated_at = NOW()")
+    params.append(workspace_id)
+    params.append(user_id)
+
+    db.run_sql(
+        f"UPDATE workspaces SET {', '.join(sets)} WHERE id = %s AND user_id = %s",
+        tuple(params),
+    )
+
     row = db.fetch_one(
         "SELECT * FROM workspaces WHERE id = %s AND user_id = %s",
         (workspace_id, user_id),
