@@ -46,8 +46,8 @@ export function ImageBlock({ block, onUpdate }: Props) {
       ) : (
         <div className="h-36 rounded-xl border border-dashed border-[var(--shell-border)] bg-[var(--shell-highlight)] flex items-center justify-center text-xs shell-muted px-4 text-center">
           {lang === "hu"
-            ? "Adj meg egy kep URL-t, hogy vizualis referencia jelenjen meg."
-            : "Add an image URL to place visual reference material here."}
+            ? "Adj meg egy kep URL-t, vagy hasznalj generalt outputot referenciakent."
+            : "Add an image URL or use generated output as a visual reference."}
         </div>
       )}
 

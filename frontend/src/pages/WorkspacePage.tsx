@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useParams } from "react-router-dom";
 
-import { CanvasView } from "@/features/canvas/CanvasView";
+import { CanvasSurface } from "@/features/canvas/CanvasSurface";
 import { MentorPanel } from "@/features/mentor/MentorPanel";
 import { WorkspaceHeader } from "@/features/workspace/WorkspaceHeader";
 import { WorkspaceSidebar } from "@/features/workspace/WorkspaceSidebar";
@@ -22,6 +22,20 @@ interface CanvasLayout {
   y: number;
   width: number;
   height: number;
+}
+
+function normalizeBlocks(blocks: CanvasBlock[]): CanvasBlock[] {
+  const byId = new Map<string, CanvasBlock>();
+  for (const block of blocks) {
+    byId.set(block.id, block);
+  }
+
+  return [...byId.values()].sort(
+    (left, right) =>
+      left.position - right.position ||
+      left.created_at.localeCompare(right.created_at) ||
+      left.id.localeCompare(right.id),
+  );
 }
 
 function resolveMentorSection(blockType: BlockType): "ideas" | "plan" | "sources" | "output" {
@@ -76,6 +90,11 @@ export default function WorkspacePage() {
   const [selectedBlockIds, setSelectedBlockIds] = useState<string[]>([]);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const [loading, setLoading] = useState(true);
+  const blocksRef = useRef<CanvasBlock[]>([]);
+
+  useEffect(() => {
+    blocksRef.current = blocks;
+  }, [blocks]);
 
   useEffect(() => {
     const stored = localStorage.getItem("pumi_workspace_sidebar_collapsed");
@@ -107,7 +126,9 @@ export default function WorkspacePage() {
     Promise.all([getWorkspace(workspaceId), listBlocks(workspaceId)])
       .then(([ws, blks]) => {
         setWorkspace(ws);
-        setBlocks(blks);
+        const normalized = normalizeBlocks(blks);
+        blocksRef.current = normalized;
+        setBlocks(normalized);
       })
       .catch((error) => {
         console.error(error);
@@ -115,6 +136,12 @@ export default function WorkspacePage() {
       })
       .finally(() => setLoading(false));
   }, [workspaceId]);
+
+  useEffect(() => {
+    setSelectedBlockIds((previous) =>
+      previous.filter((id) => blocks.some((block) => block.id === id)),
+    );
+  }, [blocks]);
 
   const handleModeChange = async (mode: WorkspaceMode) => {
     if (!workspace) return;
@@ -129,17 +156,11 @@ export default function WorkspacePage() {
       toast({
         description:
           lang === "hu"
-            ? "Nem sikerult menteni a mod valtast."
+            ? "Nem sikerült menteni a módváltást."
             : "Could not save mode change.",
         variant: "destructive",
       });
     }
-  };
-
-  const toggleBlockSelection = (id: string) => {
-    setSelectedBlockIds((prev) =>
-      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
-    );
   };
 
   const handleSidebarToggle = () => {
@@ -155,13 +176,15 @@ export default function WorkspacePage() {
 
     try {
       const nextPosition =
-        blocks.length === 0 ? 0 : Math.max(...blocks.map((block) => block.position)) + 1;
+        blocksRef.current.length === 0
+          ? 0
+          : Math.max(...blocksRef.current.map((block) => block.position)) + 1;
 
       const generated = payload.generated_block;
       const blockType: BlockType = generated?.block_type ?? "ai_sticky";
       const blockTitle = generated?.title ?? "AI Insight";
       const section = payload.target_section_key ?? resolveMentorSection(blockType);
-      const layout = payload.target_layout ?? defaultMentorLayout(blockType, blocks.length);
+      const layout = payload.target_layout ?? defaultMentorLayout(blockType, blocksRef.current.length);
       const sourceContent =
         generated?.content_json && typeof generated.content_json === "object"
           ? generated.content_json
@@ -200,12 +223,9 @@ export default function WorkspacePage() {
         content_json: contentJson,
       });
 
-      setBlocks((prev) =>
-        [...prev, created].sort(
-          (left, right) =>
-            left.position - right.position || left.created_at.localeCompare(right.created_at),
-        ),
-      );
+      const next = normalizeBlocks([...blocksRef.current, created]);
+      blocksRef.current = next;
+      setBlocks(next);
 
       toast({
         description:
@@ -241,22 +261,31 @@ export default function WorkspacePage() {
 
   return (
     <div className="min-h-screen shell-app-bg text-[var(--shell-text)] flex flex-col">
-      <WorkspaceHeader workspace={workspace} onModeChange={handleModeChange} />
+      <WorkspaceHeader
+        workspace={workspace}
+        onModeChange={handleModeChange}
+        sidebarCollapsed={sidebarCollapsed}
+        onToggleSidebar={handleSidebarToggle}
+      />
 
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden gap-0">
         <WorkspaceSidebar
           workspaceId={workspace.id}
           collapsed={sidebarCollapsed}
           onToggleCollapsed={handleSidebarToggle}
         />
 
-        <main className="flex-1 overflow-y-auto">
-          <CanvasView
+        <main className="flex-1 min-w-0 overflow-hidden">
+          <CanvasSurface
             workspace={workspace}
             blocks={blocks}
             selectedBlockIds={selectedBlockIds}
-            onBlocksChange={setBlocks}
-            onToggleSelect={toggleBlockSelection}
+            onBlocksChange={(next) => {
+              const normalized = normalizeBlocks(next);
+              blocksRef.current = normalized;
+              setBlocks(normalized);
+            }}
+            onSelectionChange={setSelectedBlockIds}
             onCaptureMentorMessage={handleCaptureMentorMessage}
           />
         </main>

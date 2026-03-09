@@ -648,8 +648,33 @@ function createBoardSectionsForMode(
   }));
 }
 
-function modeSuggestedActions(locale: "en" | "hu", mode: MentorChatRequest["mode"]): Array<{ label: string; action: string }> {
+function modeSuggestedActions(
+  locale: "en" | "hu",
+  mode: MentorChatRequest["mode"],
+  selectedBlocks: CanvasBlock[],
+  generatedBlocks: MentorGeneratedBlock[],
+): Array<{ label: string; action: string }> {
+  const selectedType = selectedBlocks[0]?.type;
+  const latestGeneratedType = generatedBlocks[0]?.block_type;
+  const contextType = selectedType ?? latestGeneratedType;
+
   if (mode === "learn") {
+    if (contextType === "lesson") {
+      return locale === "hu"
+        ? [
+            { label: "Quiz me on this", action: "Keszits 3 kerdeses quiz blokkot ebbol a lessonbol." },
+            { label: "Keszits flashcardokat", action: "Keszits flashcard blokkot ebbol a lessonbol." },
+            { label: "Egyszerusitsd", action: "Egyszerusitsd ezt lesson blokk formatumban." },
+            { label: "Kulcsfogalmak", action: "Emeld ki a key conceptokat summary blokkban." },
+          ]
+        : [
+            { label: "Quiz me on this", action: "Create a 3-question quiz block from this lesson." },
+            { label: "Make flashcards", action: "Create a flashcard block from this lesson." },
+            { label: "Simplify this", action: "Simplify this into a tighter lesson block." },
+            { label: "Extract key concepts", action: "Extract key concepts into a summary block." },
+          ];
+    }
+
     return locale === "hu"
       ? [
           { label: "Magyarazd el egyszeruen", action: "Magyarazd el egyszeruen ezt a temat." },
@@ -668,6 +693,22 @@ function modeSuggestedActions(locale: "en" | "hu", mode: MentorChatRequest["mode
   }
 
   if (mode === "creative") {
+    if (contextType === "brief") {
+      return locale === "hu"
+        ? [
+            { label: "Keszits storyboardot", action: "Keszits storyboard blokkot ebbol a briefbol." },
+            { label: "Generalj iranyokat", action: "Generalj 3 kreativ iranyt ebbol a briefbol." },
+            { label: "Keszits image blokkot", action: "Keszits image_generation blokkot ebbol a briefbol." },
+            { label: "Finomitsd a briefet", action: "Finomitsd ezt a brief blokkot rovidebbre es konkretabbra." },
+          ]
+        : [
+            { label: "Create storyboard", action: "Create a storyboard block from this brief." },
+            { label: "Generate directions", action: "Generate three directions from this brief." },
+            { label: "Create image block", action: "Create an image_generation block from this brief." },
+            { label: "Refine brief", action: "Refine this brief block into a tighter version." },
+          ];
+    }
+
     return locale === "hu"
       ? [
           { label: "Keszits briefet", action: "Keszits brief blokkot ebbol." },
@@ -682,6 +723,22 @@ function modeSuggestedActions(locale: "en" | "hu", mode: MentorChatRequest["mode
           { label: "Create moodboard", action: "Create a moodboard block for this concept." },
           { label: "Start storyboard", action: "Create a storyboard block for this concept." },
           { label: "Add image prompt", action: "Create a media generation block with prompt." },
+        ];
+  }
+
+  if (contextType === "roadmap") {
+    return locale === "hu"
+      ? [
+          { label: "Turn into tasks", action: "Bontsd ezt a roadmapet task_list blokkra." },
+          { label: "Kritikald ezt", action: "Keszits critique blokkot erre a roadmapre." },
+          { label: "Finomitsd lepeseit", action: "Finomitsd a kovetkezo lepeseket konkret taskokkal." },
+          { label: "Adj kockazatokat", action: "Emeld ki a fo kockazatokat critique blokkban." },
+        ]
+      : [
+          { label: "Turn into tasks", action: "Turn this roadmap into a task_list block." },
+          { label: "Critique this plan", action: "Create a critique block for this roadmap." },
+          { label: "Refine next steps", action: "Refine next steps into concrete tasks." },
+          { label: "Add risks", action: "Add key risks as a critique block." },
         ];
   }
 
@@ -998,47 +1055,30 @@ export const mockMentorApi = {
 
     const sourceHint = sourceSummaries.length > 0
       ? req.locale === "hu"
-        ? ` Forras kontextus: ${sourceSummaries.join(" | ")}`
-        : ` Source context: ${sourceSummaries.join(" | ")}`
+        ? " Forrás kontextus aktív."
+        : " Source context is active."
       : "";
 
-    const baseText = req.locale === "hu"
-      ? selected.length > 0
-        ? `Megneztem a kijelolt ${selected.length} blokkot.${sourceHint}`
-        : `Latom a munkatered.${sourceHint}`
-      : selected.length > 0
-        ? `I reviewed ${selected.length} selected block(s).${sourceHint}`
-        : `I can see your workspace.${sourceHint}`;
-
-    const modeBehavior =
-      req.mode === "learn"
-        ? req.locale === "hu"
-          ? "LEARN modban magyarazatot, gyakorlast, quizt, flashcardot es timeline osszegzest adok."
-          : "In LEARN mode I focus on explanation, practice, quizzes, flashcards, and timeline/comparison summaries."
-        : req.mode === "creative"
-          ? req.locale === "hu"
-            ? "CREATIVE modban briefet, kreativ iranyokat, moodboardot, storyboardot es media blokkokat adok."
-            : "In CREATIVE mode I prioritize brief, directions, moodboard, storyboard, copy, and media blocks."
-          : req.locale === "hu"
-            ? "BUILD modban cel, lepesek, roadmap, kritika es resource blokkokra fokuszalok."
-            : "In BUILD mode I prioritize goals, execution steps, roadmaps, critique, and resource blocks.";
-
-    const generatedLine =
+    const text =
       generatedBlocks.length > 0
         ? req.locale === "hu"
           ? generatedBlocks.length > 1
-            ? ` ElÃ…â€˜kÃƒÂ©szÃƒÂ­tettem ${generatedBlocks.length} board szekciÃƒÂ³ blokkjelÃƒÂ¶ltet, pineld Ã…â€˜ket a vÃƒÂ¡szonra.`
-            : ` ElÃ…â€˜kÃƒÂ©szÃƒÂ­tettem egy ${generatedBlocks[0].block_type} blokkjelÃƒÂ¶ltet, pineld a vÃƒÂ¡szonra.`
+            ? `Kész: ${generatedBlocks.length} blokk jelölt.${sourceHint}`
+            : `Kész: ${generatedBlocks[0].title ?? generatedBlocks[0].block_type}.${sourceHint}`
           : generatedBlocks.length > 1
-            ? ` I prepared ${generatedBlocks.length} board section candidates. Pin them to canvas.`
-            : ` I prepared one ${generatedBlocks[0].block_type} block candidate. Pin it to canvas.`
-        : "";
+            ? `Ready: ${generatedBlocks.length} block candidates.${sourceHint}`
+            : `Ready: ${generatedBlocks[0].title ?? generatedBlocks[0].block_type}.${sourceHint}`
+        : req.locale === "hu"
+          ? selected.length > 0
+            ? `A kijelölt ${selected.length} blokk alapján mehetünk tovább.${sourceHint}`
+            : `Mondd, milyen blokkot készítsek.${sourceHint}`
+          : selected.length > 0
+            ? `Using ${selected.length} selected block(s), we can continue.${sourceHint}`
+            : `Tell me which block to generate next.${sourceHint}`;
 
     return {
-      text: `${baseText} ${modeBehavior}${generatedLine} ${
-        req.locale === "hu" ? "Mondd, mi legyen a kovetkezo blokk." : "Tell me which block to generate next."
-      }`,
-      suggested_actions: modeSuggestedActions(req.locale, req.mode),
+      text,
+      suggested_actions: modeSuggestedActions(req.locale, req.mode, selected, generatedBlocks),
       generated_blocks: generatedBlocks,
       tool_results: [],
       language: req.locale,

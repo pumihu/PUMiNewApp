@@ -26,6 +26,7 @@ import type { MentorChatRequest, MentorChatResponse } from "@/types/mentor";
 import type { Workspace, WorkspaceCreate, WorkspaceUpdate } from "@/types/workspace";
 
 const FORCE_MOCK = import.meta.env.VITE_PUMI_FORCE_MOCK === "1";
+const DEV_DIAGNOSTICS = import.meta.env.DEV;
 
 async function withMockFallback<T>(
   label: string,
@@ -33,13 +34,23 @@ async function withMockFallback<T>(
   mockCall: () => T,
 ): Promise<T> {
   if (FORCE_MOCK) {
+    if (DEV_DIAGNOSTICS) {
+      console.info(`[api:${label}] using mock persistence (VITE_PUMI_FORCE_MOCK=1)`);
+    }
     return mockCall();
   }
 
   try {
-    return await remoteCall();
+    const result = await remoteCall();
+    if (DEV_DIAGNOSTICS) {
+      console.info(`[api:${label}] remote persistence ok`);
+    }
+    return result;
   } catch (error) {
-    console.warn(`[api] ${label} remote failed, switching to mock fallback`, error);
+    console.warn(`[api:${label}] remote failed, switching to mock fallback`, error);
+    if (DEV_DIAGNOSTICS) {
+      console.info(`[api:${label}] fallback result comes from mock store`);
+    }
     return mockCall();
   }
 }

@@ -226,6 +226,84 @@ function inferFallbackGeneratedBlocks(
   return [{ block_type: blockType, title: isHu ? "Mentor blokk" : "Mentor Block", reason: isHu ? "Mentor altal elokeszitett blokk." : "Mentor-prepared block.", content_json: { section: "ideas", text: seed } }];
 }
 
+function conciseGeneratedMessage(generatedBlocks: MentorGeneratedBlock[], locale: "en" | "hu"): string {
+  if (generatedBlocks.length === 0) {
+    return locale === "hu" ? "Készen állok a következo blokkra." : "Ready for the next block.";
+  }
+  if (generatedBlocks.length === 1) {
+    const block = generatedBlocks[0];
+    return locale === "hu"
+      ? `Kész: ${block.title || block.block_type}. Helyezd a vászonra.`
+      : `Ready: ${block.title || block.block_type}. Place it on canvas.`;
+  }
+  return locale === "hu"
+    ? `Kész: ${generatedBlocks.length} blokk jelölt. Válassz és helyezd oket a vászonra.`
+    : `Ready: ${generatedBlocks.length} block candidates. Select and place them on canvas.`;
+}
+
+function buildRefinePrompt(candidate: MentorGeneratedBlock, locale: "en" | "hu"): string {
+  const label = candidate.title || candidate.block_type;
+  if (locale === "hu") {
+    return `Finomítsd ezt a(z) ${label} blokkot: legyen tömörebb, konkrétabb és használhatóbb.`;
+  }
+  return `Refine this ${label} block to be tighter, more concrete, and more usable.`;
+}
+
+function contextualActions(
+  mode: Workspace["mode"],
+  locale: "en" | "hu",
+  selectedBlockType?: CanvasBlock["type"],
+  latestGeneratedType?: MentorGeneratedBlock["block_type"],
+): string[] {
+  const selected = selectedBlockType ?? latestGeneratedType;
+
+  if (mode === "learn") {
+    if (selected === "lesson") {
+      return locale === "hu"
+        ? ["Quiz me on this", "Készíts flashcardokat", "Egyszerusítsd ezt", "Emeld ki a kulcsfogalmakat"]
+        : ["Quiz me on this", "Make flashcards", "Simplify this", "Extract key concepts"];
+    }
+    if (selected === "summary" || selected === "source") {
+      return locale === "hu"
+        ? ["Készíts lesson blokkot", "Készíts 3 kérdéses quizt", "Készíts flashcardokat", "Ossz ki gyakorló feladatot"]
+        : ["Create lesson block", "Make a 3-question quiz", "Create flashcards", "Give me a practice task"];
+    }
+    return locale === "hu"
+      ? ["Magyarázd el egyszeruen", "Készíts lesson blokkot", "Quiz me", "Készíts flashcardokat"]
+      : ["Explain simply", "Create lesson block", "Quiz me", "Make flashcards"];
+  }
+
+  if (mode === "creative") {
+    if (selected === "brief") {
+      return locale === "hu"
+        ? ["Készíts storyboardot", "Generálj irányokat", "Készíts image generation blokkot", "Adj copy ötleteket"]
+        : ["Create storyboard", "Generate directions", "Create image generation block", "Generate copy ideas"];
+    }
+    if (selected === "storyboard") {
+      return locale === "hu"
+        ? ["Adj copy ötleteket", "Készíts image generation blokkot", "Finomítsd a jeleneteket", "Készíts rövid briefet"]
+        : ["Generate copy ideas", "Create image generation block", "Refine scenes", "Create short brief"];
+    }
+    return locale === "hu"
+      ? ["Készíts briefet", "Készíts storyboardot", "Készíts image generation blokkot", "Generálj irányokat"]
+      : ["Create brief", "Create storyboard", "Create image generation block", "Generate directions"];
+  }
+
+  if (selected === "roadmap") {
+    return locale === "hu"
+      ? ["Bontsd feladatokra", "Kritikáld ezt a tervet", "Finomítsd a következo lépéseket", "Adj kockázatkezelést"]
+      : ["Turn into tasks", "Critique this plan", "Refine next steps", "Add risk mitigation"];
+  }
+  if (selected === "critique") {
+    return locale === "hu"
+      ? ["Készíts javított task listát", "Frissítsd a roadmapet", "Sorold a top 3 javítást", "Adj végrehajtási sorrendet"]
+      : ["Create revised task list", "Update roadmap", "List top 3 fixes", "Set execution order"];
+  }
+  return locale === "hu"
+    ? ["Bontsd lépésekre", "Készíts roadmapet", "Kritikáld ezt", "Rendezd végrehajtható feladatokra"]
+    : ["Turn this into tasks", "Create roadmap", "Critique this", "Make it execution-ready"];
+}
+
 export function MentorPanel({
   workspace,
   blocks,
@@ -267,53 +345,45 @@ export function MentorPanel({
   const guidance = useMemo(() => {
     const blockCount = blocks.length;
     const sourceCount = blocks.filter((block) => block.type === "source" || block.type === "summary").length;
+    const selectedPrimary = blocks.find((block) => selectedBlockIds.includes(block.id));
+    const latestGenerated = [...messages]
+      .reverse()
+      .find((message) => message.role === "assistant" && message.generated_blocks && message.generated_blocks.length > 0)
+      ?.generated_blocks?.[0];
 
-    const modeGuidance =
+    const capabilityLine =
       workspace.mode === "learn"
-        ? {
-            capabilityLine:
-              lang === "hu"
-                ? "LEARN mod: magyarazat, egyszerusites, gyakorlas, visszahivas. Lecke, quiz, flashcard, timeline/comparison osszegzes."
-                : "LEARN mode: explanation, simplification, practice, and recall. Lessons, quizzes, flashcards, and timeline/comparison summaries.",
-            actions:
-              lang === "hu"
-                ? ["Magyarazd el egyszeruen", "Quiz me", "Keszits flashcardokat", "Keszits timeline osszegzest"]
-                : ["Explain simply", "Quiz me", "Make flashcards", "Create timeline summary"],
-          }
+        ? lang === "hu"
+          ? "LEARN mód: lecke, kvíz, flashcard és tanulási transzformációk."
+          : "LEARN mode: lessons, quizzes, flashcards, and learning transforms."
         : workspace.mode === "creative"
-          ? {
-              capabilityLine:
-                lang === "hu"
-                  ? "CREATIVE mod: koncepcio, kreativ irany, storytelling es output. Brief, moodboard, storyboard, copy, image generation."
-                  : "CREATIVE mode: concepts, direction, storytelling, and output. Brief, moodboard, storyboard, copy, image generation.",
-              actions:
-                lang === "hu"
-                  ? ["Keszits briefet", "Generalj kreativ iranyokat", "Keszits moodboardot", "Indits storyboardot"]
-                  : ["Create brief", "Generate directions", "Create moodboard", "Start storyboard"],
-            }
-          : {
-              capabilityLine:
-                lang === "hu"
-                  ? "BUILD mod: tervezes, strukturalt vegrehajtas, kritika. Cel, task list, roadmap, critique, resource blokkok."
-                  : "BUILD mode: planning, structure, execution, and critique. Goal, task list, roadmap, critique, and resource blocks.",
-              actions:
-                lang === "hu"
-                  ? ["Finomitsd a celt", "Bontsd lepesekre", "Keszits roadmapet", "Kritikald a tervet"]
-                  : ["Refine goal", "Break into steps", "Create roadmap", "Critique plan"],
-            };
+          ? lang === "hu"
+            ? "CREATIVE mód: brief, storyboard, image generation és kreatív transzformációk."
+            : "CREATIVE mode: brief, storyboard, image generation, and creative transforms."
+          : lang === "hu"
+            ? "BUILD mód: task list, roadmap, critique és végrehajtási transzformációk."
+            : "BUILD mode: task lists, roadmaps, critique, and execution transforms.";
+
+    const actions = contextualActions(
+      workspace.mode,
+      lang === "hu" ? "hu" : "en",
+      selectedPrimary?.type,
+      latestGenerated?.block_type,
+    );
 
     if (lang === "hu") {
       return {
-        blockLine: `${blockCount} blokk van ebben a munkatÃ©rben.`,
+        blockLine: `${blockCount} blokk van ebben a munkatérben.`,
         selectedLine:
           selectedBlockIds.length > 0
-            ? `${selectedBlockIds.length} blokk van kijelÃ¶lve mentor munkÃ¡hoz.`
-            : "VÃ¡lassz egy blokkot, hogy pontosan azon dolgozzunk.",
+            ? `${selectedBlockIds.length} blokk van kijelölve mentor munkához.`
+            : "Válassz blokkot a kontextus alapú muveletekhez.",
         sourceLine:
           sourceCount > 0
-            ? `${sourceCount} forrÃ¡s/Ã¶sszefoglalÃ³ blokk elÃ©rhetÅ‘ kontextuskÃ©nt.`
-            : "Adj hozzÃ¡ forrÃ¡st, Ã©s strukturÃ¡lt Ã¶sszefoglalÃ³t kÃ©szÃ­tek.",
-        ...modeGuidance,
+            ? `${sourceCount} forrás/összefoglaló blokk elérheto kontextusként.`
+            : "Adj hozzá forrást, és objektumot készítek belole.",
+        capabilityLine,
+        actions,
       };
     }
 
@@ -321,15 +391,16 @@ export function MentorPanel({
       blockLine: `You have ${blockCount} blocks in this workspace.`,
       selectedLine:
         selectedBlockIds.length > 0
-          ? `${selectedBlockIds.length} selected block(s) ready for mentor work.`
-          : "Select a block to get precise, context-aware help.",
+          ? `${selectedBlockIds.length} selected block(s) ready for mentor transforms.`
+          : "Select a block for context-aware object generation.",
       sourceLine:
         sourceCount > 0
           ? `${sourceCount} source/summary block(s) available as context.`
-          : "Add a source and I will generate a structured summary.",
-      ...modeGuidance,
+          : "Add a source and I will convert it into working objects.",
+      capabilityLine,
+      actions,
     };
-  }, [blocks, lang, selectedBlockIds.length, workspace.mode]);
+  }, [blocks, lang, messages, selectedBlockIds, workspace.mode]);
 
   const selectedBlocks = useMemo(
     () => blocks.filter((block) => selectedBlockIds.includes(block.id)).slice(0, 3),
@@ -557,7 +628,7 @@ export function MentorPanel({
       const assistantMsg: MentorMessage = {
         id: crypto.randomUUID(),
         role: "assistant",
-        text: resp.text,
+        text: generatedBlocks.length > 0 ? conciseGeneratedMessage(generatedBlocks, locale) : resp.text,
         timestamp: Date.now(),
         suggested_actions: resp.suggested_actions,
         generated_blocks: generatedBlocks,
@@ -607,22 +678,38 @@ export function MentorPanel({
     }
   };
 
+  const handlePlaceGenerated = async (
+    message: MentorMessage,
+    generatedBlock?: MentorGeneratedBlock,
+  ) => {
+    await handlePinMessage(message, generatedBlock);
+  };
+
+  const handleRefineGenerated = (message: MentorMessage, generatedBlock: MentorGeneratedBlock) => {
+    const locale = lang === "hu" ? "hu" : "en";
+    void handleSend(
+      `${buildRefinePrompt(generatedBlock, locale)}\n${locale === "hu" ? "Forrás üzenet:" : "Source message:"} ${message.text}`,
+    );
+  };
+
   return (
-    <aside className="w-[360px] border-l border-[var(--shell-border)] bg-[var(--shell-surface)]/78 backdrop-blur-xl flex flex-col shrink-0">
-      <div className="h-[62px] border-b border-[var(--shell-border)] flex items-center justify-between px-4 shrink-0">
+    <aside className="w-[348px] xl:w-[360px] border-l border-[var(--shell-border)]/70 bg-[var(--shell-surface)]/72 backdrop-blur-xl flex flex-col shrink-0">
+      <div className="h-[60px] border-b border-[var(--shell-border)]/70 flex items-center justify-between px-4 shrink-0">
         <div>
           <p className="text-sm font-medium flex items-center gap-2">
             <span className="h-1.5 w-1.5 rounded-full bg-[var(--shell-accent)] animate-pulse" />
             {t("mentorPanelTitle")}
           </p>
-          <p className="text-[11px] shell-muted">{workspace.title}</p>
+          <p className="text-[11px] shell-muted truncate max-w-[190px]">{workspace.title}</p>
         </div>
-        <span className="text-[10px] uppercase tracking-[0.14em] shell-muted">{workspace.mode}</span>
+        <span className="rounded-md border border-[var(--shell-border)]/70 bg-[var(--shell-surface-2)]/70 px-2 py-1 text-[10px] uppercase tracking-[0.12em] shell-muted">
+          {workspace.mode}
+        </span>
       </div>
 
-      <div className="px-4 py-3 border-b border-[var(--shell-border)] space-y-3">
-        <div className="rounded-xl shell-panel p-3 space-y-2">
-          <p className="text-xs flex items-center gap-2">
+      <div className="px-4 py-3 border-b border-[var(--shell-border)]/70 space-y-3">
+        <div className="rounded-2xl shell-panel-strong p-3 space-y-2">
+          <p className="text-xs flex items-center gap-2 text-[var(--shell-text)]/90">
             <Compass className="h-3.5 w-3.5" /> {guidance.blockLine}
           </p>
           <p className="text-xs shell-muted">{guidance.selectedLine}</p>
@@ -630,38 +717,45 @@ export function MentorPanel({
           <p className="text-xs shell-muted">{guidance.capabilityLine}</p>
         </div>
 
-        <div className="space-y-1">
+        <div className="space-y-1.5">
           <p className="text-[11px] uppercase tracking-[0.12em] shell-muted">
-            {lang === "hu" ? "KijelÃ¶lt blokkok" : "Selected blocks"}
+            {lang === "hu" ? "Kijelolt blokkok" : "Selected blocks"}
           </p>
           {selectedBlocks.length > 0 ? (
-            selectedBlocks.map((block) => (
-              <p key={block.id} className="text-xs text-[var(--shell-text)]/88">
-                â€¢ {block.title || (lang === "hu" ? "KijelÃ¶lt blokk" : "Selected block")}
-              </p>
-            ))
+            <div className="flex flex-wrap gap-1.5">
+              {selectedBlocks.map((block) => (
+                <span
+                  key={block.id}
+                  className="rounded-md border border-[var(--shell-border)]/70 bg-[var(--shell-surface-2)]/65 px-2 py-1 text-[11px] text-[var(--shell-text)]/88"
+                >
+                  {block.title || (lang === "hu" ? "Kijelolt blokk" : "Selected block")}
+                </span>
+              ))}
+            </div>
           ) : (
             <p className="text-xs shell-muted">
-              {lang === "hu" ? "Nincs kijelÃ¶lt blokk." : "No block selected yet."}
+              {lang === "hu" ? "Valassz egy blokkot a celzott mentor akciokhoz." : "Select a block to unlock targeted mentor actions."}
             </p>
           )}
         </div>
 
-        <div className="grid grid-cols-1 gap-1.5">
+        <div className="grid grid-cols-2 gap-1.5">
           {guidance.actions.map((action) => (
             <button
               key={action}
               onClick={() => void handleSend(action)}
-              className="rounded-lg border shell-surface-2 px-3 py-1.5 text-left text-[11px] shell-muted hover:text-[var(--shell-text)] shell-interactive"
+              className="rounded-lg border shell-surface-2 px-2.5 py-1.5 text-left text-[11px] shell-muted hover:text-[var(--shell-text)] shell-interactive leading-snug"
             >
               {action}
             </button>
           ))}
         </div>
 
-        <div className="rounded-xl border border-[var(--shell-border)]/70 bg-[var(--shell-surface-2)]/65 p-3 space-y-2">
+        <div className="rounded-2xl border border-[var(--shell-border)]/70 bg-[var(--shell-surface-2)]/55 p-3 space-y-2.5">
           <div className="flex items-center justify-between">
-            <p className="text-[11px] uppercase tracking-[0.12em] shell-muted">Guided start</p>
+            <p className="text-[11px] uppercase tracking-[0.12em] shell-muted">
+              {lang === "hu" ? "Mentor guide" : "Mentor guide"}
+            </p>
             <p className="text-[11px] shell-muted">
               {tutorialDoneCount}/{tutorial.length}
             </p>
@@ -673,10 +767,10 @@ export function MentorPanel({
                 key={step.id}
                 disabled={step.done}
                 onClick={() => void handleSend(step.prompt)}
-                className={`w-full rounded-lg border px-2.5 py-2 text-left text-xs shell-interactive ${
+                className={`w-full rounded-xl border px-2.5 py-2 text-left text-xs shell-interactive ${
                   step.done
                     ? "border-[var(--shell-border)]/55 bg-[var(--shell-highlight)] text-[var(--shell-muted)]"
-                    : "border-[var(--shell-border)] bg-transparent text-[var(--shell-text)]"
+                    : "border-[var(--shell-border)] bg-[var(--shell-surface)]/30 text-[var(--shell-text)]"
                 }`}
               >
                 <span className="inline-flex items-center gap-2">
@@ -704,6 +798,12 @@ export function MentorPanel({
         onPinAllGenerated={(message) => {
           void handlePinAllGenerated(message);
         }}
+        onPlaceMessage={(message, generatedBlock) => {
+          void handlePlaceGenerated(message, generatedBlock);
+        }}
+        onRefineGenerated={(message, generatedBlock) => {
+          handleRefineGenerated(message, generatedBlock);
+        }}
       />
 
       {thinking && (
@@ -721,4 +821,8 @@ export function MentorPanel({
     </aside>
   );
 }
+
+
+
+
 

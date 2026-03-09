@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { patchBlock } from "@/lib/api";
 import { useTranslation } from "@/hooks/useTranslation";
 import type { CanvasBlock } from "@/types/canvas";
@@ -41,7 +41,7 @@ export function ImageGenerationBlock({ block, onUpdate }: Props) {
           selected_mode: selectedMode,
           status:
             lang === "hu"
-              ? "Előkészített generálási blokk. Futtatás még nincs bekötve."
+              ? "ElÅ‘kÃ©szÃ­tett generÃ¡lÃ¡si blokk. FuttatÃ¡s mÃ©g nincs bekÃ¶tve."
               : "Prepared generation block. Execution is not wired yet.",
         },
       });
@@ -54,11 +54,11 @@ export function ImageGenerationBlock({ block, onUpdate }: Props) {
   return (
     <div className="space-y-3">
       <p className="text-[11px] uppercase tracking-wide shell-muted">
-        {lang === "hu" ? "Média generálás" : "Media generation"}
+        {lang === "hu" ? "MÃ©dia generÃ¡lÃ¡s" : "Media generation"}
       </p>
 
       <div className="space-y-1.5">
-        <p className="text-[11px] shell-muted">{lang === "hu" ? "Mód" : "Mode"}</p>
+        <p className="text-[11px] shell-muted">{lang === "hu" ? "MÃ³d" : "Mode"}</p>
         <select
           value={selectedMode}
           onChange={(event) => setSelectedMode(event.target.value)}
@@ -80,43 +80,44 @@ export function ImageGenerationBlock({ block, onUpdate }: Props) {
           value={prompt}
           onChange={(event) => setPrompt(event.target.value)}
           onBlur={save}
-          placeholder={lang === "hu" ? "Írd le a kívánt kimenetet..." : "Describe the desired output..."}
+          placeholder={lang === "hu" ? "Ãrd le a kÃ­vÃ¡nt kimenetet..." : "Describe the desired output..."}
         />
       </div>
 
       <div className="space-y-1.5">
-        <p className="text-[11px] shell-muted">{lang === "hu" ? "Referencia (opcionális)" : "Reference (optional)"}</p>
+        <p className="text-[11px] shell-muted">{lang === "hu" ? "Referencia (opcionÃ¡lis)" : "Reference (optional)"}</p>
         <textarea
           className="w-full rounded-lg border border-[var(--shell-border)] bg-[var(--shell-surface-2)] px-2 py-1.5 text-xs text-[var(--shell-text)] outline-none resize-none min-h-[56px]"
           value={referenceInput}
           onChange={(event) => setReferenceInput(event.target.value)}
           onBlur={save}
-          placeholder={lang === "hu" ? "Leírás, URL vagy vizuális irány..." : "Description, URL, or visual direction..."}
+          placeholder={lang === "hu" ? "LeÃ­rÃ¡s, URL vagy vizuÃ¡lis irÃ¡ny..." : "Description, URL, or visual direction..."}
         />
       </div>
 
       {content.output_preview_url ? (
         <img
           src={content.output_preview_url}
-          alt={lang === "hu" ? "Generált előnézet" : "Generated preview"}
+          alt={lang === "hu" ? "GenerÃ¡lt elÅ‘nÃ©zet" : "Generated preview"}
           className="rounded-xl border border-[var(--shell-border)] w-full"
         />
       ) : (
         <div className="rounded-xl border border-dashed border-[var(--shell-border)] bg-[var(--shell-highlight)] min-h-[88px] px-3 py-2 text-xs shell-muted flex items-center">
           {lang === "hu"
-            ? "A kimeneti előnézet itt fog megjelenni, ha a provider futtatás be lesz kötve."
-            : "Output preview will appear here once provider execution is wired."}
+            ? "A kimeneti elÅ‘nÃ©zet itt fog megjelenni, ha a provider futtatÃ¡s be lesz kÃ¶tve."
+            : "Output preview appears here after generation runs."}
         </div>
       )}
 
       <p className="text-[11px] shell-muted">
         {content.status ||
           (lang === "hu"
-            ? "Előkészített blokk. A generálás még nincs élesítve."
-            : "Prepared block. Generation is not enabled yet.")}
+            ? "ElÅ‘kÃ©szÃ­tett blokk. A generÃ¡lÃ¡s mÃ©g nincs Ã©lesÃ­tve."
+            : "Prepared block. Ready for provider execution.")}
       </p>
 
-      {saving && <p className="text-[11px] shell-muted">{lang === "hu" ? "Mentés..." : "Saving..."}</p>}
+      {saving && <p className="text-[11px] shell-muted">{lang === "hu" ? "MentÃ©s..." : "Saving..."}</p>}
     </div>
   );
 }
+
