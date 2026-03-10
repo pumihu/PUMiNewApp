@@ -21,6 +21,7 @@ interface Props {
   initialWelcomeMessage?: string;
   initialWelcomeActions?: SuggestedAction[];
   onCaptureMentorMessage?: (payload: MentorCanvasCapturePayload) => Promise<void> | void;
+  className?: string;
 }
 
 const MENTOR_SESSION_STORAGE_PREFIX = "pumi_mentor_session_v2";
@@ -699,6 +700,7 @@ export function MentorPanel({
   initialWelcomeMessage,
   initialWelcomeActions = [],
   onCaptureMentorMessage,
+  className = "",
 }: Props) {
   const { t, lang } = useTranslation();
 
@@ -942,7 +944,9 @@ export function MentorPanel({
   };
 
   return (
-    <aside className="w-[348px] xl:w-[360px] border-l border-[var(--shell-border)]/70 bg-[var(--shell-surface)]/72 backdrop-blur-xl flex flex-col shrink-0">
+    <aside
+      className={`w-[320px] lg:w-[336px] xl:w-[360px] max-w-full border-l border-[var(--shell-border)]/70 bg-[var(--shell-surface)]/72 backdrop-blur-xl flex flex-col shrink-0 ${className}`}
+    >
       <div className="h-[60px] border-b border-[var(--shell-border)]/70 flex items-center justify-between px-4 shrink-0">
         <div>
           <p className="text-sm font-medium flex items-center gap-2">

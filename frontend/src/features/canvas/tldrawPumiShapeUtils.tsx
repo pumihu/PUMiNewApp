@@ -93,6 +93,8 @@ function parseItems(raw: string): string[] {
 }
 
 function resolveTextColor(key: string): string {
+  if (key === "black") return "#111111";
+  if (key === "charcoal") return "#2e3440";
   if (key === "muted") return "var(--shell-muted)";
   if (key === "accent") return "var(--shell-accent)";
   if (key === "success") return "#22c55e";
@@ -374,19 +376,25 @@ export class PumiImageShapeUtil extends BaseBoxShapeUtil<PumiImageShape> {
     const caption = shape.props.text || shape.props.excerpt || "";
     const sourceLabel = shape.props.meta || (shape.props.sourceName && shape.props.sourceName !== "Source" ? shape.props.sourceName : "");
     const domain = safeDomain(shape.props.imageUrl);
+    const hasImage = Boolean(shape.props.imageUrl);
     return (
-      <HTMLContainer className={cardBase}>
-        <div className="h-full w-full p-2.5 flex flex-col gap-2">
-          <div className="flex items-center justify-between gap-2 px-1">
-            <p className="text-[10px] uppercase tracking-[0.15em] shell-muted">Image Asset</p>
+      <HTMLContainer className="h-full w-full rounded-2xl border border-[var(--shell-border)] shadow-[var(--shell-shadow-soft)] overflow-hidden bg-[var(--shell-surface)]">
+        <div className="h-full w-full p-2.5 flex flex-col gap-2.5">
+          <div className="flex items-start justify-between gap-2 px-1">
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.15em] text-[var(--shell-text)]/70">Image Asset</p>
+              <p className="text-sm font-semibold text-[var(--shell-text)] leading-snug line-clamp-1 mt-1">
+                {titleFallback(shape, "Image Asset")}
+              </p>
+            </div>
             {(sourceLabel || domain) && (
-              <span className="rounded-md border border-[var(--shell-border)]/70 bg-[var(--shell-surface-2)]/70 px-1.5 py-0.5 text-[10px] shell-muted">
+              <span className="rounded-md border border-[var(--shell-border)]/75 bg-[var(--shell-surface-2)] px-1.5 py-0.5 text-[10px] shell-muted">
                 {sourceLabel || domain}
               </span>
             )}
           </div>
-          {shape.props.imageUrl ? (
-            <div className="relative flex-1 min-h-0 rounded-xl overflow-hidden border border-[var(--shell-border)]/55">
+          {hasImage ? (
+            <div className="relative flex-1 min-h-0 rounded-xl overflow-hidden border border-[var(--shell-border)]">
               <img
                 src={shape.props.imageUrl}
                 alt={shape.props.title || "Image asset"}
@@ -394,18 +402,18 @@ export class PumiImageShapeUtil extends BaseBoxShapeUtil<PumiImageShape> {
               />
               {(shape.props.title || caption) && (
                 <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/65 via-black/30 to-transparent px-2.5 py-2">
-                  {shape.props.title && (
-                    <p className="text-xs font-semibold text-white line-clamp-1">{shape.props.title}</p>
-                  )}
                   {caption && <p className="text-[11px] text-white/85 leading-relaxed line-clamp-2">{caption}</p>}
                 </div>
               )}
             </div>
           ) : (
-            <div className="h-full w-full rounded-xl border border-dashed border-[var(--shell-border)]/70 bg-[var(--shell-surface-2)]/45 flex items-center justify-center px-3 text-xs shell-muted text-center leading-relaxed">
-              Add an image URL to pin this visual asset to the board.
+            <div className="h-full w-full rounded-xl border border-dashed border-[var(--shell-border)] bg-[var(--shell-surface-2)]/75 flex items-center justify-center px-3 text-xs text-[var(--shell-text)]/85 text-center leading-relaxed">
+              Add an image URL to make this asset visible on the board.
             </div>
           )}
+          {!hasImage && caption ? (
+            <p className="text-xs shell-muted leading-relaxed line-clamp-2 px-1">{caption}</p>
+          ) : null}
         </div>
       </HTMLContainer>
     );
@@ -442,12 +450,6 @@ export class PumiSourceShapeUtil extends BaseBoxShapeUtil<PumiSourceShape> {
   }
 
   override onResize: TLOnResizeHandler<PumiSourceShape> = (shape, info) => resizeBox(shape, info);
-  override canEdit() {
-    return true;
-  }
-  override getText(shape: PumiSourceShape) {
-    return renderPlaintextFromRichText(this.editor, normalizedRichText(shape));
-  }
 
   component(shape: PumiSourceShape) {
     const isSelected = shape.id === this.editor.getOnlySelectedShapeId();

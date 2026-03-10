@@ -89,6 +89,8 @@ export default function WorkspacePage() {
   const [blocks, setBlocks] = useState<CanvasBlock[]>([]);
   const [selectedBlockIds, setSelectedBlockIds] = useState<string[]>([]);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
+  const [isCompactLayout, setIsCompactLayout] = useState(false);
+  const [mentorOpen, setMentorOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const blocksRef = useRef<CanvasBlock[]>([]);
 
@@ -107,6 +109,21 @@ export default function WorkspacePage() {
       return;
     }
     setSidebarCollapsed(true);
+  }, []);
+
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 1279px)");
+    const apply = () => {
+      const compact = media.matches;
+      setIsCompactLayout(compact);
+      if (!compact) {
+        setMentorOpen(false);
+      }
+    };
+
+    apply();
+    media.addEventListener("change", apply);
+    return () => media.removeEventListener("change", apply);
   }, []);
 
   const mentorWelcome = useMemo(() => {
@@ -242,6 +259,7 @@ export default function WorkspacePage() {
   };
 
   const notFoundLabel = lang === "hu" ? "A munkatér nem található." : "Workspace not found.";
+  const showSidebar = !isCompactLayout || !sidebarCollapsed;
 
   if (loading) {
     return (
@@ -266,14 +284,19 @@ export default function WorkspacePage() {
         onModeChange={handleModeChange}
         sidebarCollapsed={sidebarCollapsed}
         onToggleSidebar={handleSidebarToggle}
+        showMentorToggle={isCompactLayout}
+        mentorOpen={mentorOpen}
+        onToggleMentor={() => setMentorOpen((value) => !value)}
       />
 
       <div className="flex flex-1 overflow-hidden gap-0">
-        <WorkspaceSidebar
-          workspaceId={workspace.id}
-          collapsed={sidebarCollapsed}
-          onToggleCollapsed={handleSidebarToggle}
-        />
+        {showSidebar ? (
+          <WorkspaceSidebar
+            workspaceId={workspace.id}
+            collapsed={sidebarCollapsed}
+            onToggleCollapsed={handleSidebarToggle}
+          />
+        ) : null}
 
         <main className="flex-1 min-w-0 overflow-hidden">
           <CanvasSurface
@@ -290,15 +313,38 @@ export default function WorkspacePage() {
           />
         </main>
 
-        <MentorPanel
-          workspace={workspace}
-          blocks={blocks}
-          selectedBlockIds={selectedBlockIds}
-          initialWelcomeMessage={mentorWelcome}
-          initialWelcomeActions={mentorWelcomeActions}
-          onCaptureMentorMessage={handleCaptureMentorMessage}
-        />
+        {!isCompactLayout ? (
+          <MentorPanel
+            workspace={workspace}
+            blocks={blocks}
+            selectedBlockIds={selectedBlockIds}
+            initialWelcomeMessage={mentorWelcome}
+            initialWelcomeActions={mentorWelcomeActions}
+            onCaptureMentorMessage={handleCaptureMentorMessage}
+          />
+        ) : null}
       </div>
+
+      {isCompactLayout && mentorOpen ? (
+        <div className="fixed inset-0 top-[60px] z-40">
+          <button
+            onClick={() => setMentorOpen(false)}
+            className="absolute inset-0 bg-black/28 backdrop-blur-[1px]"
+            aria-label={lang === "hu" ? "Mentor panel bezárása" : "Close mentor panel"}
+          />
+          <div className="absolute right-0 top-0 h-full w-full sm:w-[380px] max-w-full">
+            <MentorPanel
+              workspace={workspace}
+              blocks={blocks}
+              selectedBlockIds={selectedBlockIds}
+              initialWelcomeMessage={mentorWelcome}
+              initialWelcomeActions={mentorWelcomeActions}
+              onCaptureMentorMessage={handleCaptureMentorMessage}
+              className="h-full w-full max-w-full shadow-2xl"
+            />
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

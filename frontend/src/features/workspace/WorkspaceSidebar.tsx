@@ -25,9 +25,9 @@ export function WorkspaceSidebar({ workspaceId, collapsed, onToggleCollapsed }: 
     listWorkspaces().then(setWorkspaces).catch(console.error);
   }, [workspaceId]);
 
-  const createLabel = lang === "hu" ? "Uj munkater" : "New workspace";
+  const createLabel = lang === "hu" ? "Új munkatér" : "New workspace";
   const myWorkspaces = lang === "hu" ? "Munkaterek" : "Workspaces";
-  const countLabel = lang === "hu" ? `${workspaces.length} aktiv` : `${workspaces.length} active`;
+  const countLabel = lang === "hu" ? `${workspaces.length} aktív` : `${workspaces.length} active`;
 
   const handleCreate = async () => {
     if (!title.trim()) return;
@@ -39,10 +39,18 @@ export function WorkspaceSidebar({ workspaceId, collapsed, onToggleCollapsed }: 
     navigate(`/workspace/${workspace.id}`);
   };
 
+  const sidebarToggleTitle = collapsed
+    ? lang === "hu"
+      ? "Oldalsáv nyitása"
+      : "Expand sidebar"
+    : lang === "hu"
+      ? "Oldalsáv csukása"
+      : "Collapse sidebar";
+
   return (
     <aside
       className={`border-r border-[var(--shell-border)]/70 bg-[var(--shell-surface)]/62 backdrop-blur-xl flex flex-col shrink-0 transition-[width] duration-200 ${
-        collapsed ? "w-[64px]" : "w-[212px]"
+        collapsed ? "w-[58px] sm:w-[64px]" : "w-[196px] lg:w-[212px]"
       }`}
     >
       <div className="px-2.5 py-3 border-b border-[var(--shell-border)]/60 space-y-3">
@@ -56,15 +64,8 @@ export function WorkspaceSidebar({ workspaceId, collapsed, onToggleCollapsed }: 
           <button
             onClick={onToggleCollapsed}
             className="h-8 w-8 rounded-lg border border-[var(--shell-border)]/70 flex items-center justify-center shell-muted hover:text-[var(--shell-text)] shell-interactive shrink-0"
-            title={
-              collapsed
-                ? lang === "hu"
-                  ? "Oldalsav nyitasa"
-                  : "Expand sidebar"
-                : lang === "hu"
-                  ? "Oldalsav csukasa"
-                  : "Collapse sidebar"
-            }
+            title={sidebarToggleTitle}
+            aria-label={sidebarToggleTitle}
           >
             {collapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
           </button>
@@ -76,6 +77,7 @@ export function WorkspaceSidebar({ workspaceId, collapsed, onToggleCollapsed }: 
             onClick={() => setShowCreate((prev) => !prev)}
             className="h-7 w-7 rounded-lg border border-[var(--shell-border)]/70 flex items-center justify-center shell-muted hover:text-[var(--shell-text)] shell-interactive"
             title={createLabel}
+            aria-label={createLabel}
           >
             <Plus className="h-3.5 w-3.5" />
           </button>
@@ -94,7 +96,7 @@ export function WorkspaceSidebar({ workspaceId, collapsed, onToggleCollapsed }: 
                 onClick={handleCreate}
                 className="flex-1 rounded-lg bg-[var(--shell-accent-soft)] px-2 py-1.5 text-xs font-medium shell-interactive"
               >
-                {lang === "hu" ? "Letrehoz" : "Create"}
+                {lang === "hu" ? "Létrehoz" : "Create"}
               </button>
               <button
                 onClick={() => {
@@ -103,7 +105,7 @@ export function WorkspaceSidebar({ workspaceId, collapsed, onToggleCollapsed }: 
                 }}
                 className="rounded-lg border border-[var(--shell-border)] px-2 py-1.5 text-xs shell-muted shell-interactive"
               >
-                {lang === "hu" ? "Megse" : "Cancel"}
+                {lang === "hu" ? "Mégse" : "Cancel"}
               </button>
             </div>
           </div>

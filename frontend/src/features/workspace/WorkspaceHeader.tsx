@@ -1,4 +1,4 @@
-import { BookOpen, ChevronLeft, Layers, PanelLeftClose, PanelLeftOpen, Sparkles } from "lucide-react";
+import { BookOpen, ChevronLeft, Layers, MessageSquare, PanelLeftClose, PanelLeftOpen, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 import { useTranslation } from "@/hooks/useTranslation";
@@ -9,9 +9,20 @@ interface Props {
   onModeChange: (mode: WorkspaceMode) => void;
   sidebarCollapsed: boolean;
   onToggleSidebar: () => void;
+  showMentorToggle?: boolean;
+  mentorOpen?: boolean;
+  onToggleMentor?: () => void;
 }
 
-export function WorkspaceHeader({ workspace, onModeChange, sidebarCollapsed, onToggleSidebar }: Props) {
+export function WorkspaceHeader({
+  workspace,
+  onModeChange,
+  sidebarCollapsed,
+  onToggleSidebar,
+  showMentorToggle = false,
+  mentorOpen = false,
+  onToggleMentor,
+}: Props) {
   const navigate = useNavigate();
   const { t } = useTranslation();
 
@@ -22,7 +33,7 @@ export function WorkspaceHeader({ workspace, onModeChange, sidebarCollapsed, onT
   ];
 
   return (
-    <header className="h-[60px] border-b border-[var(--shell-border)]/70 bg-[var(--shell-surface)]/60 backdrop-blur-lg flex items-center justify-between px-3 md:px-4 shrink-0 sticky top-0 z-20">
+    <header className="h-[60px] border-b border-[var(--shell-border)]/70 bg-[var(--shell-surface)]/60 backdrop-blur-lg flex items-center justify-between px-2.5 md:px-4 shrink-0 sticky top-0 z-30">
       <div className="flex items-center gap-3 min-w-0">
         <button
           onClick={() => navigate("/dashboard")}
@@ -45,24 +56,38 @@ export function WorkspaceHeader({ workspace, onModeChange, sidebarCollapsed, onT
         </div>
       </div>
 
-      <div className="flex items-center gap-1 rounded-xl border border-[var(--shell-border)] bg-[var(--shell-surface-2)]/75 p-1 shell-panel">
+      <div className="flex items-center gap-1 rounded-xl border border-[var(--shell-border)] bg-[var(--shell-surface-2)]/75 p-1 shell-panel max-w-[58vw] sm:max-w-none overflow-x-auto">
         {modes.map((mode) => (
           <button
             key={mode.id}
             onClick={() => onModeChange(mode.id)}
-            className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition shell-interactive ${
+            className={`inline-flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-medium transition shell-interactive whitespace-nowrap ${
               workspace.mode === mode.id
                 ? "bg-[var(--shell-accent-soft)] text-[var(--shell-text)]"
                 : "shell-muted hover:text-[var(--shell-text)]"
             }`}
           >
             {mode.icon}
-            {mode.label}
+            <span className="hidden sm:inline">{mode.label}</span>
           </button>
         ))}
       </div>
 
-      <div className="w-14" />
+      <div className="flex items-center justify-end w-16">
+        {showMentorToggle && onToggleMentor ? (
+          <button
+            onClick={onToggleMentor}
+            className={`h-8 px-2 rounded-lg border border-[var(--shell-border)] inline-flex items-center gap-1.5 text-xs shell-interactive ${
+              mentorOpen ? "bg-[var(--shell-accent-soft)] text-[var(--shell-text)]" : "shell-muted"
+            }`}
+            aria-label={mentorOpen ? "Close mentor panel" : "Open mentor panel"}
+            title={mentorOpen ? "Close mentor panel" : "Open mentor panel"}
+          >
+            <MessageSquare className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">{t("mentorPanelTitle")}</span>
+          </button>
+        ) : null}
+      </div>
     </header>
   );
 }

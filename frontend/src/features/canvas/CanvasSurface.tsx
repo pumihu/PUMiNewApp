@@ -75,7 +75,17 @@ type PumiShapePropsSnapshot = {
 const DEV_DIAGNOSTICS = import.meta.env.DEV;
 const TLDRAW_LICENSE_KEY = String(import.meta.env.VITE_TLDRAW_LICENSE_KEY ?? "").trim();
 const REQUIRE_TLDRAW_LICENSE = import.meta.env.PROD;
-const TEXT_COLOR_KEYS = ["default", "muted", "accent", "violet", "success", "warning", "danger"] as const;
+const TEXT_COLOR_KEYS = [
+  "default",
+  "black",
+  "charcoal",
+  "muted",
+  "accent",
+  "violet",
+  "success",
+  "warning",
+  "danger",
+] as const;
 const FONT_SIZE_OPTIONS = [13, 15, 18, 22] as const;
 const FONT_FAMILY_OPTIONS = ["sans", "serif", "mono", "draw"] as const;
 
@@ -920,9 +930,12 @@ function supportsRichTextEditing(type: BlockType): boolean {
     type === "lesson" ||
     type === "brief" ||
     type === "storyboard" ||
-    type === "summary" ||
-    type === "source"
+    type === "summary"
   );
+}
+
+function supportsInspectorEditing(type: BlockType): boolean {
+  return isEditableBlockType(type) && !supportsRichTextEditing(type);
 }
 
 function createEditorDraft(block: CanvasBlock): BlockEditorDraft {
@@ -1516,6 +1529,8 @@ export function CanvasSurface({
   const { t, lang } = useTranslation();
   const locale: "en" | "hu" = lang === "hu" ? "hu" : "en";
   const isHu = locale === "hu";
+  const [isCompactViewport, setIsCompactViewport] = useState(false);
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
   const quickInsertItems = useMemo(
     () => [...COMMON_INSERT, ...MODE_INSERT[workspace.mode]],
     [workspace.mode],
@@ -1533,8 +1548,11 @@ export function CanvasSurface({
     if (modePrimary) {
       seed.splice(3, 0, modePrimary);
     }
-    return [...new Set(seed)];
-  }, [workspace.mode]);
+    const unique = [...new Set(seed)];
+    if (isMobileViewport) return unique.slice(0, 3);
+    if (isCompactViewport) return unique.slice(0, 4);
+    return unique;
+  }, [workspace.mode, isCompactViewport, isMobileViewport]);
 
   const [showInsert, setShowInsert] = useState(false);
   const [showSourceDialog, setShowSourceDialog] = useState(false);
@@ -1568,8 +1586,8 @@ export function CanvasSurface({
         .find((block): block is CanvasBlock => !!block),
     [blocks, selectedBlockIds],
   );
-  const editableSelectedBlock =
-    selectedPrimaryBlock && isEditableBlockType(selectedPrimaryBlock.type)
+  const inspectorEditableSelectedBlock =
+    selectedPrimaryBlock && supportsInspectorEditing(selectedPrimaryBlock.type)
       ? selectedPrimaryBlock
       : null;
   const richTextSelectedBlock =
@@ -1622,14 +1640,33 @@ export function CanvasSurface({
   }, [workspace.id]);
 
   useEffect(() => {
-    if (!editableSelectedBlock) {
+    const compactQuery = window.matchMedia("(max-width: 1279px)");
+    const mobileQuery = window.matchMedia("(max-width: 767px)");
+
+    const apply = () => {
+      setIsCompactViewport(compactQuery.matches);
+      setIsMobileViewport(mobileQuery.matches);
+    };
+
+    apply();
+    compactQuery.addEventListener("change", apply);
+    mobileQuery.addEventListener("change", apply);
+
+    return () => {
+      compactQuery.removeEventListener("change", apply);
+      mobileQuery.removeEventListener("change", apply);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!inspectorEditableSelectedBlock) {
       setEditorDraft(null);
       setEditorError(null);
       return;
     }
-    setEditorDraft(createEditorDraft(editableSelectedBlock));
+    setEditorDraft(createEditorDraft(inspectorEditableSelectedBlock));
     setEditorError(null);
-  }, [editableSelectedBlock?.id]);
+  }, [inspectorEditableSelectedBlock?.id]);
 
   useEffect(() => {
     if (!missingProductionLicense) return;
@@ -1648,17 +1685,45 @@ export function CanvasSurface({
     onBlocksChange(next);
   };
 
+  const previewDraftOnCanvas = (draft: BlockEditorDraft) => {
+    const editor = editorRef.current;
+    if (!editor) return;
+
+    const block = blocksRef.current.find((item) => item.id === draft.blockId);
+    if (!block) return;
+
+    const content = buildContentFromDraft(block, draft);
+    const visible = blocksRef.current.filter((item) => item.type !== "board_section");
+    const index = visible.findIndex((item) => item.id === block.id);
+    const shape = blockToShape(
+      {
+        ...block,
+        title: draft.title.trim() ? draft.title.trim() : undefined,
+        content_json: content,
+      },
+      index >= 0 ? index : 0,
+      layoutOverridesRef.current,
+    );
+
+    const existingShape = editor.getShape(shape.id as never);
+    if (existingShape) {
+      editor.updateShapes([shape] as never);
+    }
+  };
+
   const updateDraftTitle = (value: string) => {
     setEditorDraft((previous) => {
       if (!previous) return previous;
-      return { ...previous, title: value, dirty: true };
+      const nextDraft = { ...previous, title: value, dirty: true };
+      previewDraftOnCanvas(nextDraft);
+      return nextDraft;
     });
   };
 
   const updateDraftField = (key: string, value: string) => {
     setEditorDraft((previous) => {
       if (!previous) return previous;
-      return {
+      const nextDraft = {
         ...previous,
         fields: {
           ...previous.fields,
@@ -1666,12 +1731,16 @@ export function CanvasSurface({
         },
         dirty: true,
       };
+      previewDraftOnCanvas(nextDraft);
+      return nextDraft;
     });
   };
 
   const resetEditorDraft = () => {
-    if (!editableSelectedBlock) return;
-    setEditorDraft(createEditorDraft(editableSelectedBlock));
+    if (!inspectorEditableSelectedBlock) return;
+    const nextDraft = createEditorDraft(inspectorEditableSelectedBlock);
+    setEditorDraft(nextDraft);
+    previewDraftOnCanvas(nextDraft);
     setEditorError(null);
   };
 
@@ -2093,7 +2162,7 @@ export function CanvasSurface({
 
       upsertBlocks([block]);
       onSelectionChange([block.id]);
-      if (isEditableBlockType(block.type)) {
+      if (supportsInspectorEditing(block.type)) {
         setEditorDraft(createEditorDraft(block));
       }
     } catch (error) {
@@ -2277,12 +2346,16 @@ export function CanvasSurface({
     return readShapeTextState((selectedShape as { props?: PumiShapePropsSnapshot }).props);
   }, [richTextToolbarTick, selectedBlockIds, blocks]);
   const showRichTextToolbar = Boolean(richTextSelectedBlock);
+  const showInlineEditingHint = Boolean(richTextSelectedBlock && !isInlineEditing);
   const activeFont = selectedShapeTextState?.font ?? "sans";
   const activeFontSize = selectedShapeTextState?.fontSize ?? 15;
   const activeTextColor = selectedShapeTextState?.textColor ?? "default";
+  const inlineEditHint = isHu
+    ? "Duplán kattints a kijelölt elemre az inline szerkesztéshez."
+    : "Double-click the selected object to edit inline.";
 
   return (
-    <div className="relative h-full min-h-[680px] p-2 md:p-3">
+    <div className="relative h-full min-h-[520px] md:min-h-[680px] p-1.5 sm:p-2 md:p-3">
       {showSourceDialog && (
         <UploadSourceDialog
           workspaceId={workspace.id}
@@ -2293,7 +2366,7 @@ export function CanvasSurface({
       )}
 
       <div
-        className={`relative h-full min-h-[680px] rounded-[24px] border border-[var(--shell-border)]/80 bg-[var(--shell-surface)]/75 overflow-hidden shadow-[var(--shell-shadow-strong)] ${
+        className={`relative h-full min-h-[520px] md:min-h-[680px] rounded-[20px] md:rounded-[24px] border border-[var(--shell-border)]/80 bg-[var(--shell-surface)]/75 overflow-hidden shadow-[var(--shell-shadow-strong)] ${
           mentorDropActive ? "ring-2 ring-[var(--shell-accent)]/60 shell-drop-active" : ""
         }`}
         onDragEnter={handleMentorDragEnter}
@@ -2309,8 +2382,9 @@ export function CanvasSurface({
         )}
 
         {!canvasUnavailable && showRichTextToolbar && (
-          <div className="absolute z-30 top-4 left-1/2 -translate-x-1/2 rounded-2xl border border-[var(--shell-border)] bg-[var(--shell-surface)]/95 px-2.5 py-2 shadow-xl backdrop-blur-md">
-            <div className="flex flex-wrap items-center gap-1.5">
+          <div className="absolute z-30 top-3 sm:top-4 left-1/2 -translate-x-1/2 w-[min(920px,calc(100%-0.75rem))] sm:w-[min(920px,calc(100%-2rem))] rounded-2xl border border-[var(--shell-border)] bg-[var(--shell-surface)]/95 px-2 py-1.5 shadow-xl backdrop-blur-md">
+            <div className="max-w-full overflow-x-auto">
+              <div className="inline-flex items-center gap-1.5 min-w-max">
               <button
                 onClick={() => runNamedRichTextCommand("toggleHeading", { level: 1 })}
                 className={`rounded-md border px-2 py-1 text-[11px] shell-interactive ${
@@ -2440,6 +2514,10 @@ export function CanvasSurface({
                   const colorClass =
                     colorKey === "default"
                       ? "bg-[var(--shell-text)]"
+                      : colorKey === "black"
+                        ? "bg-[#111111]"
+                        : colorKey === "charcoal"
+                          ? "bg-[#2e3440]"
                       : colorKey === "muted"
                         ? "bg-[var(--shell-muted)]"
                         : colorKey === "accent"
@@ -2464,18 +2542,25 @@ export function CanvasSurface({
                   );
                 })}
               </div>
+              </div>
             </div>
           </div>
         )}
 
-        {!canvasUnavailable && !editorDraft && selectedBlockIds.length > 0 && (
-          <div className="absolute z-30 top-4 right-4 rounded-xl border border-[var(--shell-border)] bg-[var(--shell-surface)]/90 px-2.5 py-1.5 text-[11px] shell-muted">
+        {!canvasUnavailable && showInlineEditingHint && (
+          <div className="absolute z-30 top-4 right-2 sm:right-4 max-w-[min(360px,calc(100%-1rem))] sm:max-w-[340px] rounded-xl border border-[var(--shell-border)] bg-[var(--shell-surface)]/92 px-2.5 py-1.5 text-[11px] shell-muted">
+            {inlineEditHint}
+          </div>
+        )}
+
+        {!canvasUnavailable && !editorDraft && selectedBlockIds.length > 0 && !showInlineEditingHint && (
+          <div className="absolute z-30 top-3 sm:top-4 right-2 sm:right-4 rounded-xl border border-[var(--shell-border)] bg-[var(--shell-surface)]/90 px-2.5 py-1.5 text-[11px] shell-muted">
             {selectedBlockIds.length} {selectedLabel}
           </div>
         )}
 
         {!canvasUnavailable && editorDraft && !isInlineEditing && (
-          <div className="absolute z-30 top-4 right-4 w-[330px] rounded-2xl border border-[var(--shell-border)] bg-[var(--shell-surface)]/94 shadow-xl backdrop-blur-md p-3 space-y-2.5">
+          <div className="absolute z-30 inset-x-2 bottom-2 md:inset-x-auto md:top-4 md:right-4 md:bottom-auto md:w-[330px] rounded-2xl border border-[var(--shell-border)] bg-[var(--shell-surface)]/94 shadow-xl backdrop-blur-md p-3 space-y-2.5">
             <div className="flex items-center justify-between gap-2">
               <p className="text-[11px] uppercase tracking-[0.14em] shell-muted">
                 {isHu ? "Objektum szerkesztése" : "Edit object"}
@@ -2495,7 +2580,7 @@ export function CanvasSurface({
               />
             </div>
 
-            <div className="max-h-[320px] overflow-y-auto space-y-2 pr-1">
+            <div className="max-h-[34vh] md:max-h-[320px] overflow-y-auto space-y-2 pr-1">
               {inspectorFields.map((field) => {
                 const label = isHu ? field.labelHu : field.labelEn;
                 const placeholder = isHu ? field.placeholderHu : field.placeholderEn;
@@ -2563,12 +2648,12 @@ export function CanvasSurface({
         )}
 
         {!canvasUnavailable && (
-          <div ref={insertPanelRef} className="absolute z-30 left-4 bottom-4 flex items-end gap-2">
+          <div ref={insertPanelRef} className="absolute z-30 left-2 sm:left-3 md:left-4 bottom-2 sm:bottom-3 md:bottom-4 flex items-end gap-2">
             <div className="rounded-2xl border border-[var(--shell-border)] bg-[var(--shell-surface)]/92 p-2.5 shadow-xl backdrop-blur-lg">
               <div className="flex items-center gap-1.5">
                 <button
                   onClick={() => setShowInsert((value) => !value)}
-                  className={`h-10 w-10 inline-flex items-center justify-center rounded-xl border border-[var(--shell-border)] shell-interactive ${
+                  className={`h-9 w-9 sm:h-10 sm:w-10 inline-flex items-center justify-center rounded-xl border border-[var(--shell-border)] shell-interactive ${
                     showInsert ? "bg-[var(--shell-accent-soft)] text-[var(--shell-text)]" : "shell-muted"
                   }`}
                   title={insertLabel}
@@ -2585,7 +2670,7 @@ export function CanvasSurface({
                       key={type}
                       onClick={() => void createCanvasBlock(type)}
                       disabled={adding}
-                      className="h-10 w-10 inline-flex items-center justify-center rounded-xl border border-[var(--shell-border)] bg-[var(--shell-surface-2)]/65 shell-muted hover:text-[var(--shell-text)] shell-interactive disabled:opacity-60"
+                      className="h-9 w-9 sm:h-10 sm:w-10 inline-flex items-center justify-center rounded-xl border border-[var(--shell-border)] bg-[var(--shell-surface-2)]/65 shell-muted hover:text-[var(--shell-text)] shell-interactive disabled:opacity-60"
                       title={label}
                       aria-label={label}
                     >
@@ -2596,7 +2681,7 @@ export function CanvasSurface({
 
                 <button
                   onClick={() => setShowSourceDialog(true)}
-                  className="h-10 w-10 inline-flex items-center justify-center rounded-xl border border-[var(--shell-border)] bg-[var(--shell-surface-2)]/65 shell-muted hover:text-[var(--shell-text)] shell-interactive"
+                  className="h-9 w-9 sm:h-10 sm:w-10 inline-flex items-center justify-center rounded-xl border border-[var(--shell-border)] bg-[var(--shell-surface-2)]/65 shell-muted hover:text-[var(--shell-text)] shell-interactive"
                   title={t("uploadSource")}
                   aria-label={t("uploadSource")}
                 >
@@ -2605,7 +2690,7 @@ export function CanvasSurface({
               </div>
             </div>
             {showInsert && (
-              <div className="absolute bottom-[calc(100%+10px)] left-0 w-[300px] rounded-2xl border border-[var(--shell-border)] bg-[var(--shell-surface)]/96 backdrop-blur-md p-3 shadow-2xl max-h-[68vh] overflow-y-auto space-y-3">
+              <div className="absolute bottom-[calc(100%+10px)] left-0 w-[min(300px,calc(100vw-1rem))] sm:w-[300px] rounded-2xl border border-[var(--shell-border)] bg-[var(--shell-surface)]/96 backdrop-blur-md p-3 shadow-2xl max-h-[62vh] overflow-y-auto space-y-3">
                 <div className="flex items-center justify-between">
                   <p className="text-[11px] uppercase tracking-[0.14em] shell-muted">{insertMoreLabel}</p>
                   <span className="text-[11px] shell-muted">{adding ? (isHu ? "Hozzáadás..." : "Adding...") : ""}</span>
