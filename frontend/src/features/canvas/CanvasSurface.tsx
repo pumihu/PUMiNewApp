@@ -22,8 +22,13 @@ import {
 import {
   Tldraw,
   createShapeId,
+  renderPlaintextFromRichText,
+  startEditingShapeWithRichText,
+  toRichText,
   type Editor,
+  type TLDefaultFontStyle,
   type TLCreateShapePartial,
+  type TLRichText,
   type TLShape,
 } from "@tldraw/tldraw";
 import "@tldraw/tldraw/tldraw.css";
@@ -48,9 +53,31 @@ interface CanvasLayout {
   height: number;
 }
 
+interface PumiShapeTextState {
+  subtitle: string;
+  richText: TLRichText;
+  font: TLDefaultFontStyle;
+  fontSize: number;
+  textColor: string;
+}
+
+type PumiShapePropsSnapshot = {
+  blockId?: string;
+  w?: number;
+  h?: number;
+  subtitle?: string;
+  richText?: TLRichText;
+  font?: TLDefaultFontStyle;
+  fontSize?: number;
+  textColor?: string;
+};
+
 const DEV_DIAGNOSTICS = import.meta.env.DEV;
 const TLDRAW_LICENSE_KEY = String(import.meta.env.VITE_TLDRAW_LICENSE_KEY ?? "").trim();
 const REQUIRE_TLDRAW_LICENSE = import.meta.env.PROD;
+const TEXT_COLOR_KEYS = ["default", "muted", "accent", "violet", "success", "warning", "danger"] as const;
+const FONT_SIZE_OPTIONS = [13, 15, 18, 22] as const;
+const FONT_FAMILY_OPTIONS = ["sans", "serif", "mono", "draw"] as const;
 
 class CanvasRuntimeErrorBoundary extends Component<
   { onError: (error: Error, info: ErrorInfo) => void; children: ReactNode },
@@ -110,7 +137,10 @@ const INSERT_ICON_CLASS = "h-4 w-4";
 
 function blockIcon(type: BlockType) {
   if (type === "note" || type === "ai_sticky") return <StickyNote className={INSERT_ICON_CLASS} />;
-  if (type === "source") return <Library className={INSERT_ICON_CLASS} />;
+  if (type === "source" || type === "link" || type === "pdf_reference" || type === "reference_board") return <Library className={INSERT_ICON_CLASS} />;
+  if (type === "moodboard") return <LayoutTemplate className={INSERT_ICON_CLASS} />;
+  if (type === "gif") return <ImagePlus className={INSERT_ICON_CLASS} />;
+  if (type === "sticker") return <StickyNote className={INSERT_ICON_CLASS} />;
   if (type === "image_asset" || type === "image") return <ImagePlus className={INSERT_ICON_CLASS} />;
   if (type === "lesson") return <BookOpen className={INSERT_ICON_CLASS} />;
   if (type === "quiz") return <ClipboardList className={INSERT_ICON_CLASS} />;
@@ -118,13 +148,18 @@ function blockIcon(type: BlockType) {
   if (type === "brief") return <LayoutTemplate className={INSERT_ICON_CLASS} />;
   if (type === "storyboard") return <LayoutTemplate className={INSERT_ICON_CLASS} />;
   if (type === "roadmap") return <LayoutTemplate className={INSERT_ICON_CLASS} />;
+  if (type === "image_generation") return <Sparkles className={INSERT_ICON_CLASS} />;
   return <Plus className={INSERT_ICON_CLASS} />;
 }
 
 function sizeForBlockType(type: BlockType): { width: number; height: number } {
   if (type === "ai_sticky") return { width: 280, height: 190 };
   if (type === "source") return { width: 360, height: 250 };
+  if (type === "link" || type === "pdf_reference" || type === "reference_board") return { width: 360, height: 220 };
   if (type === "image_asset" || type === "image") return { width: 360, height: 260 };
+  if (type === "gif") return { width: 360, height: 260 };
+  if (type === "sticker") return { width: 220, height: 180 };
+  if (type === "moodboard") return { width: 460, height: 320 };
   if (type === "lesson") return { width: 380, height: 280 };
   if (type === "quiz") return { width: 360, height: 280 };
   if (type === "flashcard") return { width: 360, height: 260 };
@@ -185,7 +220,11 @@ function toStringArray(value: unknown): string[] {
           (item as { question?: unknown }).question ??
           (item as { front?: unknown }).front ??
           (item as { scene_title?: unknown }).scene_title ??
-          (item as { outcome?: unknown }).outcome;
+          (item as { outcome?: unknown }).outcome ??
+          (item as { url?: unknown }).url ??
+          (item as { image_url?: unknown }).image_url ??
+          (item as { src?: unknown }).src ??
+          (item as { link?: unknown }).link;
         return typeof candidate === "string" ? candidate.trim() : "";
       }
       return "";
@@ -197,12 +236,184 @@ function joinLines(lines: string[]): string {
   return lines.filter(Boolean).join("\n");
 }
 
+function isLikelyImageUrl(value: string): boolean {
+  const normalized = value.toLowerCase();
+  return (
+    normalized.startsWith("data:image/") ||
+    normalized.endsWith(".png") ||
+    normalized.endsWith(".jpg") ||
+    normalized.endsWith(".jpeg") ||
+    normalized.endsWith(".gif") ||
+    normalized.endsWith(".webp") ||
+    normalized.endsWith(".svg") ||
+    normalized.includes("images") ||
+    normalized.includes("img")
+  );
+}
+
+function domainFromUrl(value: string): string {
+  try {
+    return new URL(value).hostname.replace(/^www\./, "");
+  } catch {
+    return "";
+  }
+}
+
+function normalizeFont(value: unknown): TLDefaultFontStyle {
+  if (typeof value === "string" && FONT_FAMILY_OPTIONS.includes(value as TLDefaultFontStyle)) {
+    return value as TLDefaultFontStyle;
+  }
+  return "sans";
+}
+
+function normalizeFontSize(value: unknown): number {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    if (value <= 13) return 13;
+    if (value >= 22) return 22;
+    return Math.round(value);
+  }
+  return 15;
+}
+
+function normalizeTextColor(value: unknown): string {
+  if (typeof value === "string" && TEXT_COLOR_KEYS.includes(value as (typeof TEXT_COLOR_KEYS)[number])) {
+    return value;
+  }
+  return "default";
+}
+
+function readRichText(value: unknown, fallbackText: string): TLRichText {
+  if (value && typeof value === "object") return value as TLRichText;
+  return toRichText(fallbackText);
+}
+
+function defaultTextState(content: Record<string, unknown>, fallbackText: string): PumiShapeTextState {
+  return {
+    subtitle: typeof content.subtitle === "string" ? content.subtitle : "",
+    richText: readRichText(content.body_rich_text ?? content.rich_text, fallbackText),
+    font: normalizeFont(content.text_font),
+    fontSize: normalizeFontSize(content.text_size),
+    textColor: normalizeTextColor(content.text_color),
+  };
+}
+
 function buildShapeContent(block: CanvasBlock, content: Record<string, unknown>) {
   const defaultText = extractText(content);
   const defaultItems = toStringArray(content.key_points);
+  const textState = defaultTextState(content, defaultText);
+
+  if (block.type === "source") {
+    const sourceType =
+      (typeof content.source_type === "string" && content.source_type) ||
+      (typeof content.kind === "string" && content.kind) ||
+      "";
+    const preview =
+      (typeof content.excerpt === "string" && content.excerpt) ||
+      (typeof content.text === "string" && content.text) ||
+      defaultText;
+    return {
+      ...textState,
+      text: preview,
+      items: "",
+      meta: sourceType ? sourceType.toUpperCase() : "",
+    };
+  }
+
+  if (block.type === "image_asset" || block.type === "image") {
+    const caption =
+      (typeof content.caption === "string" && content.caption) ||
+      (typeof content.text === "string" && content.text) ||
+      "";
+    const sourceUrl =
+      (typeof content.source_url === "string" && content.source_url) ||
+      (typeof content.url === "string" && content.url) ||
+      "";
+    return {
+      ...textState,
+      text: caption,
+      items: "",
+      meta: domainFromUrl(sourceUrl),
+    };
+  }
+
+  if (block.type === "gif") {
+    const caption =
+      (typeof content.caption === "string" && content.caption) ||
+      (typeof content.text === "string" && content.text) ||
+      "";
+    return {
+      ...textState,
+      text: caption,
+      items: "",
+      meta: "GIF",
+    };
+  }
+
+  if (block.type === "sticker") {
+    const symbol =
+      (typeof content.emoji === "string" && content.emoji) ||
+      (typeof content.symbol === "string" && content.symbol) ||
+      (typeof content.text === "string" && content.text) ||
+      "✨";
+    const note =
+      (typeof content.note === "string" && content.note) ||
+      (typeof content.description === "string" && content.description) ||
+      "";
+    return {
+      ...textState,
+      text: symbol,
+      items: "",
+      meta: "Marker",
+      subtitle: note || textState.subtitle,
+    };
+  }
+
+  if (block.type === "moodboard") {
+    const refs: string[] = [];
+    const candidateSets = [content.images, content.references, content.items];
+    for (const set of candidateSets) {
+      if (!Array.isArray(set)) continue;
+      for (const entry of set) {
+        if (typeof entry === "string" && entry.trim()) refs.push(entry.trim());
+        if (entry && typeof entry === "object") {
+          const candidate =
+            (entry as { url?: unknown }).url ??
+            (entry as { image_url?: unknown }).image_url ??
+            (entry as { src?: unknown }).src ??
+            (entry as { link?: unknown }).link;
+          if (typeof candidate === "string" && candidate.trim()) refs.push(candidate.trim());
+        }
+      }
+    }
+    return {
+      ...textState,
+      text: (typeof content.note === "string" && content.note) || (typeof content.text === "string" ? content.text : ""),
+      items: joinLines(refs),
+      meta: refs.length > 0 ? `${refs.length} refs` : "Moodboard",
+    };
+  }
+
+  if (block.type === "reference_board" || block.type === "link" || block.type === "pdf_reference") {
+    const refs =
+      block.type === "reference_board"
+        ? toStringArray(content.references).concat(toStringArray(content.items))
+        : [];
+    const description =
+      (typeof content.description === "string" && content.description) ||
+      (typeof content.excerpt === "string" && content.excerpt) ||
+      (typeof content.text === "string" && content.text) ||
+      "";
+    return {
+      ...textState,
+      text: description,
+      items: joinLines(refs),
+      meta: block.type === "pdf_reference" ? "PDF" : block.type === "link" ? "Link" : "Reference",
+    };
+  }
 
   if (block.type === "lesson") {
     return {
+      ...textState,
       text: (typeof content.explanation === "string" && content.explanation) || defaultText,
       items: joinLines(defaultItems),
       meta: defaultItems.length > 0 ? `${defaultItems.length} key points` : "",
@@ -219,6 +430,7 @@ function buildShapeContent(block: CanvasBlock, content: Record<string, unknown>)
       )
       .filter(Boolean);
     return {
+      ...textState,
       text: defaultText,
       items: joinLines(questionLines),
       meta: `${questionLines.length} questions`,
@@ -237,6 +449,7 @@ function buildShapeContent(block: CanvasBlock, content: Record<string, unknown>)
       })
       .filter(Boolean);
     return {
+      ...textState,
       text: defaultText,
       items: joinLines(cardLines),
       meta: `${cardLines.length} cards`,
@@ -254,6 +467,7 @@ function buildShapeContent(block: CanvasBlock, content: Record<string, unknown>)
       })
       .filter(Boolean);
     return {
+      ...textState,
       text: defaultText,
       items: joinLines(taskLines),
       meta: `${taskLines.length} tasks`,
@@ -280,6 +494,7 @@ function buildShapeContent(block: CanvasBlock, content: Record<string, unknown>)
       })
       .filter(Boolean);
     return {
+      ...textState,
       text: defaultText,
       items: joinLines(phaseLines),
       meta: `${phaseLines.length} phases`,
@@ -298,6 +513,7 @@ function buildShapeContent(block: CanvasBlock, content: Record<string, unknown>)
       ...[...suggestions, ...improvements].map((item) => `> ${item}`),
     ];
     return {
+      ...textState,
       text: defaultText,
       items: joinLines(critiqueLines),
       meta: critiqueLines.length > 0 ? "Structured critique" : "",
@@ -316,6 +532,7 @@ function buildShapeContent(block: CanvasBlock, content: Record<string, unknown>)
       output ? `Output: ${output}` : "",
     ].filter(Boolean);
     return {
+      ...textState,
       text: objective,
       items: joinLines(lines),
       meta: "Creative brief",
@@ -334,6 +551,7 @@ function buildShapeContent(block: CanvasBlock, content: Record<string, unknown>)
       })
       .filter(Boolean);
     return {
+      ...textState,
       text: defaultText,
       items: joinLines(sceneLines),
       meta: `${sceneLines.length} scenes`,
@@ -346,9 +564,11 @@ function buildShapeContent(block: CanvasBlock, content: Record<string, unknown>)
     const model = typeof content.model === "string" ? content.model : "";
     const mode = typeof content.selected_mode === "string" ? content.selected_mode : "";
     const status = typeof content.status === "string" ? content.status : "";
-    const lines = [mode ? `Mode: ${mode}` : "", model ? `Model: ${model}` : "", status ? `Status: ${status}` : ""]
+    const referenceInput = typeof content.reference_input === "string" ? content.reference_input : "";
+    const lines = [mode ? `Mode: ${mode}` : "", model ? `Model: ${model}` : "", status ? `Status: ${status}` : "", referenceInput ? `Ref: ${referenceInput}` : ""]
       .filter(Boolean);
     return {
+      ...textState,
       text: prompt,
       items: joinLines(lines),
       meta: "Generation setup",
@@ -356,6 +576,7 @@ function buildShapeContent(block: CanvasBlock, content: Record<string, unknown>)
   }
 
   return {
+    ...textState,
     text: defaultText,
     items: joinLines(defaultItems),
     meta: "",
@@ -377,10 +598,18 @@ function mapBlockTypeToShapeType(
   | "pumi-critique"
   | "pumi-brief"
   | "pumi-storyboard"
-  | "pumi-image-generation" {
+  | "pumi-image-generation"
+  | "pumi-moodboard"
+  | "pumi-gif"
+  | "pumi-sticker"
+  | "pumi-reference" {
   if (blockType === "ai_sticky") return "pumi-ai-sticky";
   if (blockType === "image_asset" || blockType === "image") return "pumi-image-asset";
   if (blockType === "source") return "pumi-source";
+  if (blockType === "moodboard") return "pumi-moodboard";
+  if (blockType === "gif") return "pumi-gif";
+  if (blockType === "sticker") return "pumi-sticker";
+  if (blockType === "link" || blockType === "pdf_reference" || blockType === "reference_board") return "pumi-reference";
   if (blockType === "lesson") return "pumi-lesson";
   if (blockType === "quiz") return "pumi-quiz";
   if (blockType === "flashcard") return "pumi-flashcard";
@@ -411,22 +640,57 @@ function blockToShape(
   const title =
     (typeof block.title === "string" && block.title.trim() ? block.title : undefined) ??
     (typeof content.title === "string" ? content.title : undefined) ??
-    (block.type === "source" ? "Source" : block.type === "ai_sticky" ? "AI Insight" : "Note");
+    (block.type === "source"
+      ? "Source"
+      : block.type === "summary"
+        ? "Summary"
+        : block.type === "moodboard"
+          ? "Moodboard"
+          : block.type === "gif"
+            ? "GIF"
+            : block.type === "sticker"
+              ? "Sticker"
+              : block.type === "link"
+                ? "Link"
+                : block.type === "pdf_reference"
+                  ? "PDF Reference"
+                  : block.type === "reference_board"
+                    ? "Reference Board"
+        : block.type === "ai_sticky"
+          ? "AI Insight"
+          : "Note");
 
+  const imageUrlCandidates = [
+    content.image_url,
+    content.output_preview_url,
+    content.thumbnail_url,
+    content.preview_image_url,
+    content.gif_url,
+    content.cover_url,
+  ];
+  const allowsRawUrlImage =
+    block.type === "image_asset" ||
+    block.type === "image" ||
+    block.type === "gif" ||
+    block.type === "moodboard";
+  if (allowsRawUrlImage) {
+    imageUrlCandidates.push(content.url);
+  }
   const imageUrl =
-    (typeof content.url === "string" && content.url) ||
-    (typeof content.image_url === "string" && content.image_url) ||
-    (typeof content.output_preview_url === "string" && content.output_preview_url) ||
+    imageUrlCandidates.find((value): value is string => typeof value === "string" && value.trim().length > 0 && isLikelyImageUrl(value)) ??
     "";
 
   const sourceName =
     (typeof content.name === "string" && content.name) ||
     (typeof content.source_name === "string" && content.source_name) ||
+    (typeof content.source_url === "string" && domainFromUrl(content.source_url)) ||
+    (typeof content.url === "string" && domainFromUrl(content.url)) ||
     "Source";
 
   const excerpt =
     (typeof content.excerpt === "string" && content.excerpt) ||
     (typeof content.summary_preview === "string" && content.summary_preview) ||
+    (typeof content.description === "string" && content.description) ||
     "";
 
   const shapeContent = buildShapeContent(block, content);
@@ -442,6 +706,11 @@ function blockToShape(
       blockId: block.id,
       blockType: block.type,
       title,
+      subtitle: shapeContent.subtitle,
+      richText: shapeContent.richText,
+      font: shapeContent.font,
+      fontSize: shapeContent.fontSize,
+      textColor: shapeContent.textColor,
       text: shapeContent.text,
       items: shapeContent.items,
       meta: shapeContent.meta,
@@ -482,12 +751,24 @@ function createInitialContent(type: BlockType, isHu: boolean, section: "ideas" |
     section,
     section_key: section,
     layout,
+    subtitle: "",
+    body_rich_text: toRichText(""),
+    text_font: "sans",
+    text_size: 15,
+    text_color: "default",
   };
 
   if (type === "note") return { ...base, text: isHu ? "Rögzítsd itt a következő fontos gondolatot." : "Capture the next important thought here." };
+  if (type === "summary") return { ...base, text: isHu ? "Írd ide a tömör összegzést." : "Write the distilled summary here." };
   if (type === "ai_sticky") return { ...base, text: "AI insight", created_from: "mentor" };
   if (type === "source") return { ...base, name: isHu ? "Forrás" : "Source", excerpt: "", source_type: "text" };
+  if (type === "link") return { ...base, url: "", description: "", source_type: "link" };
+  if (type === "pdf_reference") return { ...base, url: "", description: "", source_type: "pdf" };
+  if (type === "reference_board") return { ...base, references: [], description: "" };
   if (type === "image_asset") return { ...base, url: "", caption: "" };
+  if (type === "gif") return { ...base, gif_url: "", caption: "" };
+  if (type === "sticker") return { ...base, emoji: "✨", note: "" };
+  if (type === "moodboard") return { ...base, images: [], note: "" };
   if (type === "lesson") return { ...base, explanation: "", key_points: [] };
   if (type === "quiz") return { ...base, questions: [] };
   if (type === "flashcard") return { ...base, cards: [] };
@@ -511,8 +792,12 @@ function createInitialContent(type: BlockType, isHu: boolean, section: "ideas" |
 
 function defaultInsertedTitle(type: BlockType, isHu: boolean): string | undefined {
   const en: Partial<Record<BlockType, string>> = {
+    summary: "Summary",
     ai_sticky: "AI Insight",
     source: "Source",
+    link: "Link",
+    pdf_reference: "PDF Reference",
+    reference_board: "Reference Board",
     lesson: "Lesson",
     quiz: "Quiz",
     flashcard: "Flashcards",
@@ -521,12 +806,19 @@ function defaultInsertedTitle(type: BlockType, isHu: boolean): string | undefine
     critique: "Critique",
     brief: "Brief",
     storyboard: "Storyboard",
+    moodboard: "Moodboard",
+    gif: "GIF",
+    sticker: "Sticker",
     image_generation: "Image Generation",
   };
 
   const hu: Partial<Record<BlockType, string>> = {
+    summary: "Összegzés",
     ai_sticky: "AI Insight",
     source: "Forrás",
+    link: "Link",
+    pdf_reference: "PDF referencia",
+    reference_board: "Referencia board",
     lesson: "Lecke",
     quiz: "Kvíz",
     flashcard: "Flashcardok",
@@ -535,6 +827,9 @@ function defaultInsertedTitle(type: BlockType, isHu: boolean): string | undefine
     critique: "Kritika",
     brief: "Brief",
     storyboard: "Storyboard",
+    moodboard: "Moodboard",
+    gif: "GIF",
+    sticker: "Sticker",
     image_generation: "Kép generálás",
   };
 
@@ -561,10 +856,17 @@ interface BlockEditorDraft {
 
 const EDITABLE_BLOCK_TYPES = new Set<BlockType>([
   "note",
+  "summary",
   "ai_sticky",
   "image_asset",
   "image",
+  "gif",
+  "sticker",
+  "moodboard",
+  "reference_board",
   "source",
+  "link",
+  "pdf_reference",
   "lesson",
   "quiz",
   "brief",
@@ -583,7 +885,11 @@ function toTextLines(value: unknown): string {
           (item as { scene_title?: unknown }).scene_title ??
           (item as { title?: unknown }).title ??
           (item as { text?: unknown }).text ??
-          (item as { front?: unknown }).front;
+          (item as { front?: unknown }).front ??
+          (item as { url?: unknown }).url ??
+          (item as { image_url?: unknown }).image_url ??
+          (item as { src?: unknown }).src ??
+          (item as { link?: unknown }).link;
         return typeof candidate === "string" ? candidate.trim() : "";
       }
       return "";
@@ -607,34 +913,63 @@ function isEditableBlockType(type: BlockType): boolean {
   return EDITABLE_BLOCK_TYPES.has(type);
 }
 
+function supportsRichTextEditing(type: BlockType): boolean {
+  return (
+    type === "note" ||
+    type === "ai_sticky" ||
+    type === "lesson" ||
+    type === "brief" ||
+    type === "storyboard" ||
+    type === "summary" ||
+    type === "source"
+  );
+}
+
 function createEditorDraft(block: CanvasBlock): BlockEditorDraft {
   const content = (block.content_json ?? {}) as Record<string, unknown>;
   const title = toText(block.title) || toText(content.title);
 
   const fields: Record<string, string> = {};
 
-  if (block.type === "note" || block.type === "ai_sticky") {
+  if (block.type === "note" || block.type === "summary" || block.type === "ai_sticky") {
+    fields.subtitle = toText(content.subtitle);
     fields.text = toText(content.text);
   } else if (block.type === "image_asset" || block.type === "image") {
     fields.url = toText(content.url) || toText(content.image_url);
     fields.caption = toText(content.caption) || toText(content.text);
     fields.reference = toText(content.reference_input);
+  } else if (block.type === "gif") {
+    fields.url = toText(content.gif_url) || toText(content.url);
+    fields.caption = toText(content.caption) || toText(content.text);
+  } else if (block.type === "sticker") {
+    fields.emoji = toText(content.emoji) || toText(content.symbol) || toText(content.text);
+    fields.note = toText(content.note) || toText(content.description);
+  } else if (block.type === "moodboard" || block.type === "reference_board") {
+    fields.note = toText(content.note) || toText(content.description) || toText(content.text);
+    fields.references = toTextLines(content.images) || toTextLines(content.references) || toTextLines(content.items);
   } else if (block.type === "source") {
+    fields.subtitle = toText(content.subtitle);
     fields.name = toText(content.name) || toText(content.source_name);
     fields.excerpt = toText(content.excerpt) || toText(content.text);
     fields.source_url = toText(content.source_url) || toText(content.url);
+  } else if (block.type === "link" || block.type === "pdf_reference") {
+    fields.url = toText(content.url);
+    fields.description = toText(content.description) || toText(content.excerpt) || toText(content.text);
   } else if (block.type === "lesson") {
+    fields.subtitle = toText(content.subtitle);
     fields.explanation = toText(content.explanation) || toText(content.text);
     fields.key_points = toTextLines(content.key_points);
   } else if (block.type === "quiz") {
     fields.intro = toText(content.text);
     fields.questions = toTextLines(content.questions);
   } else if (block.type === "brief") {
+    fields.subtitle = toText(content.subtitle);
     fields.objective = toText(content.objective) || toText(content.text);
     fields.audience = toText(content.audience);
     fields.tone = toText(content.tone);
     fields.output = toText(content.output);
   } else if (block.type === "storyboard") {
+    fields.subtitle = toText(content.subtitle);
     fields.summary = toText(content.text);
     fields.scenes = toTextLines(content.scenes);
   } else if (block.type === "image_generation") {
@@ -653,8 +988,15 @@ function createEditorDraft(block: CanvasBlock): BlockEditorDraft {
 }
 
 function inspectorFieldsForType(type: BlockType): InspectorFieldConfig[] {
-  if (type === "note" || type === "ai_sticky") {
+  if (type === "note" || type === "summary" || type === "ai_sticky") {
     return [
+      {
+        key: "subtitle",
+        labelEn: "Subtitle",
+        labelHu: "Alcím",
+        placeholderEn: "Optional context line",
+        placeholderHu: "Opcionális kontextus sor",
+      },
       {
         key: "text",
         labelEn: "Text",
@@ -695,8 +1037,78 @@ function inspectorFieldsForType(type: BlockType): InspectorFieldConfig[] {
     ];
   }
 
+  if (type === "gif") {
+    return [
+      {
+        key: "url",
+        labelEn: "GIF URL",
+        labelHu: "GIF URL",
+        placeholderEn: "https://...",
+        placeholderHu: "https://...",
+      },
+      {
+        key: "caption",
+        labelEn: "Caption",
+        labelHu: "Felirat",
+        placeholderEn: "What does this visual cue represent?",
+        placeholderHu: "Mit jelez ez a vizuális elem?",
+        multiline: true,
+        rows: 3,
+      },
+    ];
+  }
+
+  if (type === "sticker") {
+    return [
+      {
+        key: "emoji",
+        labelEn: "Sticker / Emoji",
+        labelHu: "Sticker / Emoji",
+        placeholderEn: "✨",
+        placeholderHu: "✨",
+      },
+      {
+        key: "note",
+        labelEn: "Meaning",
+        labelHu: "Jelentés",
+        placeholderEn: "What this marker means",
+        placeholderHu: "Mit jelöl ez a marker",
+      },
+    ];
+  }
+
+  if (type === "moodboard" || type === "reference_board") {
+    return [
+      {
+        key: "references",
+        labelEn: "References (one URL per line)",
+        labelHu: "Referenciák (egy URL soronként)",
+        placeholderEn: "https://image-1\nhttps://image-2",
+        placeholderHu: "https://kep-1\nhttps://kep-2",
+        multiline: true,
+        rows: 6,
+      },
+      {
+        key: "note",
+        labelEn: "Direction note",
+        labelHu: "Irány jegyzet",
+        placeholderEn: "What visual direction should this board communicate?",
+        placeholderHu: "Milyen vizuális irányt adjon ez a board?",
+        multiline: true,
+        rows: 3,
+      },
+    ];
+  }
+
   if (type === "source") {
     return [
+      {
+        key: "subtitle",
+        labelEn: "Subtitle",
+        labelHu: "Alcím",
+        placeholderEn: "Optional source context",
+        placeholderHu: "Opcionális forrás kontextus",
+      },
       {
         key: "name",
         labelEn: "Source title",
@@ -723,8 +1135,36 @@ function inspectorFieldsForType(type: BlockType): InspectorFieldConfig[] {
     ];
   }
 
+  if (type === "link" || type === "pdf_reference") {
+    return [
+      {
+        key: "url",
+        labelEn: type === "pdf_reference" ? "PDF URL" : "Link URL",
+        labelHu: type === "pdf_reference" ? "PDF URL" : "Link URL",
+        placeholderEn: "https://...",
+        placeholderHu: "https://...",
+      },
+      {
+        key: "description",
+        labelEn: "Preview / note",
+        labelHu: "Előnézet / jegyzet",
+        placeholderEn: "Short context for why this reference matters",
+        placeholderHu: "Rövid kontextus, miért fontos ez a referencia",
+        multiline: true,
+        rows: 4,
+      },
+    ];
+  }
+
   if (type === "lesson") {
     return [
+      {
+        key: "subtitle",
+        labelEn: "Subtitle",
+        labelHu: "Alcím",
+        placeholderEn: "Lesson focus",
+        placeholderHu: "Lecke fókusz",
+      },
       {
         key: "explanation",
         labelEn: "Explanation",
@@ -772,6 +1212,13 @@ function inspectorFieldsForType(type: BlockType): InspectorFieldConfig[] {
   if (type === "brief") {
     return [
       {
+        key: "subtitle",
+        labelEn: "Subtitle",
+        labelHu: "Alcím",
+        placeholderEn: "Campaign or project context",
+        placeholderHu: "Kampány vagy projekt kontextus",
+      },
+      {
         key: "objective",
         labelEn: "Objective",
         labelHu: "Cél",
@@ -806,6 +1253,13 @@ function inspectorFieldsForType(type: BlockType): InspectorFieldConfig[] {
 
   if (type === "storyboard") {
     return [
+      {
+        key: "subtitle",
+        labelEn: "Subtitle",
+        labelHu: "Alcím",
+        placeholderEn: "Storyboard focus",
+        placeholderHu: "Storyboard fókusz",
+      },
       {
         key: "summary",
         labelEn: "Summary",
@@ -867,8 +1321,10 @@ function buildContentFromDraft(
   const content = { ...((block.content_json ?? {}) as Record<string, unknown>) };
   const fields = draft.fields;
 
-  if (block.type === "note" || block.type === "ai_sticky") {
+  if (block.type === "note" || block.type === "summary" || block.type === "ai_sticky") {
     content.text = fields.text ?? "";
+    content.subtitle = fields.subtitle ?? "";
+    content.body_rich_text = toRichText(fields.text ?? "");
     return content;
   }
 
@@ -881,19 +1337,66 @@ function buildContentFromDraft(
     return content;
   }
 
+  if (block.type === "gif") {
+    content.gif_url = fields.url ?? "";
+    content.url = fields.url ?? "";
+    content.caption = fields.caption ?? "";
+    content.text = fields.caption ?? "";
+    return content;
+  }
+
+  if (block.type === "sticker") {
+    const symbol = (fields.emoji ?? "").trim() || "✨";
+    content.emoji = symbol;
+    content.symbol = symbol;
+    content.text = symbol;
+    content.note = fields.note ?? "";
+    content.description = fields.note ?? "";
+    return content;
+  }
+
+  if (block.type === "moodboard" || block.type === "reference_board") {
+    const references = splitLines(fields.references ?? "");
+    if (block.type === "moodboard") {
+      content.images = references;
+      content.items = references;
+      content.note = fields.note ?? "";
+      content.text = fields.note ?? "";
+    } else {
+      content.references = references;
+      content.items = references;
+      content.description = fields.note ?? "";
+      content.text = fields.note ?? "";
+    }
+    return content;
+  }
+
   if (block.type === "source") {
+    content.subtitle = fields.subtitle ?? "";
     content.name = fields.name ?? "";
     content.source_name = fields.name ?? "";
     content.excerpt = fields.excerpt ?? "";
     content.text = fields.excerpt ?? "";
+    content.body_rich_text = toRichText(fields.excerpt ?? "");
     content.source_url = fields.source_url ?? "";
     content.url = fields.source_url ?? "";
     return content;
   }
 
+  if (block.type === "link" || block.type === "pdf_reference") {
+    content.url = fields.url ?? "";
+    content.source_url = fields.url ?? "";
+    content.description = fields.description ?? "";
+    content.excerpt = fields.description ?? "";
+    content.text = fields.description ?? "";
+    return content;
+  }
+
   if (block.type === "lesson") {
+    content.subtitle = fields.subtitle ?? "";
     content.explanation = fields.explanation ?? "";
     content.text = fields.explanation ?? "";
+    content.body_rich_text = toRichText(fields.explanation ?? "");
     content.key_points = splitLines(fields.key_points ?? "");
     return content;
   }
@@ -913,8 +1416,10 @@ function buildContentFromDraft(
   }
 
   if (block.type === "brief") {
+    content.subtitle = fields.subtitle ?? "";
     content.objective = fields.objective ?? "";
     content.text = fields.objective ?? "";
+    content.body_rich_text = toRichText(fields.objective ?? "");
     content.audience = fields.audience ?? "";
     content.tone = fields.tone ?? "";
     content.output = fields.output ?? "";
@@ -922,9 +1427,11 @@ function buildContentFromDraft(
   }
 
   if (block.type === "storyboard") {
+    content.subtitle = fields.subtitle ?? "";
     const currentScenes = Array.isArray(content.scenes) ? content.scenes : [];
     const sceneLines = splitLines(fields.scenes ?? "");
     content.text = fields.summary ?? "";
+    content.body_rich_text = toRichText(fields.summary ?? "");
     content.scenes = sceneLines.map((sceneTitle, index) => {
       const previous = currentScenes[index];
       if (previous && typeof previous === "object") {
@@ -943,6 +1450,58 @@ function buildContentFromDraft(
     return content;
   }
 
+  return content;
+}
+
+function readShapeTextState(props: PumiShapePropsSnapshot | undefined): PumiShapeTextState | null {
+  if (!props) return null;
+  const fallback = typeof (props as { text?: unknown }).text === "string" ? String((props as { text?: unknown }).text) : "";
+  return {
+    subtitle: typeof props.subtitle === "string" ? props.subtitle : "",
+    richText: readRichText(props.richText, fallback),
+    font: normalizeFont(props.font),
+    fontSize: normalizeFontSize(props.fontSize),
+    textColor: normalizeTextColor(props.textColor),
+  };
+}
+
+function buildContentFromShapeTextState(
+  block: CanvasBlock,
+  state: PumiShapeTextState,
+  plainText: string,
+): Record<string, unknown> {
+  const content = { ...((block.content_json ?? {}) as Record<string, unknown>) };
+  content.subtitle = state.subtitle;
+  content.body_rich_text = state.richText;
+  content.text_font = state.font;
+  content.text_size = state.fontSize;
+  content.text_color = state.textColor;
+
+  if (block.type === "source") {
+    content.excerpt = plainText;
+    content.text = plainText;
+    return content;
+  }
+  if (block.type === "lesson") {
+    content.explanation = plainText;
+    content.text = plainText;
+    return content;
+  }
+  if (block.type === "brief") {
+    content.objective = plainText;
+    content.text = plainText;
+    return content;
+  }
+  if (block.type === "storyboard") {
+    content.text = plainText;
+    return content;
+  }
+  if (block.type === "summary" || block.type === "note" || block.type === "ai_sticky") {
+    content.text = plainText;
+    return content;
+  }
+
+  content.text = plainText;
   return content;
 }
 
@@ -985,6 +1544,8 @@ export function CanvasSurface({
   const [editorDraft, setEditorDraft] = useState<BlockEditorDraft | null>(null);
   const [editorSaving, setEditorSaving] = useState(false);
   const [editorError, setEditorError] = useState<string | null>(null);
+  const [isInlineEditing, setIsInlineEditing] = useState(false);
+  const [richTextToolbarTick, setRichTextToolbarTick] = useState(0);
 
   const editorRef = useRef<Editor | null>(null);
   const editorCleanupRef = useRef<(() => void) | null>(null);
@@ -993,8 +1554,11 @@ export function CanvasSurface({
   const dragDepthRef = useRef(0);
   const persistTimersRef = useRef<Map<string, number>>(new Map());
   const persistRevisionRef = useRef<Map<string, number>>(new Map());
+  const textPersistTimersRef = useRef<Map<string, number>>(new Map());
+  const textPersistRevisionRef = useRef<Map<string, number>>(new Map());
   const layoutOverridesRef = useRef<Map<string, CanvasLayout>>(new Map());
   const insertPanelRef = useRef<HTMLDivElement | null>(null);
+  const inlineEditingRef = useRef(false);
   const missingProductionLicense = REQUIRE_TLDRAW_LICENSE && TLDRAW_LICENSE_KEY.length === 0;
   const canvasUnavailable = missingProductionLicense || Boolean(canvasRuntimeError);
   const selectedPrimaryBlock = useMemo(
@@ -1006,6 +1570,10 @@ export function CanvasSurface({
   );
   const editableSelectedBlock =
     selectedPrimaryBlock && isEditableBlockType(selectedPrimaryBlock.type)
+      ? selectedPrimaryBlock
+      : null;
+  const richTextSelectedBlock =
+    selectedPrimaryBlock && supportsRichTextEditing(selectedPrimaryBlock.type)
       ? selectedPrimaryBlock
       : null;
   const inspectorFields = useMemo(
@@ -1024,6 +1592,13 @@ export function CanvasSurface({
       window.clearTimeout(timer);
     }
     persistTimersRef.current.clear();
+    textPersistRevisionRef.current.clear();
+    for (const timer of textPersistTimersRef.current.values()) {
+      window.clearTimeout(timer);
+    }
+    textPersistTimersRef.current.clear();
+    inlineEditingRef.current = false;
+    setIsInlineEditing(false);
   }, [workspace.id]);
 
   const visibleBlocks = useMemo(() => blocks.filter((block) => block.type !== "board_section"), [blocks]);
@@ -1126,6 +1701,65 @@ export function CanvasSurface({
     } finally {
       setEditorSaving(false);
     }
+  };
+
+  const ensureEditingSelectedShape = () => {
+    const editor = editorRef.current;
+    if (!editor) return null;
+    const selected = editor.getOnlySelectedShape();
+    if (!selected || !String(selected.type).startsWith("pumi-")) return null;
+    if (!editor.getRichTextEditor()) {
+      startEditingShapeWithRichText(editor, selected.id);
+    }
+    return editor.getRichTextEditor();
+  };
+
+  const runRichTextAction = (run: (textEditor: any) => void) => {
+    const textEditor = ensureEditingSelectedShape();
+    if (!textEditor) return;
+    run(textEditor);
+    setRichTextToolbarTick((value) => value + 1);
+  };
+
+  const runNamedRichTextCommand = (commandName: string, args?: unknown) => {
+    runRichTextAction((textEditor) => {
+      const chain = textEditor.chain().focus();
+      const command = (chain as Record<string, unknown>)[commandName];
+      if (typeof command !== "function") return;
+      const result =
+        typeof args === "undefined"
+          ? (command as () => { run: () => void }).call(chain)
+          : (command as (value: unknown) => { run: () => void }).call(chain, args);
+      if (result && typeof result.run === "function") {
+        result.run();
+      }
+    });
+  };
+
+  const applySelectedShapeTextStyle = (patch: Partial<Pick<PumiShapeTextState, "font" | "fontSize" | "textColor">>) => {
+    const editor = editorRef.current;
+    if (!editor) return;
+
+    const targets = editor
+      .getSelectedShapes()
+      .filter((shape) => String(shape.type).startsWith("pumi-"))
+      .filter((shape) => {
+        const blockId =
+          (shape as { props?: { blockId?: string } }).props?.blockId ?? shapeIdToBlockId(String(shape.id));
+        const block = blocksRef.current.find((item) => item.id === blockId);
+        return !!block && supportsRichTextEditing(block.type);
+      });
+
+    if (targets.length === 0) return;
+
+    editor.updateShapes(
+      targets.map((shape) => ({
+        id: shape.id,
+        type: shape.type,
+        props: patch,
+      })) as never,
+    );
+    setRichTextToolbarTick((value) => value + 1);
   };
 
   const syncShapesFromBlocks = () => {
@@ -1251,6 +1885,55 @@ export function CanvasSurface({
     }
   };
 
+  const persistShapeText = async (blockId: string, state: PumiShapeTextState, revision: number) => {
+    const block = blocksRef.current.find((item) => item.id === blockId);
+    const editor = editorRef.current;
+    if (!block || !editor || !supportsRichTextEditing(block.type)) return;
+
+    const plainText = renderPlaintextFromRichText(editor, state.richText).trimEnd();
+    const nextContent = buildContentFromShapeTextState(block, state, plainText);
+
+    try {
+      const updated = await patchBlock(blockId, {
+        content_json: nextContent,
+      });
+
+      const currentRevision = textPersistRevisionRef.current.get(blockId) ?? 0;
+      if (revision !== currentRevision) {
+        if (DEV_DIAGNOSTICS) {
+          console.info(`[canvas] ignored stale text response for ${blockId}`);
+        }
+        return;
+      }
+
+      const next = blocksRef.current.map((item) => {
+        if (item.id !== blockId) return item;
+        return {
+          ...item,
+          ...updated,
+          content_json: {
+            ...(item.content_json ?? {}),
+            ...((updated.content_json ?? {}) as Record<string, unknown>),
+            ...nextContent,
+          },
+        };
+      });
+
+      const normalized = sortBlocks(next);
+      blocksRef.current = normalized;
+      onBlocksChange(normalized);
+
+      if (DEV_DIAGNOSTICS) {
+        console.info(`[canvas] persisted rich text for ${blockId}`);
+      }
+    } catch (error) {
+      const currentRevision = textPersistRevisionRef.current.get(blockId) ?? 0;
+      if (revision === currentRevision) {
+        console.error(`[canvas] failed to persist rich text for ${blockId}. Text may be local-only until next save.`, error);
+      }
+    }
+  };
+
   const scheduleLayoutPersist = (blockId: string, layout: CanvasLayout) => {
     layoutOverridesRef.current.set(blockId, layout);
 
@@ -1270,6 +1953,23 @@ export function CanvasSurface({
     persistTimersRef.current.set(blockId, timer);
   };
 
+  const scheduleShapeTextPersist = (blockId: string, state: PumiShapeTextState) => {
+    const existing = textPersistTimersRef.current.get(blockId);
+    if (existing) {
+      window.clearTimeout(existing);
+    }
+
+    const revision = (textPersistRevisionRef.current.get(blockId) ?? 0) + 1;
+    textPersistRevisionRef.current.set(blockId, revision);
+
+    const timer = window.setTimeout(() => {
+      void persistShapeText(blockId, state, revision);
+      textPersistTimersRef.current.delete(blockId);
+    }, 260);
+
+    textPersistTimersRef.current.set(blockId, timer);
+  };
+
   const handleEditorMount = (editor: Editor) => {
     editorCleanupRef.current?.();
     editorRef.current = editor;
@@ -1277,6 +1977,15 @@ export function CanvasSurface({
 
     const unlisten = editor.store.listen((entry: any) => {
       if (syncingRef.current) return;
+
+      const inlineEditingNow = Boolean(editor.getRichTextEditor());
+      if (inlineEditingRef.current !== inlineEditingNow) {
+        inlineEditingRef.current = inlineEditingNow;
+        setIsInlineEditing(inlineEditingNow);
+      }
+      if (inlineEditingNow) {
+        setRichTextToolbarTick((value) => value + 1);
+      }
 
       const selected = editor
         .getSelectedShapes()
@@ -1292,6 +2001,7 @@ export function CanvasSurface({
 
       const updated = (entry?.changes?.updated ?? {}) as Record<string, [any, any]>;
       for (const value of Object.values(updated)) {
+        const from = value?.[0];
         const to = value?.[1];
         if (!to || typeof to !== "object") continue;
         if (typeof to.type !== "string" || !to.type.startsWith("pumi-")) continue;
@@ -1308,8 +2018,34 @@ export function CanvasSurface({
           width: Math.max(120, Math.round(typeof to.props?.w === "number" ? to.props.w : 320)),
           height: Math.max(100, Math.round(typeof to.props?.h === "number" ? to.props.h : 220)),
         };
+        const previousLayout: CanvasLayout = {
+          x: Math.round(typeof from?.x === "number" ? from.x : layout.x),
+          y: Math.round(typeof from?.y === "number" ? from.y : layout.y),
+          width: Math.max(120, Math.round(typeof from?.props?.w === "number" ? from.props.w : layout.width)),
+          height: Math.max(100, Math.round(typeof from?.props?.h === "number" ? from.props.h : layout.height)),
+        };
+        if (!sameLayout(layout, previousLayout)) {
+          scheduleLayoutPersist(blockId, layout);
+        }
 
-        scheduleLayoutPersist(blockId, layout);
+        const fromProps = (from?.props ?? {}) as PumiShapePropsSnapshot;
+        const toProps = (to?.props ?? {}) as PumiShapePropsSnapshot;
+        const textChanged =
+          fromProps.subtitle !== toProps.subtitle ||
+          fromProps.font !== toProps.font ||
+          fromProps.fontSize !== toProps.fontSize ||
+          fromProps.textColor !== toProps.textColor ||
+          JSON.stringify(fromProps.richText ?? null) !== JSON.stringify(toProps.richText ?? null);
+
+        if (textChanged) {
+          const block = blocksRef.current.find((item) => item.id === blockId);
+          if (block && supportsRichTextEditing(block.type)) {
+            const textState = readShapeTextState(toProps);
+            if (textState) {
+              scheduleShapeTextPersist(blockId, textState);
+            }
+          }
+        }
       }
     });
 
@@ -1320,6 +2056,11 @@ export function CanvasSurface({
       }
       persistTimersRef.current.clear();
       persistRevisionRef.current.clear();
+      for (const timer of textPersistTimersRef.current.values()) {
+        window.clearTimeout(timer);
+      }
+      textPersistTimersRef.current.clear();
+      textPersistRevisionRef.current.clear();
       layoutOverridesRef.current.clear();
     };
   };
@@ -1522,6 +2263,23 @@ export function CanvasSurface({
     : missingProductionLicense
       ? "Missing environment variable: VITE_TLDRAW_LICENSE_KEY"
       : null;
+  const activeTextEditor = useMemo(() => editorRef.current?.getRichTextEditor() ?? null, [richTextToolbarTick, isInlineEditing, selectedBlockIds]);
+  const selectedShapeTextState = useMemo(() => {
+    const editor = editorRef.current;
+    if (!editor) return null;
+    const selectedShape = editor.getOnlySelectedShape();
+    if (!selectedShape || !String(selectedShape.type).startsWith("pumi-")) return null;
+    const blockId =
+      (selectedShape as { props?: { blockId?: string } }).props?.blockId ??
+      shapeIdToBlockId(String(selectedShape.id));
+    const block = blocksRef.current.find((item) => item.id === blockId);
+    if (!block || !supportsRichTextEditing(block.type)) return null;
+    return readShapeTextState((selectedShape as { props?: PumiShapePropsSnapshot }).props);
+  }, [richTextToolbarTick, selectedBlockIds, blocks]);
+  const showRichTextToolbar = Boolean(richTextSelectedBlock);
+  const activeFont = selectedShapeTextState?.font ?? "sans";
+  const activeFontSize = selectedShapeTextState?.fontSize ?? 15;
+  const activeTextColor = selectedShapeTextState?.textColor ?? "default";
 
   return (
     <div className="relative h-full min-h-[680px] p-2 md:p-3">
@@ -1550,13 +2308,173 @@ export function CanvasSurface({
           </div>
         )}
 
+        {!canvasUnavailable && showRichTextToolbar && (
+          <div className="absolute z-30 top-4 left-1/2 -translate-x-1/2 rounded-2xl border border-[var(--shell-border)] bg-[var(--shell-surface)]/95 px-2.5 py-2 shadow-xl backdrop-blur-md">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <button
+                onClick={() => runNamedRichTextCommand("toggleHeading", { level: 1 })}
+                className={`rounded-md border px-2 py-1 text-[11px] shell-interactive ${
+                  activeTextEditor?.isActive?.("heading", { level: 1 }) ? "bg-[var(--shell-accent-soft)] text-[var(--shell-text)]" : "shell-muted"
+                }`}
+              >
+                H1
+              </button>
+              <button
+                onClick={() => runNamedRichTextCommand("toggleHeading", { level: 2 })}
+                className={`rounded-md border px-2 py-1 text-[11px] shell-interactive ${
+                  activeTextEditor?.isActive?.("heading", { level: 2 }) ? "bg-[var(--shell-accent-soft)] text-[var(--shell-text)]" : "shell-muted"
+                }`}
+              >
+                H2
+              </button>
+              <button
+                onClick={() => runNamedRichTextCommand("setParagraph")}
+                className={`rounded-md border px-2 py-1 text-[11px] shell-interactive ${
+                  activeTextEditor?.isActive?.("paragraph") ? "bg-[var(--shell-accent-soft)] text-[var(--shell-text)]" : "shell-muted"
+                }`}
+              >
+                {isHu ? "Törzs" : "Body"}
+              </button>
+              <button
+                onClick={() => runNamedRichTextCommand("toggleBold")}
+                className={`rounded-md border px-2 py-1 text-[11px] font-semibold shell-interactive ${
+                  activeTextEditor?.isActive?.("bold") ? "bg-[var(--shell-accent-soft)] text-[var(--shell-text)]" : "shell-muted"
+                }`}
+              >
+                B
+              </button>
+              <button
+                onClick={() => runNamedRichTextCommand("toggleItalic")}
+                className={`rounded-md border px-2 py-1 text-[11px] italic shell-interactive ${
+                  activeTextEditor?.isActive?.("italic") ? "bg-[var(--shell-accent-soft)] text-[var(--shell-text)]" : "shell-muted"
+                }`}
+              >
+                I
+              </button>
+              <button
+                onClick={() => runNamedRichTextCommand("toggleBulletList")}
+                className={`rounded-md border px-2 py-1 text-[11px] shell-interactive ${
+                  activeTextEditor?.isActive?.("bulletList") ? "bg-[var(--shell-accent-soft)] text-[var(--shell-text)]" : "shell-muted"
+                }`}
+              >
+                • {isHu ? "Lista" : "Bullets"}
+              </button>
+              <button
+                onClick={() => runNamedRichTextCommand("toggleOrderedList")}
+                className={`rounded-md border px-2 py-1 text-[11px] shell-interactive ${
+                  activeTextEditor?.isActive?.("orderedList") ? "bg-[var(--shell-accent-soft)] text-[var(--shell-text)]" : "shell-muted"
+                }`}
+              >
+                1. {isHu ? "Lista" : "Numbers"}
+              </button>
+              <button
+                onClick={() =>
+                  runRichTextAction((textEditor) => {
+                    const currentValue = textEditor.isActive("link")
+                      ? String(textEditor.getAttributes("link")?.href ?? "")
+                      : "";
+                    const next = window.prompt(
+                      isHu ? "Link hozzáadása (üresen töröl)" : "Add link (empty to remove)",
+                      currentValue,
+                    );
+                    if (next === null) return;
+                    const trimmed = next.trim();
+                    if (!trimmed) {
+                      const chain = textEditor.chain().focus();
+                      const unsetLink = (chain as Record<string, unknown>).unsetLink;
+                      if (typeof unsetLink === "function") {
+                        const result = (unsetLink as () => { run: () => void }).call(chain);
+                        if (result && typeof result.run === "function") result.run();
+                      }
+                      return;
+                    }
+                    const href = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+                    const chain = textEditor.chain().focus();
+                    const setLink = (chain as Record<string, unknown>).setLink;
+                    if (typeof setLink === "function") {
+                      const result = (setLink as (value: { href: string }) => { run: () => void }).call(chain, { href });
+                      if (result && typeof result.run === "function") result.run();
+                    }
+                  })
+                }
+                className={`rounded-md border px-2 py-1 text-[11px] shell-interactive ${
+                  activeTextEditor?.isActive?.("link") ? "bg-[var(--shell-accent-soft)] text-[var(--shell-text)]" : "shell-muted"
+                }`}
+              >
+                {isHu ? "Link" : "Link"}
+              </button>
+              <button
+                onClick={() => runNamedRichTextCommand("toggleHighlight")}
+                className={`rounded-md border px-2 py-1 text-[11px] shell-interactive ${
+                  activeTextEditor?.isActive?.("highlight") ? "bg-[var(--shell-accent-soft)] text-[var(--shell-text)]" : "shell-muted"
+                }`}
+              >
+                {isHu ? "Kiemelés" : "Highlight"}
+              </button>
+
+              <select
+                value={activeFont}
+                onChange={(event) => applySelectedShapeTextStyle({ font: event.target.value as TLDefaultFontStyle })}
+                className="rounded-md border border-[var(--shell-border)] bg-[var(--shell-surface-2)]/70 px-2 py-1 text-[11px] text-[var(--shell-text)] outline-none"
+              >
+                {FONT_FAMILY_OPTIONS.map((font) => (
+                  <option key={font} value={font}>
+                    {font === "sans" ? "Sans" : font === "serif" ? "Serif" : font === "mono" ? "Mono" : "Draw"}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={activeFontSize}
+                onChange={(event) => applySelectedShapeTextStyle({ fontSize: Number(event.target.value) })}
+                className="rounded-md border border-[var(--shell-border)] bg-[var(--shell-surface-2)]/70 px-2 py-1 text-[11px] text-[var(--shell-text)] outline-none"
+              >
+                {FONT_SIZE_OPTIONS.map((size) => (
+                  <option key={size} value={size}>
+                    {size}px
+                  </option>
+                ))}
+              </select>
+
+              <div className="inline-flex items-center gap-1">
+                {TEXT_COLOR_KEYS.map((colorKey) => {
+                  const colorClass =
+                    colorKey === "default"
+                      ? "bg-[var(--shell-text)]"
+                      : colorKey === "muted"
+                        ? "bg-[var(--shell-muted)]"
+                        : colorKey === "accent"
+                          ? "bg-[var(--shell-accent)]"
+                          : colorKey === "violet"
+                            ? "bg-violet-500"
+                            : colorKey === "success"
+                              ? "bg-emerald-500"
+                              : colorKey === "warning"
+                                ? "bg-amber-500"
+                                : "bg-rose-500";
+                  return (
+                    <button
+                      key={colorKey}
+                      onClick={() => applySelectedShapeTextStyle({ textColor: colorKey })}
+                      className={`h-5 w-5 rounded-full border ${colorClass} ${
+                        activeTextColor === colorKey ? "ring-2 ring-[var(--shell-accent)]" : "ring-0"
+                      }`}
+                      title={colorKey}
+                      aria-label={colorKey}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
         {!canvasUnavailable && !editorDraft && selectedBlockIds.length > 0 && (
           <div className="absolute z-30 top-4 right-4 rounded-xl border border-[var(--shell-border)] bg-[var(--shell-surface)]/90 px-2.5 py-1.5 text-[11px] shell-muted">
             {selectedBlockIds.length} {selectedLabel}
           </div>
         )}
 
-        {!canvasUnavailable && editorDraft && (
+        {!canvasUnavailable && editorDraft && !isInlineEditing && (
           <div className="absolute z-30 top-4 right-4 w-[330px] rounded-2xl border border-[var(--shell-border)] bg-[var(--shell-surface)]/94 shadow-xl backdrop-blur-md p-3 space-y-2.5">
             <div className="flex items-center justify-between gap-2">
               <p className="text-[11px] uppercase tracking-[0.14em] shell-muted">
